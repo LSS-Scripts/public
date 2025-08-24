@@ -1,0 +1,1 @@
+Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.
