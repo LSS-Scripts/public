@@ -1,5 +1,26 @@
 [
   {
+    "name": "Betreuungsberechnung",
+    "version": "1.0.4",
+    "fileName": "Betreuungsberechnung.v1.0.4.user.js",
+    "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).Nicht perfekt, aber für den Anfang....",
+    "changelog": ""
+  },
+  {
+    "name": "Fahrzeug-Benennungs-Generator",
+    "version": "13.1.0",
+    "fileName": "Fahrzeug-Benennungs-Generator.v13.1.0.user.js",
+    "description": "Ein Script, das Fahrzeuge random benennt. Mit großer Wortliste....",
+    "changelog": ""
+  },
+  {
+    "name": "Fahrzeug-Tool",
+    "version": "4.2.0",
+    "fileName": "Fahrzeug-Tool.v4.2.0.user.js",
+    "description": "Ein Tool, dass alle angezeigten Fahrzeuge in einer Wache oder Leistelle verwaltet (Aktuelle Funktionen: Status 2/6 setzen, Rückalarmieren, Max. Besatzung setzen (Thema RTH-BUG), und Verschrotten)",
+    "changelog": ""
+  },
+  {
     "name": "Fahrzeugfilter",
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
