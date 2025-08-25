@@ -1,0 +1,1 @@
+Zeigt bei Verbands- und geteilten Einsätzen das früheste Zufahrts-Ende und bietet erweiterte Konfigurationsmöglichkeiten. Inklusive GSL- und RD-Gesperrt-Anzeige. (Modifizierte Version mit API-Abfrage für eigene Einsätze)
