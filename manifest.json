@@ -52,7 +52,7 @@
     "name": "VA - Verbandsmitgliedschaft prüfen",
     "version": "0.9.1",
     "fileName": "VA - Verbandsmitgliedschaft prüfen.v0.9.1.user.js",
-    "description": "",
+    "description": "Prüft im Verbandsforum in einem Thread, ob noch alle, die die dort geschrieben haben, noch im Verband sind. Wunschscript für Admins von Florian Hamburg... ;)",
     "changelog": ""
   },
   {
