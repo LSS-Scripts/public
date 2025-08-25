@@ -56,9 +56,9 @@
 
 
     // ----- KONFIGURATION DER VERBÄNDE -----
-    const OK_ALLIANCE_ID = settings.param2 ?? '24';
+    const OK_ALLIANCE_ID = settings.param1 ?? '24';
     const OK_ALLIANCE_LINK_PART = `/alliances/${OK_ALLIANCE_ID}`;
-    const OK_ALLIANCE_NAME = settings.param4 ?? 'FLORIAN HAMBURG';
+    const OK_ALLIANCE_NAME = settings.param2 ?? 'FLORIAN HAMBURG';
 
     // ------------------------------------
 

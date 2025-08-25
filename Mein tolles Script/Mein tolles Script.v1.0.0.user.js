@@ -55,16 +55,17 @@
 --*/
 
 // ==UserScript==
-// @name         Mein Tolles Skript
+// @name         Mein tolles Skript
 // @version      1.0.0
 // @description  Eine Beschreibung, was dieses Skript tut.
 // @author       Ein Entwickler
+// @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const SKRIPT_NAME = 'Mein Tolles Skript'; // WICHTIG: Muss mit dem @name oben übereinstimmen!
+    const SKRIPT_NAME = 'Mein tolles Skript'; // WICHTIG: Muss mit dem @name oben übereinstimmen!
 
     // Hole die vom Nutzer gespeicherten Einstellungen vom Manager ab.
     const settings = window.BMScriptManager?.getSettings(SKRIPT_NAME) || {};
