@@ -5,7 +5,7 @@
     // @namespace    http://tampermonkey.net/
     // @version      9.1
     // @description  Fügt einen Button im Spielermenü hinzu, um ausgewählten Wachen (filterbar nach Name, Typ, Leitstelle & Grafikset-Name) ein Grafikset zuzuweisen. Robusteres Laden der Set-Liste.
-    // @author       Gemini & User-Input
+    // @author       Masklin
     // @match        https://www.leitstellenspiel.de/
     // @grant        none
     // ==/UserScript==
