@@ -1,0 +1,2 @@
+Ein Tool, dass alle angezeigten Fahrzeuge in einer Wache oder Leistelle verwaltet 
+(Aktuelle Funktionen: Status 2/6 setzen, Rückalarmieren, Max. Besatzung setzen (Thema RTH-BUG), und Verschrotten)
