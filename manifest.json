@@ -56,6 +56,13 @@
     "changelog": ""
   },
   {
+    "name": "Verbandsrückmeldung schreiben und weiterspringen",
+    "version": "0.8.4",
+    "fileName": "Verbandsrückmeldung schreiben und weiterspringen.v0.8.4.user.js",
+    "description": "Fügt bei Verbandseinsätzen einen \"schreiben und weiter\"-Button ein. Wunschscript…",
+    "changelog": ""
+  },
+  {
     "name": "Wachen-Personal- & Erweiterungs-Prüfer",
     "version": "6.0.0",
     "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
