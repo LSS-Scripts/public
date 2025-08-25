@@ -23,7 +23,7 @@
 // @name         VA - Verbandsmitgliedschaft prüfen
 // @namespace    http://tampermonkey.net/
 // @version      0.91
-// @description  Fügt Buttons, Fortschrittsbalken und Ergebnis-Popup hinzu. Nur Allianz 24 ist "ok", alle anderen Fälle sind "auffällig". Das Skript kann gestoppt werden. Ergebnisse bleiben persistent bis zum neuen Scan.
+// @description  
 // @author       Masklin
 // @license      MIT
 // @match        https://www.leitstellenspiel.de/alliance_threads/*
