@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Fahrzeuglisten-Filter",
+    "version": "34.0.0",
+    "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
+    "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
+    "changelog": "{34.0.0}Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster{12.0.0}Gimmick: Gesamtkilometer auf Leitstellenseite..."
+  },
+  {
+    "name": "Grafikset-Manager",
+    "version": "9.1.0",
+    "fileName": "Grafikset-Manager.v9.1.0.user.js",
+    "description": "Fügt einen Button im Spielermenü hinzu, um ausgewählten Wachen (filterbar nach Name, Typ, Leitstelle & Grafikset-Name) ein Grafikset zuzuweisen. Robusteres Laden der Set-Liste.",
+    "changelog": ""
+  },
+  {
+    "name": "Mein tolles Script",
+    "version": "1.0.0",
+    "fileName": "Mein tolles Script.v1.0.0.user.js",
+    "description": "Ein Testscript auf die Parametrierungen. ",
+    "changelog": ""
+  },
+  {
+    "name": "Summenleiste",
+    "version": "2.8.0",
+    "fileName": "Summenleiste.v2.8.0.user.js",
+    "description": "Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt.",
+    "changelog": "{2.6}Zusammenfassung, UI-Bugs, Dark-Mode-Festigung{2.4}Debugging{2.0}Patienten & Gefangene zählen"
+  },
+  {
+    "name": "Wachen-Personal- & Erweiterungs-Prüfer",
+    "version": "6.0.0",
+    "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
+    "description": "Prüft anhand eines ZUVOR erstellten Wachenbauplans die Personalstärke, die Erweiterungen und bietet ggf. an diese zu bauen oder das Personal auszubilden (In freigegebenen Lehrgängen) oder die entpsrechende Anzahl über den verbandschat anzufragen. ",
+    "changelog": ""
+  }
+]
