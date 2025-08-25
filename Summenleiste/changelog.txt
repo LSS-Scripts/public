@@ -1,0 +1,9 @@
+{2.6}
+Zusammenfassung, UI-Bugs, Dark-Mode-Festigung
+
+{2.4}
+Debugging
+
+{2.0}
+Patienten & Gefangene zählen
+
