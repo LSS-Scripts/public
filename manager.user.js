@@ -23,23 +23,305 @@
     let db;
 
     window.BMScriptManager = {
-        // --- Die meisten Funktionen bleiben unverändert ---
-        openDatabase: function() { /* Unverändert */ },
-        getScriptsFromDB: function() { /* Unverändert */ },
-        saveScriptToDB: function(script) { /* Unverändert */ },
-        deleteScriptFromDB: function(scriptName) { /* Unverändert */ },
-        getScriptNameAndVersion: function(fileName) { /* Unverändert */ },
-        fetchRepoContents: function(dirName = '', customRepo = null) { /* Unverändert */ },
-        _fetchRawFile: function(filePath, repoInfo = null) { /* Unverändert */ },
-        fetchRawScript: function(dirName, fileName, repoInfo) { /* Unverändert */ },
-        fetchScriptInfo: async function(dirName, repoInfo) { /* Unverändert */ },
-        fetchChangelog: async function(dirName, repoInfo) { /* Unverändert */ },
-        extractMatchFromCode: function(code) { /* Unverändert */ },
-        runActiveScripts: async function() { /* Unverändert */ },
-        createUIElement: function(scriptMeta, infoText, buttonState) { /* Unverändert */ },
-        loadAndDisplayScripts: async function() { /* Unverändert */ },
+        openDatabase: function() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    db.createObjectStore('scripts', { keyPath: 'name' });
+                };
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve();
+                };
+                request.onerror = (event) => reject(event.target.error);
+            });
+        },
+        getScriptsFromDB: function() {
+            return new Promise((resolve, reject) => {
+                if (!db) { reject("Datenbank nicht geöffnet."); return; }
+                const transaction = db.transaction(['scripts'], 'readonly');
+                const objectStore = transaction.objectStore('scripts');
+                const request = objectStore.getAll();
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
+        },
+        saveScriptToDB: function(script) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['scripts'], 'readwrite');
+                const objectStore = transaction.objectStore('scripts');
+                const request = objectStore.put(script);
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        },
+        deleteScriptFromDB: function(scriptName) {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction(['scripts'], 'readwrite');
+                const objectStore = transaction.objectStore('scripts');
+                const request = objectStore.delete(scriptName);
+                request.onsuccess = () => resolve();
+                request.onerror = (event) => reject(event.target.error);
+            });
+        },
+        getScriptNameAndVersion: function(fileName) {
+            const regex = /(.+)\.v(\d+\.\d+\.\d+)\.user\.js/;
+            const match = fileName.match(regex);
+            if (match) {
+                return { name: match[1], version: match[2], fullName: fileName };
+            }
+            return null;
+        },
+        fetchRepoContents: function(dirName = '', customRepo = null) {
+            return new Promise((resolve, reject) => {
+                let owner = GITHUB_REPO_OWNER;
+                let name = GITHUB_REPO_NAME;
+                const headers = {};
+                const repoInfo = customRepo || { owner, name, token: null };
 
-        // --- ANGEPASST MIT MEHR LOGGING ---
+                if (customRepo) {
+                    owner = customRepo.owner;
+                    name = customRepo.name;
+                    if (customRepo.token) {
+                        headers['Authorization'] = `token ${customRepo.token}`;
+                    }
+                }
+                const apiUrl = `https://api.github.com/repos/${owner}/${name}/contents/${dirName}`;
+                
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: apiUrl,
+                    headers: headers,
+                    onload: (response) => {
+                        if (response.status === 200) {
+                            const contents = JSON.parse(response.responseText);
+                            contents.forEach(item => item.repoInfo = repoInfo);
+                            resolve(contents);
+                        } else {
+                            console.error(`[B&M Manager] Fehler (Status ${response.status}) für '${owner}/${name}'.`);
+                            resolve([]);
+                        }
+                    },
+                    onerror: (error) => {
+                        console.error(`[B&M Manager] Netzwerkfehler bei '${owner}/${name}'.`, error);
+                        reject(error);
+                    }
+                });
+            });
+        },
+        _fetchRawFile: function(filePath, repoInfo = null) {
+             return new Promise((resolve) => {
+                const owner = repoInfo ? repoInfo.owner : GITHUB_REPO_OWNER;
+                const name = repoInfo ? repoInfo.name : GITHUB_REPO_NAME;
+                const token = repoInfo ? repoInfo.token : null;
+                const fileUrl = `https://raw.githubusercontent.com/${owner}/${name}/main/${filePath}`;
+                const headers = token ? { 'Authorization': `token ${token}` } : {};
+
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: fileUrl,
+                    headers: headers,
+                    onload: (response) => {
+                        if (response.status === 200) {
+                            resolve({ success: true, content: response.responseText });
+                        } else {
+                           resolve({ success: false });
+                        }
+                    },
+                    onerror: () => resolve({ success: false })
+                });
+            });
+        },
+        fetchRawScript: function(dirName, fileName, repoInfo) {
+            return this._fetchRawFile(`${dirName}/${fileName}`, repoInfo);
+        },
+        fetchScriptInfo: async function(dirName, repoInfo) {
+            const result = await this._fetchRawFile(`${dirName}/info.txt`, repoInfo);
+            return result.success ? result.content : "Keine Beschreibung verfügbar.";
+        },
+        fetchChangelog: async function(dirName, repoInfo) {
+            const result = await this._fetchRawFile(`${dirName}/changelog.txt`, repoInfo);
+            return result.success && result.content.trim() !== '' ? `\n<hr>\n<strong>Changelog:</strong>\n${result.content}` : "";
+        },
+        extractMatchFromCode: function(code) {
+            const matchRegex = /@match\s+(.+)/g;
+            let match;
+            const matches = [];
+            while ((match = matchRegex.exec(code)) !== null) {
+                matches.push(match[1]);
+            }
+            return matches;
+        },
+        runActiveScripts: async function() {
+            await window.BMScriptManager.openDatabase();
+            const scripts = await window.BMScriptManager.getScriptsFromDB();
+            scripts.forEach(script => {
+                const isMatch = script.match.some(pattern => new RegExp(pattern.replace(/\*/g, '.*')).test(window.location.href));
+                if (isMatch) {
+                    try {
+                        eval(script.code);
+                    } catch (e) {
+                        console.error(`Fehler beim Ausführen von Skript '${script.name}':`, e);
+                    }
+                }
+            });
+        },
+        createUIElement: function(scriptMeta, infoText, buttonState) {
+            const scriptList = document.getElementById('script-list');
+            const item = document.createElement('div');
+            item.className = 'script-button ' + buttonState;
+
+            const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
+            let buttonContent = `<strong>${scriptMeta.name} <span class="version">v${scriptMeta.version}</span></strong>`;
+
+            if (isExternal) {
+                item.classList.add('external-script');
+                buttonContent = `<span class="external-symbol">⚠️</span> ` + buttonContent;
+            }
+            
+            if (buttonState === 'update') {
+                buttonContent += ` <span class="update-symbol" title="Update verfügbar">🔄</span>`;
+            }
+
+            item.innerHTML = buttonContent;
+            item.dataset.description = infoText;
+            scriptList.appendChild(item);
+
+            item.addEventListener('mouseover', (e) => {
+                const tooltip = document.getElementById('bm-global-tooltip');
+                tooltip.innerHTML = e.currentTarget.dataset.description;
+                
+                const buttonRect = e.currentTarget.getBoundingClientRect();
+                tooltip.style.display = 'block';
+
+                const tooltipWidth = tooltip.offsetWidth;
+                const viewportWidth = window.innerWidth;
+
+                let leftPos = buttonRect.right + 10;
+
+                if (leftPos + tooltipWidth > viewportWidth - 15) {
+                    leftPos = buttonRect.left - tooltipWidth - 10;
+                }
+
+                tooltip.style.top = `${buttonRect.top}px`;
+                tooltip.style.left = `${leftPos}px`;
+            });
+            item.addEventListener('mouseout', () => {
+                document.getElementById('bm-global-tooltip').style.display = 'none';
+            });
+            item.addEventListener('click', () => {
+                const currentState = scriptStates[scriptMeta.name];
+                if (['active', 'update'].includes(currentState)) scriptStates[scriptMeta.name] = 'deactivate';
+                else if (currentState === 'deactivate') scriptStates[scriptMeta.name] = 'active';
+                else if (currentState === 'install') scriptStates[scriptMeta.name] = 'activate';
+                else if (currentState === 'activate') scriptStates[scriptMeta.name] = 'install';
+
+                const isExt = item.classList.contains('external-script');
+                item.className = 'script-button ' + scriptStates[scriptMeta.name] + (isExt ? ' external-script' : '');
+            });
+        },
+        loadAndDisplayScripts: async function() {
+            const scriptList = document.getElementById('script-list');
+            const saveButton = document.getElementById('save-scripts-button');
+            
+            scriptList.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade und synchronisiere Skripte...</div>`;
+            saveButton.style.display = 'none';
+            document.getElementById('bm-script-filter').style.display = 'none';
+            scriptStates = {};
+            scriptMetadataCache = {};
+
+            try {
+                const accessConfigString = localStorage.getItem('bm_access_cfg');
+                const privateRepoPromises = [];
+                if (accessConfigString) {
+                    const repoConfigs = accessConfigString.split(';').filter(s => s.trim() !== '');
+                    for (const config of repoConfigs) {
+                        if (config.includes('@') && config.includes('/')) {
+                            try {
+                                const [token, repoPath] = config.split('@');
+                                const [owner, name] = repoPath.split('/');
+                                privateRepoPromises.push(window.BMScriptManager.fetchRepoContents('', { owner, name, token }));
+                            } catch (e) { console.error(`[B&M Manager] Fehler beim Parsen: "${config}"`); }
+                        }
+                    }
+                }
+                
+                const allResults = await Promise.all([window.BMScriptManager.fetchRepoContents(), ...privateRepoPromises]);
+                const allDirectories = allResults.flat();
+                let dbScripts = await window.BMScriptManager.getScriptsFromDB();
+
+                const githubScriptNames = new Set(allDirectories.filter(dir => dir.type === 'dir').map(dir => dir.name));
+                const scriptsToDelete = dbScripts.filter(localScript => !githubScriptNames.has(localScript.name));
+                if (scriptsToDelete.length > 0) {
+                    await Promise.all(scriptsToDelete.map(script => window.BMScriptManager.deleteScriptFromDB(script.name)));
+                    dbScripts = await window.BMScriptManager.getScriptsFromDB();
+                }
+
+                allDirectories.sort((a, b) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()));
+                
+                scriptList.innerHTML = '';
+                
+                for (const dir of allDirectories.filter(d => d.type === 'dir')) {
+                    const filesInDir = await window.BMScriptManager.fetchRepoContents(dir.name, dir.repoInfo);
+                    const userJsFile = filesInDir.find(f => f.name.endsWith('.user.js'));
+                    if (!userJsFile) continue;
+                    const scriptMeta = window.BMScriptManager.getScriptNameAndVersion(userJsFile.name);
+                    if (!scriptMeta) continue;
+                    
+                    scriptMeta.repoInfo = dir.repoInfo;
+                    scriptMetadataCache[scriptMeta.name] = scriptMeta;
+                    
+                    const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
+                    let extraInfo = '';
+
+                    if (isExternal) {
+                        const repoPath = `${scriptMeta.repoInfo.owner}/${scriptMeta.repoInfo.name}`;
+                        extraInfo = `<strong><span class="external-warning">! NICHT ZUR WEITERGABE BESTIMMT !</span></strong>\n`;
+                        extraInfo += `<em>Quelle: ${repoPath}</em>\n<hr>\n`;
+                    }
+
+                    const [info, changelog] = await Promise.all([
+                        window.BMScriptManager.fetchScriptInfo(dir.name, dir.repoInfo),
+                        window.BMScriptManager.fetchChangelog(dir.name, dir.repoInfo)
+                    ]);
+                    
+                    const fullDescription = extraInfo + info + changelog;
+                    
+                    const localScript = dbScripts.find(s => s.name === scriptMeta.name);
+                    let buttonState = 'install';
+
+                    if (localScript) {
+                        if (localScript.version === scriptMeta.version) {
+                            buttonState = 'active';
+                        } else {
+                            const onlineVersion = scriptMeta.version.split('.').map(Number);
+                            const localVersion = localScript.version.split('.').map(Number);
+
+                            const [onlineMajor, onlineMinor, onlinePatch] = onlineVersion;
+                            const [localMajor, localMinor, localPatch] = localVersion;
+
+                            if (onlineMajor > localMajor ||
+                               (onlineMajor === localMajor && onlineMinor > localMinor) ||
+                               (onlineMajor === localMajor && onlineMinor === localMinor && onlinePatch > localPatch))
+                            {
+                                buttonState = 'update';
+                            } else {
+                                buttonState = 'active';
+                            }
+                        }
+                    }
+
+                    window.BMScriptManager.createUIElement(scriptMeta, fullDescription, buttonState);
+                    scriptStates[scriptMeta.name] = buttonState;
+                }
+                saveButton.style.display = 'block';
+                document.getElementById('bm-script-filter').style.display = 'block';
+            } catch (error) {
+                console.error('B&M Manager: Kritischer Fehler:', error);
+                scriptList.innerHTML = `<p style="color:red; text-align: center;">Fehler beim Laden der Skripte.<br>Bitte Konsole prüfen.</p>`;
+            }
+        },
         saveChangesAndReload: async function() {
             const saveButton = document.getElementById('save-scripts-button');
             saveButton.disabled = true;
@@ -77,313 +359,6 @@
             setTimeout(() => { location.reload(); }, 300);
         }
     };
-    
-    // --- VOLLSTÄNDIGER CODE-BLOCK ZUR VERMEIDUNG VON FEHLERN ---
-    (function() {
-        const fullScriptBody = {
-            openDatabase: function() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(DB_NAME, DB_VERSION);
-                    request.onupgradeneeded = (event) => {
-                        const db = event.target.result;
-                        db.createObjectStore('scripts', { keyPath: 'name' });
-                    };
-                    request.onsuccess = (event) => {
-                        db = event.target.result;
-                        resolve();
-                    };
-                    request.onerror = (event) => reject(event.target.error);
-                });
-            },
-            getScriptsFromDB: function() {
-                return new Promise((resolve, reject) => {
-                    if (!db) { reject("Datenbank nicht geöffnet."); return; }
-                    const transaction = db.transaction(['scripts'], 'readonly');
-                    const objectStore = transaction.objectStore('scripts');
-                    const request = objectStore.getAll();
-                    request.onsuccess = (event) => resolve(event.target.result);
-                    request.onerror = (event) => reject(event.target.error);
-                });
-            },
-            saveScriptToDB: function(script) {
-                return new Promise((resolve, reject) => {
-                    const transaction = db.transaction(['scripts'], 'readwrite');
-                    const objectStore = transaction.objectStore('scripts');
-                    const request = objectStore.put(script);
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-            },
-            deleteScriptFromDB: function(scriptName) {
-                return new Promise((resolve, reject) => {
-                    const transaction = db.transaction(['scripts'], 'readwrite');
-                    const objectStore = transaction.objectStore('scripts');
-                    const request = objectStore.delete(scriptName);
-                    request.onsuccess = () => resolve();
-                    request.onerror = (event) => reject(event.target.error);
-                });
-            },
-            getScriptNameAndVersion: function(fileName) {
-                const regex = /(.+)\.v(\d+\.\d+\.\d+)\.user\.js/;
-                const match = fileName.match(regex);
-                if (match) {
-                    return { name: match[1], version: match[2], fullName: fileName };
-                }
-                return null;
-            },
-            fetchRepoContents: function(dirName = '', customRepo = null) {
-                return new Promise((resolve, reject) => {
-                    let owner = GITHUB_REPO_OWNER;
-                    let name = GITHUB_REPO_NAME;
-                    const headers = {};
-                    const repoInfo = customRepo || { owner, name, token: null };
-    
-                    if (customRepo) {
-                        owner = customRepo.owner;
-                        name = customRepo.name;
-                        if (customRepo.token) {
-                            headers['Authorization'] = `token ${customRepo.token}`;
-                        }
-                    }
-                    const apiUrl = `https://api.github.com/repos/${owner}/${name}/contents/${dirName}`;
-                    
-                    GM_xmlhttpRequest({
-                        method: 'GET',
-                        url: apiUrl,
-                        headers: headers,
-                        onload: (response) => {
-                            if (response.status === 200) {
-                                const contents = JSON.parse(response.responseText);
-                                contents.forEach(item => item.repoInfo = repoInfo);
-                                resolve(contents);
-                            } else {
-                                console.error(`[B&M Manager] Fehler (Status ${response.status}) für '${owner}/${name}'.`);
-                                resolve([]);
-                            }
-                        },
-                        onerror: (error) => {
-                            console.error(`[B&M Manager] Netzwerkfehler bei '${owner}/${name}'.`, error);
-                            reject(error);
-                        }
-                    });
-                });
-            },
-            _fetchRawFile: function(filePath, repoInfo = null) {
-                 return new Promise((resolve) => {
-                    const owner = repoInfo ? repoInfo.owner : GITHUB_REPO_OWNER;
-                    const name = repoInfo ? repoInfo.name : GITHUB_REPO_NAME;
-                    const token = repoInfo ? repoInfo.token : null;
-                    const fileUrl = `https://raw.githubusercontent.com/${owner}/${name}/main/${filePath}`;
-                    const headers = token ? { 'Authorization': `token ${token}` } : {};
-    
-                    GM_xmlhttpRequest({
-                        method: 'GET',
-                        url: fileUrl,
-                        headers: headers,
-                        onload: (response) => {
-                            if (response.status === 200) {
-                                resolve({ success: true, content: response.responseText });
-                            } else {
-                               resolve({ success: false });
-                            }
-                        },
-                        onerror: () => resolve({ success: false })
-                    });
-                });
-            },
-            fetchRawScript: function(dirName, fileName, repoInfo) {
-                return this._fetchRawFile(`${dirName}/${fileName}`, repoInfo);
-            },
-            fetchScriptInfo: async function(dirName, repoInfo) {
-                const result = await this._fetchRawFile(`${dirName}/info.txt`, repoInfo);
-                return result.success ? result.content : "Keine Beschreibung verfügbar.";
-            },
-            fetchChangelog: async function(dirName, repoInfo) {
-                const result = await this._fetchRawFile(`${dirName}/changelog.txt`, repoInfo);
-                return result.success && result.content.trim() !== '' ? `\n<hr>\n<strong>Changelog:</strong>\n${result.content}` : "";
-            },
-            extractMatchFromCode: function(code) {
-                const matchRegex = /@match\s+(.+)/g;
-                let match;
-                const matches = [];
-                while ((match = matchRegex.exec(code)) !== null) {
-                    matches.push(match[1]);
-                }
-                return matches;
-            },
-            runActiveScripts: async function() {
-                await window.BMScriptManager.openDatabase();
-                const scripts = await window.BMScriptManager.getScriptsFromDB();
-                scripts.forEach(script => {
-                    const isMatch = script.match.some(pattern => new RegExp(pattern.replace(/\*/g, '.*')).test(window.location.href));
-                    if (isMatch) {
-                        try {
-                            eval(script.code);
-                        } catch (e) {
-                            console.error(`Fehler beim Ausführen von Skript '${script.name}':`, e);
-                        }
-                    }
-                });
-            },
-            createUIElement: function(scriptMeta, infoText, buttonState) {
-                const scriptList = document.getElementById('script-list');
-                const item = document.createElement('div');
-                item.className = 'script-button ' + buttonState;
-    
-                const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
-                let buttonContent = `<strong>${scriptMeta.name} <span class="version">v${scriptMeta.version}</span></strong>`;
-    
-                if (isExternal) {
-                    item.classList.add('external-script');
-                    buttonContent = `<span class="external-symbol">⚠️</span> ` + buttonContent;
-                }
-                
-                if (buttonState === 'update') {
-                    buttonContent += ` <span class="update-symbol" title="Update verfügbar">🔄</span>`;
-                }
-    
-                item.innerHTML = buttonContent;
-                item.dataset.description = infoText;
-                scriptList.appendChild(item);
-    
-                item.addEventListener('mouseover', (e) => {
-                    const tooltip = document.getElementById('bm-global-tooltip');
-                    tooltip.innerHTML = e.currentTarget.dataset.description;
-                    
-                    const buttonRect = e.currentTarget.getBoundingClientRect();
-                    tooltip.style.display = 'block';
-    
-                    const tooltipWidth = tooltip.offsetWidth;
-                    const viewportWidth = window.innerWidth;
-    
-                    let leftPos = buttonRect.right + 10;
-    
-                    if (leftPos + tooltipWidth > viewportWidth - 15) {
-                        leftPos = buttonRect.left - tooltipWidth - 10;
-                    }
-    
-                    tooltip.style.top = `${buttonRect.top}px`;
-                    tooltip.style.left = `${leftPos}px`;
-                });
-                item.addEventListener('mouseout', () => {
-                    document.getElementById('bm-global-tooltip').style.display = 'none';
-                });
-                item.addEventListener('click', () => {
-                    const currentState = scriptStates[scriptMeta.name];
-                    if (['active', 'update'].includes(currentState)) scriptStates[scriptMeta.name] = 'deactivate';
-                    else if (currentState === 'deactivate') scriptStates[scriptMeta.name] = 'active';
-                    else if (currentState === 'install') scriptStates[scriptMeta.name] = 'activate';
-                    else if (currentState === 'activate') scriptStates[scriptMeta.name] = 'install';
-    
-                    const isExt = item.classList.contains('external-script');
-                    item.className = 'script-button ' + scriptStates[scriptMeta.name] + (isExt ? ' external-script' : '');
-                });
-            },
-            loadAndDisplayScripts: async function() {
-                const scriptList = document.getElementById('script-list');
-                const saveButton = document.getElementById('save-scripts-button');
-                
-                scriptList.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade und synchronisiere Skripte...</div>`;
-                saveButton.style.display = 'none';
-                document.getElementById('bm-script-filter').style.display = 'none';
-                scriptStates = {};
-                scriptMetadataCache = {};
-    
-                try {
-                    const accessConfigString = localStorage.getItem('bm_access_cfg');
-                    const privateRepoPromises = [];
-                    if (accessConfigString) {
-                        const repoConfigs = accessConfigString.split(';').filter(s => s.trim() !== '');
-                        for (const config of repoConfigs) {
-                            if (config.includes('@') && config.includes('/')) {
-                                try {
-                                    const [token, repoPath] = config.split('@');
-                                    const [owner, name] = repoPath.split('/');
-                                    privateRepoPromises.push(window.BMScriptManager.fetchRepoContents('', { owner, name, token }));
-                                } catch (e) { console.error(`[B&M Manager] Fehler beim Parsen: "${config}"`); }
-                            }
-                        }
-                    }
-                    
-                    const allResults = await Promise.all([window.BMScriptManager.fetchRepoContents(), ...privateRepoPromises]);
-                    const allDirectories = allResults.flat();
-                    let dbScripts = await window.BMScriptManager.getScriptsFromDB();
-    
-                    const githubScriptNames = new Set(allDirectories.filter(dir => dir.type === 'dir').map(dir => dir.name));
-                    const scriptsToDelete = dbScripts.filter(localScript => !githubScriptNames.has(localScript.name));
-                    if (scriptsToDelete.length > 0) {
-                        await Promise.all(scriptsToDelete.map(script => window.BMScriptManager.deleteScriptFromDB(script.name)));
-                        dbScripts = await window.BMScriptManager.getScriptsFromDB();
-                    }
-    
-                    allDirectories.sort((a, b) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()));
-                    
-                    scriptList.innerHTML = '';
-                    
-                    for (const dir of allDirectories.filter(d => d.type === 'dir')) {
-                        const filesInDir = await window.BMScriptManager.fetchRepoContents(dir.name, dir.repoInfo);
-                        const userJsFile = filesInDir.find(f => f.name.endsWith('.user.js'));
-                        if (!userJsFile) continue;
-                        const scriptMeta = window.BMScriptManager.getScriptNameAndVersion(userJsFile.name);
-                        if (!scriptMeta) continue;
-                        
-                        scriptMeta.repoInfo = dir.repoInfo;
-                        scriptMetadataCache[scriptMeta.name] = scriptMeta;
-                        
-                        const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
-                        let extraInfo = '';
-    
-                        if (isExternal) {
-                            const repoPath = `${scriptMeta.repoInfo.owner}/${scriptMeta.repoInfo.name}`;
-                            extraInfo = `<strong><span class="external-warning">! NICHT ZUR WEITERGABE BESTIMMT !</span></strong>\n`;
-                            extraInfo += `<em>Quelle: ${repoPath}</em>\n<hr>\n`;
-                        }
-    
-                        const [info, changelog] = await Promise.all([
-                            window.BMScriptManager.fetchScriptInfo(dir.name, dir.repoInfo),
-                            window.BMScriptManager.fetchChangelog(dir.name, dir.repoInfo)
-                        ]);
-                        
-                        const fullDescription = extraInfo + info + changelog;
-                        
-                        const localScript = dbScripts.find(s => s.name === scriptMeta.name);
-                        let buttonState = 'install';
-    
-                        if (localScript) {
-                            if (localScript.version === scriptMeta.version) {
-                                buttonState = 'active';
-                            } else {
-                                const onlineVersion = scriptMeta.version.split('.').map(Number);
-                                const localVersion = localScript.version.split('.').map(Number);
-    
-                                const [onlineMajor, onlineMinor, onlinePatch] = onlineVersion;
-                                const [localMajor, localMinor, localPatch] = localVersion;
-    
-                                if (onlineMajor > localMajor ||
-                                   (onlineMajor === localMajor && onlineMinor > localMinor) ||
-                                   (onlineMajor === localMajor && onlineMinor === localMinor && onlinePatch > localPatch))
-                                {
-                                    buttonState = 'update';
-                                } else {
-                                    buttonState = 'active';
-                                }
-                            }
-                        }
-    
-                        window.BMScriptManager.createUIElement(scriptMeta, fullDescription, buttonState);
-                        scriptStates[scriptMeta.name] = buttonState;
-                    }
-                    saveButton.style.display = 'block';
-                    document.getElementById('bm-script-filter').style.display = 'block';
-                } catch (error) {
-                    console.error('B&M Manager: Kritischer Fehler:', error);
-                    scriptList.innerHTML = `<p style="color:red; text-align: center;">Fehler beim Laden der Skripte.<br>Bitte Konsole prüfen.</p>`;
-                }
-            }
-        };
-        // Füllt das Hauptobjekt mit allen Implementierungen
-        Object.assign(window.BMScriptManager, fullScriptBody);
-    })();
     
     GM_addStyle(`
         #lss-script-manager-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background-color: #222; color: #eee; border: 1px solid #555; border-radius: 5px; padding: 20px; font-family: sans-serif; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; width: 80%; max-width: 900px; }
