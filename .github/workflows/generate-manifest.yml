@@ -5,13 +5,10 @@ on:
     branches:
       - main
       - master
-  # Erlaube manuelles Starten
   workflow_dispatch:
 
-# --- NEU: Erlaube der Action, Änderungen zurückzuschreiben ---
 permissions:
   contents: write
-# --- ENDE NEU ---
 
 jobs:
   build-manifest:
@@ -26,14 +23,18 @@ jobs:
           FIRST_ENTRY=true
           for dir in */; do
             dir=${dir%*/}
-            # Ignoriere den .github Ordner
             if [ "$dir" == ".github" ]; then
               continue
             fi
             USER_SCRIPT=$(find "$dir" -maxdepth 1 -name "*.user.js")
             if [ -n "$USER_SCRIPT" ]; then
               FILENAME=$(basename "$USER_SCRIPT")
-              NAME=$(echo "$FILENAME" | sed -n 's/\.v[0-9]\+\.[0-9]\+\.[0-9]\+\.user\.js//p')
+              
+              # --- HIER IST DIE ENTSCHEIDENDE ÄNDERUNG ---
+              # Wir nehmen jetzt den Ordnernamen als Skript-Namen.
+              NAME="$dir"
+              # --- ENDE DER ÄNDERUNG ---
+
               VERSION=$(echo "$FILENAME" | sed -n 's/.*\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\)\.user\.js/\1/p')
               
               DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
