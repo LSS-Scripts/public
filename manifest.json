@@ -1,6 +1,6 @@
 [
   {
-    "name": "Fahrzeuglisten-Filter",
+    "name": "Fahrzeugfilter",
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
     "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
