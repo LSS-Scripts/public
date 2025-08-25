@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         All-in-One Namensgenerator v13.1 (Fehlerkorrektur)
+// @name         Fahrzeug-Benennungs-Generator
 // @namespace    http://tampermonkey.net/
-// @version      13.1
-// @description  Fehlerkorrektur: Alle neuen Module (Giftmischer, Himmelsleitern etc.) sind nun korrekt im Skript enthalten.
-// @author       Gemini & User-Input
+// @version      13.1.0
+// @description  siehe info
+// @author       Masklin
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
