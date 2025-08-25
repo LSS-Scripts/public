@@ -1,42 +1,44 @@
 name: Generate Manifest
 
-# Dieser Job wird bei jedem Push auf den Haupt-Branch (main oder master) ausgeführt
 on:
   push:
     branches:
       - main
       - master
+  # Erlaube manuelles Starten
+  workflow_dispatch:
+
+# --- NEU: Erlaube der Action, Änderungen zurückzuschreiben ---
+permissions:
+  contents: write
+# --- ENDE NEU ---
 
 jobs:
   build-manifest:
     runs-on: ubuntu-latest
     steps:
-      # Schritt 1: Code aus dem Repository auschecken
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Schritt 2: Das Skript ausführen, das die Magie vollbringt
       - name: Generate manifest.json
         run: |
-          # Ein kleines Shell-Skript, das die Arbeit erledigt
           echo "[" > manifest.json
           FIRST_ENTRY=true
-          # Gehe durch jeden Ordner im Hauptverzeichnis
           for dir in */; do
             dir=${dir%*/}
-            # Finde die .user.js Datei
+            # Ignoriere den .github Ordner
+            if [ "$dir" == ".github" ]; then
+              continue
+            fi
             USER_SCRIPT=$(find "$dir" -maxdepth 1 -name "*.user.js")
             if [ -n "$USER_SCRIPT" ]; then
-              # Extrahiere Name und Version aus dem Dateinamen
               FILENAME=$(basename "$USER_SCRIPT")
               NAME=$(echo "$FILENAME" | sed -n 's/\.v[0-9]\+\.[0-9]\+\.[0-9]\+\.user\.js//p')
               VERSION=$(echo "$FILENAME" | sed -n 's/.*\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\)\.user\.js/\1/p')
               
-              # Lese info.txt und changelog.txt
-              DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n')
-              CHANGELOG=$(cat "$dir/changelog.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n')
+              DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
+              CHANGELOG=$(cat "$dir/changelog.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
 
-              # Füge den Eintrag zur JSON-Datei hinzu
               if [ "$FIRST_ENTRY" = false ]; then
                 echo "," >> manifest.json
               fi
@@ -54,13 +56,11 @@ jobs:
           echo "]" >> manifest.json
           echo "manifest.json wurde erfolgreich erstellt."
 
-      # Schritt 3: Die neue manifest.json zurück ins Repository pushen
       - name: Commit and push if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add manifest.json
-          # Prüfe, ob es Änderungen gibt, bevor ein Commit gemacht wird
           if git diff --staged --quiet; then
             echo "Keine Änderungen an der manifest.json."
           else
