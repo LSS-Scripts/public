@@ -3,7 +3,7 @@
 // @namespace    https://github.com/LSS-Scripts/public
 // @version      7.1
 // @description  Ein zentraler Manager mit detailliertem Action-Logging, Filter, Grid-Layout und mehr.
-// @author       Dein Name
+// @author       Masklin
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
