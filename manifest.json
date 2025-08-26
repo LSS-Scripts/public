@@ -42,13 +42,6 @@
     "changelog": ""
   },
   {
-    "name": "Mein tolles Script",
-    "version": "1.0.0",
-    "fileName": "Mein tolles Script.v1.0.0.user.js",
-    "description": "Ein Testscript auf die Parametrierungen. ",
-    "changelog": ""
-  },
-  {
     "name": "Offline-Sprechwünsche entlassen",
     "version": "0.7.4",
     "fileName": "Offline-Sprechwünsche entlassen.v0.7.4.user.js",
