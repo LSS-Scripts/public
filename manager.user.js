@@ -3,7 +3,7 @@
 // @namespace    https://github.com/LSS-Scripts/public
 // @version      12.8 (Korrektur)
 // @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse. Update-Logik korrigiert.
-// @author       Dein Name (und Gemini)
+// @author       Masklin (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
