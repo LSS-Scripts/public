@@ -1,0 +1,2 @@
+Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen "Alle umschalten"-Knopf in der Hauptleiste.
+(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)
