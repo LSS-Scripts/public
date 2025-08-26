@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      12.4
-// @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse.
-// @author       Dein Name
+// @version      12.7 (Korrektur)
+// @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse. Undo für "Deinstallieren" hinzugefügt.
+// @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -21,6 +21,7 @@
     const CACHE_DURATION_MS = 10 * 60 * 1000;
 
     let scriptStates = {};
+    let initialScriptStates = {}; // Speichert den Ausgangszustand der Skripte beim Laden der UI
     let scriptMetadataCache = {};
     let db;
 
@@ -33,7 +34,9 @@
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
-                    db.createObjectStore('scripts', { keyPath: 'name' });
+                    if (!db.objectStoreNames.contains('scripts')) {
+                        db.createObjectStore('scripts', { keyPath: 'name' });
+                    }
                 };
                 request.onsuccess = (event) => {
                     db = event.target.result;
@@ -72,6 +75,7 @@
             });
         },
         deleteScriptFromDB: function(scriptName) {
+            localStorage.removeItem(`BMSettings_${scriptName}`);
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction(['scripts'], 'readwrite');
                 const objectStore = transaction.objectStore('scripts');
@@ -96,6 +100,9 @@
                 matches.push(match[1]);
             }
             return matches;
+        },
+        codeHasSettings: function(code) {
+            return /\/\*--BMScriptConfig([\s\S]*?)--\*\//.test(code);
         },
         _getDefaultBranch: async function(repoInfo) {
             const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
@@ -204,7 +211,7 @@
         runActiveScripts: async function() {
             await this.openDatabase();
             const scripts = await this.getScriptsFromDB();
-            for (const script of scripts) {
+            for (const script of scripts.filter(s => s.isActive !== false)) {
                 try {
                     const isMatch = script.match.some(pattern => new RegExp(pattern.replace(/\*/g, '.*')).test(window.location.href));
                     if (isMatch) {
@@ -229,7 +236,8 @@
             }
             item.innerHTML = `${icons} ${buttonContent}`;
             item.dataset.description = infoText;
-            if (buttonState === 'active' || buttonState === 'update') {
+
+            if (['active', 'update', 'inactive'].includes(buttonState) && scriptMeta.hasSettings) {
                 const configBtn = document.createElement('span');
                 configBtn.className = 'bm-config-btn';
                 configBtn.innerHTML = '⚙️';
@@ -240,6 +248,22 @@
                 });
                 item.appendChild(configBtn);
             }
+
+            if (['active', 'update', 'inactive'].includes(buttonState)) {
+                 const uninstallBtn = document.createElement('span');
+                 uninstallBtn.className = 'bm-uninstall-btn';
+                 uninstallBtn.innerHTML = '&times;';
+                 uninstallBtn.title = 'Skript deinstallieren & Einstellungen löschen';
+                 uninstallBtn.addEventListener('click', (e) => {
+                     e.stopPropagation();
+                     if (confirm(`Möchten Sie das Skript "${scriptMeta.name}" wirklich deinstallieren? Alle Einstellungen für dieses Skript werden ebenfalls gelöscht.`)) {
+                         scriptStates[scriptMeta.name] = 'uninstall';
+                         item.className = 'script-button uninstall' + (isExternal ? ' external-script' : '');
+                     }
+                 });
+                 item.appendChild(uninstallBtn);
+            }
+
             scriptList.appendChild(item);
             item.addEventListener('mouseover', (e) => {
                 const tooltip = document.getElementById('bm-global-tooltip');
@@ -260,10 +284,22 @@
             });
             item.addEventListener('click', () => {
                 const currentState = scriptStates[scriptMeta.name];
-                if (['active', 'update'].includes(currentState)) scriptStates[scriptMeta.name] = 'deactivate';
-                else if (currentState === 'deactivate') scriptStates[scriptMeta.name] = 'active';
-                else if (currentState === 'install') scriptStates[scriptMeta.name] = 'activate';
-                else if (currentState === 'activate') scriptStates[scriptMeta.name] = 'install';
+
+                // ########## KORREKTUR-BLOCK FÜR UNDO ##########
+                if (['active', 'update'].includes(currentState)) {
+                    scriptStates[scriptMeta.name] = 'inactive';
+                } else if (currentState === 'inactive') {
+                    scriptStates[scriptMeta.name] = 'active';
+                } else if (currentState === 'install') {
+                    scriptStates[scriptMeta.name] = 'activate';
+                } else if (currentState === 'activate') {
+                    scriptStates[scriptMeta.name] = 'install';
+                } else if (currentState === 'uninstall') {
+                    // Wenn der Button rot (uninstall) ist, setze ihn auf seinen ursprünglichen Zustand zurück.
+                    scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name];
+                }
+                // ###############################################
+
                 const isExt = item.classList.contains('external-script');
                 item.className = 'script-button ' + scriptStates[scriptMeta.name] + (isExt ? ' external-script' : '');
             });
@@ -325,14 +361,9 @@
             const filterInput = document.getElementById('bm-script-filter');
             scriptList.innerHTML = 'Verarbeite & sortiere...';
             let dbScripts = await this.getScriptsFromDB();
-            const githubScriptNames = new Set(allScripts.map(script => script.name));
-            const scriptsToDelete = dbScripts.filter(localScript => !githubScriptNames.has(localScript.name));
-            if (scriptsToDelete.length > 0) {
-                await Promise.all(scriptsToDelete.map(script => this.deleteScriptFromDB(script.name)));
-                dbScripts = await this.getScriptsFromDB();
-            }
             allScripts.sort((a, b) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()));
             scriptList.innerHTML = '';
+            initialScriptStates = {};
             for (const scriptMeta of allScripts) {
                 scriptMetadataCache[scriptMeta.name] = scriptMeta;
                 const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
@@ -344,13 +375,23 @@
                 const fullDescription = extraInfo + (scriptMeta.description || "Keine Beschreibung.") + (scriptMeta.changelog || "");
                 const localScript = dbScripts.find(s => s.name === scriptMeta.name);
                 let buttonState = 'install';
+
                 if (localScript) {
-                    if (localScript.version === scriptMeta.version) {
-                        buttonState = 'active';
+                    if (typeof localScript.hasSettings === 'undefined') {
+                        localScript.hasSettings = window.BMScriptManager.codeHasSettings(localScript.code);
+                        window.BMScriptManager.saveScriptToDB(localScript);
+                    }
+
+                    scriptMeta.hasSettings = scriptMeta.hasSettings || localScript.hasSettings;
+
+                    if (localScript.isActive === false) {
+                        buttonState = 'inactive';
                     } else {
-                        const [onlineMajor, onlineMinor, onlinePatch] = scriptMeta.version.split('.').map(Number);
-                        const [localMajor, localMinor, localPatch] = localScript.version.split('.').map(Number);
-                        if (onlineMajor > localMajor || (onlineMajor === localMajor && onlineMinor > localMinor) || (onlineMajor === localMajor && onlineMinor === localMinor && onlinePatch > localPatch)) {
+                         const onlineVersion = scriptMeta.version.split('.').map(Number);
+                         const localVersion = localScript.version.split('.').map(Number);
+                         if (onlineVersion[0] > localVersion[0] ||
+                            (onlineVersion[0] === localVersion[0] && onlineVersion[1] > localVersion[1]) ||
+                            (onlineVersion[0] === localVersion[0] && onlineVersion[1] === localVersion[1] && onlineVersion[2] > localVersion[2])) {
                             buttonState = 'update';
                         } else {
                             buttonState = 'active';
@@ -359,6 +400,7 @@
                 }
                 this.createUIElement(scriptMeta, fullDescription, buttonState);
                 scriptStates[scriptMeta.name] = buttonState;
+                initialScriptStates[scriptMeta.name] = buttonState;
             }
             saveButton.style.display = 'block';
             filterInput.style.display = 'block';
@@ -372,24 +414,36 @@
                 console.log(`[B&M Manager] Starte Speichervorgang...`);
                 for (const scriptName in scriptStates) {
                     const state = scriptStates[scriptName];
+                    const initialState = initialScriptStates[scriptName];
                     const scriptMeta = scriptMetadataCache[scriptName];
                     if (!scriptMeta) continue;
 
-                    if (['activate', 'update'].includes(state)) {
+                    if (state === initialState) continue;
+
+                    if (state === 'activate' || state === 'update') {
                         const action = state === 'activate' ? 'Installiere' : 'Aktualisiere';
                         console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (Version ${scriptMeta.version})`);
                         const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
                         if (result.success) {
-                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content) };
+                           const hasSettings = window.BMScriptManager.codeHasSettings(result.content);
+                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: true };
                            await window.BMScriptManager.saveScriptToDB(script);
                            console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gespeichert.`);
                         } else {
                            console.error(`[B&M Manager] ❌ Fehler beim Herunterladen von Skript '${scriptName}'.`);
                         }
-                    } else if (state === 'deactivate') {
-                        console.log(`[B&M Manager] 🗑️ Lösche Skript: '${scriptName}'`);
+                    } else if (state === 'uninstall') {
+                        console.log(`[B&M Manager] 🗑️ Deinstalliere Skript: '${scriptName}'`);
                         await window.BMScriptManager.deleteScriptFromDB(scriptName);
-                        console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gelöscht.`);
+                        console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich deinstalliert.`);
+                    } else if (state === 'inactive' || (state === 'active' && initialState === 'inactive')) {
+                         console.log(`[B&M Manager] 🔄 Ändere Status für '${scriptName}' zu '${state}'`);
+                         const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
+                         if (localScript) {
+                             localScript.isActive = (state === 'active' || state === 'update');
+                             await window.BMScriptManager.saveScriptToDB(localScript);
+                             console.log(`[B&M Manager] ✅ Status für '${scriptName}' erfolgreich aktualisiert.`);
+                         }
                     }
                 }
 
@@ -478,8 +532,8 @@
                 }
             }
             if (scriptCode) {
-                const match = scriptCode.match(/\/\*--BMScriptConfig([\s\S]*?)--\*\//);
-                if (match && match[1]) {
+                if (window.BMScriptManager.codeHasSettings(scriptCode)) {
+                    const match = scriptCode.match(/\/\*--BMScriptConfig([\s\S]*?)--\*\//);
                     try {
                         const schema = JSON.parse(match[1]);
                         this._buildSettingsUI(scriptName, schema);
@@ -513,8 +567,9 @@
         .script-button.install { background-color: #007bff; color: white; border-color: #007bff; }
         .script-button.update { background-color: #ffc107; border-color: #ffc107; color: #212529; }
         .script-button.active { background-color: #28a745; color: white; border-color: #28a745; }
-        .script-button.activate { background-color: #ffc107; border-color: #ffc107; color: #212529; }
-        .script-button.deactivate { background-color: #dc3545; color: white; border-color: #dc3545; }
+        .script-button.inactive { background-color: #6c757d; color: white; border-color: #6c757d; }
+        .script-button.uninstall { background-color: #dc3545; color: white; border-color: #dc3545; }
+        .script-button.activate { background-color: #17a2b8; border-color: #17a2b8; color: white; }
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; }
         #save-scripts-button { display: none; width: 100%; padding: 10px; margin-top: 20px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 5px; cursor: pointer; }
         .script-button.external-script { border-color: #ff9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
@@ -524,6 +579,9 @@
         .update-symbol { display: inline-block; animation: bm-spin 2s linear infinite; }
         .bm-config-btn { cursor: pointer; font-size: 1.1em; position: absolute; bottom: 5px; right: 8px; opacity: 0.6; transition: opacity 0.2s; }
         .script-button:hover .bm-config-btn { opacity: 1; }
+        .bm-uninstall-btn { position: absolute; top: -2px; right: 2px; font-size: 1.4em; color: #fff; cursor: pointer; opacity: 0; transition: opacity 0.2s; line-height: 1; background-color: rgba(0,0,0,0.3); border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; text-shadow: 0 0 3px black; }
+        .script-button:hover .bm-uninstall-btn { opacity: 0.8; }
+        .bm-uninstall-btn:hover { opacity: 1; color: #ffc107; }
         .bm-close-btn { position: absolute; top: 10px; right: 15px; font-size: 28px; font-weight: bold; color: #aaa; cursor: pointer; line-height: 1; transition: color 0.2s ease; }
         .bm-close-btn:hover { color: #fff; }
         .bm-loader-container { display: flex; justify-content: center; align-items: center; padding: 40px; color: #aaa; font-size: 1.1em; grid-column: 1 / -1; }
