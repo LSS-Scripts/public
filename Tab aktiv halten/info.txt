@@ -1,0 +1,1 @@
+Ein Versuch, Tabs im Browser aktiv zu halten - dass diese eben NICHT einschlafen, wenn der Tab gerade nicht aktiv ist.
