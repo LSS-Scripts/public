@@ -73,7 +73,7 @@
     "name": "Tab aktiv halten",
     "version": "0.5.0",
     "fileName": "Tab aktiv halten.v0.5.0.user.js",
-    "description": "",
+    "description": "Ein Versuch, Tabs im Browser aktiv zu halten - dass diese eben NICHT einschlafen, wenn der Tab gerade nicht aktiv ist.",
     "changelog": ""
   },
   {
