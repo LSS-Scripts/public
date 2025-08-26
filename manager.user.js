@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      12.7 (Korrektur)
-// @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse. Undo für "Deinstallieren" hinzugefügt.
+// @version      12.8 (Korrektur)
+// @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse. Update-Logik korrigiert.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -285,7 +285,6 @@
             item.addEventListener('click', () => {
                 const currentState = scriptStates[scriptMeta.name];
 
-                // ########## KORREKTUR-BLOCK FÜR UNDO ##########
                 if (['active', 'update'].includes(currentState)) {
                     scriptStates[scriptMeta.name] = 'inactive';
                 } else if (currentState === 'inactive') {
@@ -295,10 +294,8 @@
                 } else if (currentState === 'activate') {
                     scriptStates[scriptMeta.name] = 'install';
                 } else if (currentState === 'uninstall') {
-                    // Wenn der Button rot (uninstall) ist, setze ihn auf seinen ursprünglichen Zustand zurück.
                     scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name];
                 }
-                // ###############################################
 
                 const isExt = item.classList.contains('external-script');
                 item.className = 'script-button ' + scriptStates[scriptMeta.name] + (isExt ? ' external-script' : '');
@@ -418,7 +415,10 @@
                     const scriptMeta = scriptMetadataCache[scriptName];
                     if (!scriptMeta) continue;
 
-                    if (state === initialState) continue;
+                    // ########## KORREKTUR-BLOCK FÜR UPDATES ##########
+                    // Führe die Aktion aus, wenn sich der Zustand geändert hat, ODER wenn der Zustand 'update' ist (dieser muss immer ausgeführt werden).
+                    if (state === initialState && state !== 'update') continue;
+                    // ##################################################
 
                     if (state === 'activate' || state === 'update') {
                         const action = state === 'activate' ? 'Installiere' : 'Aktualisiere';
