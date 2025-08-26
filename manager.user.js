@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      12.3
+// @version      12.4
 // @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse.
 // @author       Dein Name
 // @match        https://www.leitstellenspiel.de/*
@@ -190,7 +190,7 @@
         fetchScriptsWithREST: async function(repoInfo, progressCallback) {
             const { owner, name, token } = repoInfo;
             try {
-                if (progressCallback) progressCallback(`Lade Repository: ${owner}/${name}...`);
+                if(progressCallback) progressCallback(`Lade Repository: ${owner}/${name}...`);
                 const rootDirsResult = await this._fetchRESTContents(`${owner}/${name}/contents/`, token);
                 if (!rootDirsResult.success) return [];
                 const rootDirs = rootDirsResult.data.filter(d => d.type === 'dir');
@@ -236,7 +236,7 @@
                 configBtn.title = 'Einstellungen';
                 configBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    this._fetchAndShowSettingsUI(scriptMeta.name);
+                    window.BMScriptManager._fetchAndShowSettingsUI(scriptMeta.name);
                 });
                 item.appendChild(configBtn);
             }
@@ -363,34 +363,46 @@
             saveButton.style.display = 'block';
             filterInput.style.display = 'block';
         },
-        saveChangesAndReload: async function() {
+        applyChanges: async function() {
             const saveButton = document.getElementById('save-scripts-button');
             saveButton.disabled = true;
-            saveButton.innerHTML = 'Speichere...';
-            console.log(`[B&M Manager] Starte Speichervorgang...`);
-            for (const scriptName in scriptStates) {
-                const state = scriptStates[scriptName];
-                const scriptMeta = scriptMetadataCache[scriptName];
-                if (!scriptMeta) continue;
-                if (['activate', 'update'].includes(state)) {
-                    const action = state === 'activate' ? 'Installiere' : 'Aktualisiere';
-                    console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (Version ${scriptMeta.version})`);
-                    const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
-                    if (result.success) {
-                       const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content) };
-                       await window.BMScriptManager.saveScriptToDB(script);
-                       console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gespeichert.`);
-                    } else {
-                       console.error(`[B&M Manager] ❌ Fehler beim Herunterladen von Skript '${scriptName}'.`);
+            saveButton.innerHTML = 'Wende Änderungen an...';
+
+            try {
+                console.log(`[B&M Manager] Starte Speichervorgang...`);
+                for (const scriptName in scriptStates) {
+                    const state = scriptStates[scriptName];
+                    const scriptMeta = scriptMetadataCache[scriptName];
+                    if (!scriptMeta) continue;
+
+                    if (['activate', 'update'].includes(state)) {
+                        const action = state === 'activate' ? 'Installiere' : 'Aktualisiere';
+                        console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (Version ${scriptMeta.version})`);
+                        const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
+                        if (result.success) {
+                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content) };
+                           await window.BMScriptManager.saveScriptToDB(script);
+                           console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gespeichert.`);
+                        } else {
+                           console.error(`[B&M Manager] ❌ Fehler beim Herunterladen von Skript '${scriptName}'.`);
+                        }
+                    } else if (state === 'deactivate') {
+                        console.log(`[B&M Manager] 🗑️ Lösche Skript: '${scriptName}'`);
+                        await window.BMScriptManager.deleteScriptFromDB(scriptName);
+                        console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gelöscht.`);
                     }
-                } else if (state === 'deactivate') {
-                    console.log(`[B&M Manager] 🗑️ Lösche Skript: '${scriptName}'`);
-                    await window.BMScriptManager.deleteScriptFromDB(scriptName);
-                    console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gelöscht.`);
                 }
+
+                console.log(`[B&M Manager] Alle Änderungen verarbeitet. Aktualisiere UI...`);
+                await window.BMScriptManager.loadAndDisplayScripts(true);
+
+            } catch (error) {
+                console.error('[B&M Manager] Ein Fehler ist beim Anwenden der Änderungen aufgetreten:', error);
+
+            } finally {
+                saveButton.disabled = false;
+                saveButton.innerHTML = 'Änderungen anwenden';
             }
-            console.log(`[B&M Manager] Alle Änderungen verarbeitet. Lade die Seite neu.`);
-            setTimeout(() => { location.reload(); }, 300);
         },
         getSettings: function(scriptName) {
             if (this._settingsCache[scriptName]) {
@@ -452,7 +464,7 @@
             const content = modal.querySelector('.bm-settings-content');
             content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`;
             modal.style.display = 'flex';
-            const localScript = await this.getSingleScriptFromDB(scriptName);
+            const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
             let scriptCode = localScript ? localScript.code : null;
             if (!scriptCode) {
                 const scriptMeta = scriptMetadataCache[scriptName];
@@ -460,7 +472,7 @@
                     content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Skript-Metadaten nicht gefunden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
                     return;
                 }
-                const result = await this.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
+                const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
                 if (result.success) {
                     scriptCode = result.content;
                 }
@@ -482,7 +494,7 @@
             }
         }
     };
-    
+
     GM_addStyle(`
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
         #lss-script-manager-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background-color: #222; color: #eee; border: 1px solid #555; border-radius: 5px; padding: 20px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; width: 80%; max-width: 900px; }
@@ -531,26 +543,26 @@
         .bm-settings-footer button { background-color: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
         .bm-settings-footer button#bm-settings-cancel { background-color: #6c757d; }
     `);
-    
+
     document.addEventListener('DOMContentLoaded', () => {
         const container = document.createElement('div');
         container.id = 'lss-script-manager-container';
         container.innerHTML = `
-            <span class="bm-close-btn" title="Schließen">&times;</span>
+            <span class="bm-close-btn" title="Schließen & Seite neu laden">&times;</span>
             <h3>B&M Scriptmanager</h3>
             <div id="bm-script-filter-wrapper">
                 <input type="text" id="bm-script-filter" placeholder="Filter nach Name oder Info..." style="display: none;">
                 <span id="bm-refresh-btn" title="Cache leeren und neu laden">🔄</span>
             </div>
             <div id="script-list"></div>
-            <button id="save-scripts-button" style="display: none;">Speichern und Seite neu laden</button>`;
+            <button id="save-scripts-button" style="display: none;">Änderungen anwenden</button>`;
         document.body.appendChild(container);
 
         const settingsModal = document.createElement('div');
         settingsModal.id = 'bm-settings-modal';
         settingsModal.innerHTML = `<div class="bm-settings-content"></div>`;
         document.body.appendChild(settingsModal);
-        
+
         const globalTooltip = document.createElement('div');
         globalTooltip.id = 'bm-global-tooltip';
         document.body.appendChild(globalTooltip);
@@ -560,7 +572,7 @@
             const scriptManagerMenuItem = document.createElement('li');
             scriptManagerMenuItem.innerHTML = `<a href="#" id="b-m-scriptmanager-link" role="button"><img class="icon icons8-Settings" src="/images/icons8-settings.svg" width="24" height="24"> B&M Scriptmanager</a>`;
             userMenu.parentNode.insertBefore(scriptManagerMenuItem, userMenu.nextSibling);
-            
+
             document.getElementById('b-m-scriptmanager-link').addEventListener('click', async (e) => {
                 e.preventDefault();
                 const managerContainer = document.getElementById('lss-script-manager-container');
@@ -571,13 +583,13 @@
                 }
             });
         }
-        
-        document.getElementById('save-scripts-button').addEventListener('click', window.BMScriptManager.saveChangesAndReload);
-        
+
+        document.getElementById('save-scripts-button').addEventListener('click', window.BMScriptManager.applyChanges);
+
         container.querySelector('.bm-close-btn').addEventListener('click', () => {
-            container.classList.remove('visible');
+            location.reload();
         });
-        
+
         document.getElementById('bm-refresh-btn').addEventListener('click', () => {
             window.BMScriptManager.loadAndDisplayScripts(true);
         });
