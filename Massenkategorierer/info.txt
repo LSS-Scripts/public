@@ -1,0 +1,1 @@
+Ein Script, um Fahrzeuge in größeren Mengen in eine eigene Fahrzeugklasse(n) einzuordnen.
