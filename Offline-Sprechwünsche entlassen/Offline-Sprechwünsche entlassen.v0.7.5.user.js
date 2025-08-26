@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Leitstellenspiel Patient Entlassen
 // @namespace    http://tampermonkey.net/
-// @version      0.74
-// @description  Fügt einen Button hinzu, der Sprechwünsche für FMS 5-Fahrzeuge sammelt
-// @author       Gemini
+// @version      0.7.5
+// @description  Fügt einen Button hinzu, der Sprechwünsche für FMS 5-Fahrzeuge sammelt und im Sprechwunsch-Banner platziert.
+// @author       Gemini & Bearbeitungen
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM.xmlHttpRequest
 // @run-at       document-start
@@ -15,7 +15,7 @@
 (function() {
     'use strict';
 
-    console.log('LSS Patient Entlassen Skript geladen (Version 0.74).');
+    console.log('LSS Patient Entlassen Skript geladen (Version 0.75).');
 
     let buttonSetupCompleted = false; // Flag, um sicherzustellen, dass der Button nur einmal hinzugefügt wird
     let styleTagAdded = false; // Flag, um sicherzustellen, dass der Style-Tag nur einmal hinzugefügt wird
@@ -597,33 +597,20 @@
             return;
         }
 
-        const targetHeading = document.getElementById('vehicles-at-mission-heading');
         const targetTable = document.getElementById('mission_vehicle_at_mission');
-
-        let parentElementForButton = null;
-        if (targetHeading && targetHeading.parentNode) {
-            parentElementForButton = targetHeading;
-        } else if (targetTable && targetTable.parentNode) {
-            parentElementForButton = targetTable.parentNode; // Insert before table
-        } else if (document.body) {
-            parentElementForButton = document.body;
-        }
-
-        if (!parentElementForButton) {
-            console.error('Kritischer Fehler: Kein passendes Zielelement für Button gefunden. Kann Button nicht hinzufügen.');
+        if (!targetTable) {
+            // Wenn die Haupttabelle nicht da ist, brauchen wir gar nicht erst anfangen.
             return;
         }
 
         // --- Prüfung auf FMS 5 Fahrzeuge vor dem Anzeigen des Buttons ---
         let foundFMS5Vehicles = false;
-        if (targetTable) {
-            const rows = targetTable.querySelectorAll('tbody tr');
-            for (const row of rows) {
-                const firstCell = row.querySelector('td:nth-child(1)');
-                if (firstCell && firstCell.querySelector('span.building_list_fms.building_list_fms_5')) {
-                    foundFMS5Vehicles = true;
-                    break;
-                }
+        const rows = targetTable.querySelectorAll('tbody tr');
+        for (const row of rows) {
+            const firstCell = row.querySelector('td:nth-child(1)');
+            if (firstCell && firstCell.querySelector('span.building_list_fms.building_list_fms_5')) {
+                foundFMS5Vehicles = true;
+                break;
             }
         }
 
@@ -631,84 +618,77 @@
             const button = document.createElement('button');
             button.id = 'sprechwuenscheEntlassenButton';
             button.textContent = 'Sprechwünsche gesammelt entlassen';
+            // Styling leicht angepasst für bessere Integration
+            button.className = 'btn btn-success'; // Nutzt die Klassen des Spiels für ein konsistentes Aussehen
             button.style.cssText = `
-                background-color: #4CAF50;
-                color: white;
-                padding: 10px 15px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-                margin: 10px 0;
+                margin-top: 10px;
+                margin-bottom: 5px;
                 box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-                transition: background-color 0.3s ease;
-                display: block;
-                width: fit-content;
-                font-family: 'Inter', sans-serif;
             `;
-            button.onmouseover = function() { this.style.backgroundColor = '#45a049'; };
-            button.onmouseout = function() { this.style.backgroundColor = '#4CAF50'; };
 
             button.addEventListener('click', processPatientRelease);
 
-            if (parentElementForButton === targetHeading) {
-                targetHeading.insertAdjacentElement('afterend', button);
-                console.log('Button "Sprechwünsche gesammelt entlassen" erfolgreich unter "vehicles-at-mission-heading" eingefügt.');
-            } else if (parentElementForButton === targetTable.parentNode) {
-                targetTable.parentNode.insertBefore(button, targetTable);
-                console.log('Button als Fallback erfolgreich vor der Tabelle "mission_vehicle_at-mission" eingefügt.');
-            } else if (parentElementForButton === document.body) {
-                document.body.appendChild(button);
-                console.log('Button als letzten Fallback erfolgreich am Ende des Body eingefügt.');
+            // NEU: Bevorzugtes Ziel für den Button
+            const preferredTarget = document.querySelector('div.alert.alert-danger');
+
+            if (preferredTarget) {
+                // Wenn das Sprechwunsch-Banner gefunden wird, fügen wir den Button dort ein.
+                preferredTarget.appendChild(document.createElement('br')); // Zeilenumbruch für besseren Abstand
+                preferredTarget.appendChild(button);
+                console.log('Button "Sprechwünsche gesammelt entlassen" erfolgreich im Sprechwunsch-Banner eingefügt.');
+                buttonSetupCompleted = true;
+
+            } else {
+                // FALLBACK: Wenn das Banner nicht da ist, verwenden wir die alte Methode.
+                const targetHeading = document.getElementById('vehicles-at-mission-heading');
+
+                if (targetHeading) {
+                    targetHeading.insertAdjacentElement('afterend', button);
+                    console.log('Button als Fallback erfolgreich unter "vehicles-at-mission-heading" eingefügt.');
+                    buttonSetupCompleted = true;
+                } else if (targetTable.parentNode) {
+                    targetTable.parentNode.insertBefore(button, targetTable);
+                    console.log('Button als Fallback erfolgreich vor der Tabelle "mission_vehicle_at-mission" eingefügt.');
+                    buttonSetupCompleted = true;
+                }
             }
-            buttonSetupCompleted = true;
         } else {
             console.log('Keine Fahrzeuge mit FMS Status 5 gefunden. Button "Sprechwünsche gesammelt entlassen" wird nicht angezeigt.');
         }
     }
 
-    // MutationObserver, um auf das Erscheinen des Zielelements (vehicles-at-mission-heading oder mission_vehicle_at_mission) zu warten
+    // MutationObserver, um auf das Erscheinen des Zielelements zu warten
     const observer = new MutationObserver((mutationsList, observerInstance) => {
         if (buttonSetupCompleted) {
             observerInstance.disconnect();
             return;
         }
+        
+        // Wir suchen nach dem Banner oder der Tabelle, um den Button zu triggern
+        const preferredTarget = document.querySelector('div.alert.alert-danger');
+        const fallbackTarget = document.getElementById('mission_vehicle_at_mission');
 
-        for (const mutation of mutationsList) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                for (const node of mutation.addedNodes) {
-                    if (node.nodeType === 1) {
-                        if (node.id === 'vehicles-at-mission-heading' || node.querySelector('#vehicles-at-mission-heading') ||
-                            node.id === 'mission_vehicle_at_mission' || node.querySelector('#mission_vehicle_at_mission')) {
-                            setupButton();
-                            if (buttonSetupCompleted) {
-                                observerInstance.disconnect();
-                                return;
-                            }
-                        }
-                    }
-                }
+        if (preferredTarget || fallbackTarget) {
+            setupButton();
+            if (buttonSetupCompleted) {
+                observerInstance.disconnect();
             }
         }
     });
 
     // Starte die Beobachtung des DOM, sobald das Skript geladen ist.
-    const initialHeading = document.getElementById('vehicles-at-mission-heading');
-    const initialTable = document.getElementById('mission_vehicle_at_mission');
-
-    if (initialHeading || initialTable) {
-        setupButton();
-    } else {
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!buttonSetupCompleted) {
-                if (document.body instanceof Node) {
-                    observer.observe(document.body, { childList: true, subtree: true });
-                } else {
-                    console.error('Kritischer Fehler: document.body ist auch nach DOMContentLoaded kein Node. Kann Observer nicht starten.');
-                }
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!buttonSetupCompleted) {
+             const preferredTarget = document.querySelector('div.alert.alert-danger');
+             const fallbackTarget = document.getElementById('mission_vehicle_at_mission');
+            if (preferredTarget || fallbackTarget) {
+                 setupButton();
             }
-        });
-    }
+            if (!buttonSetupCompleted) {
+                 observer.observe(document.body, { childList: true, subtree: true });
+            }
+        }
+    });
 
     // Fallback-Check nach window.load, falls der Observer etwas verpasst hat
     window.addEventListener('load', () => {
