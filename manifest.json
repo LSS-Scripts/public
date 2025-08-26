@@ -56,6 +56,13 @@
     "changelog": ""
   },
   {
+    "name": "Massenkategorierer",
+    "version": "19.0.0",
+    "fileName": "Massenkategorierer.v19.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Offline-Sprechwünsche entlassen",
     "version": "0.7.4",
     "fileName": "Offline-Sprechwünsche entlassen.v0.7.4.user.js",
