@@ -14,6 +14,13 @@
     "changelog": ""
   },
   {
+    "name": "Einsätze einklappen",
+    "version": "5.0.0",
+    "fileName": "Einsätze einklappe.v5.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Endzeit-Anzeige",
     "version": "3.5.1",
     "fileName": "Einsatz Endzeit-Anzeige.v3.5.1.user.js",
