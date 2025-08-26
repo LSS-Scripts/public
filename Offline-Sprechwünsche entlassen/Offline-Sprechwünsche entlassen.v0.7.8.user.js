@@ -1,24 +1,24 @@
 // ==UserScript==
 // @name         Leitstellenspiel Patient Entlassen
 // @namespace    http://tampermonkey.net/
-// @version      0.7.5
-// @description  Fügt einen Button hinzu, der Sprechwünsche für FMS 5-Fahrzeuge sammelt und im Sprechwunsch-Banner platziert.
-// @author       Gemini & Bearbeitungen
+// @version      0.7.8
+// @description  Platziert den Sammel-Button für Sprechwünsche direkt unter der Hauptmeldung im Banner.
+// @author       Masklin & Gemini
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM.xmlHttpRequest
 // @run-at       document-start
 // @license MIT
-// @downloadURL https://update.greasyfork.org/scripts/537616/Leitstellenspiel%20Patient%20Entlassen.user.js
-// @updateURL https://update.greasyfork.org/scripts/537616/Leitstellenspiel%20Patient%20Entlassen.meta.js
+
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    console.log('LSS Patient Entlassen Skript geladen (Version 0.75).');
+    console.log('LSS Patient Entlassen Skript geladen (Version 0.78).');
 
     let buttonSetupCompleted = false; // Flag, um sicherzustellen, dass der Button nur einmal hinzugefügt wird
     let styleTagAdded = false; // Flag, um sicherzustellen, dass der Style-Tag nur einmal hinzugefügt wird
+    let checkPerformed = false; // Stellt sicher, dass die Prüfung nur einmal läuft.
 
     /**
      * Formatiert eine Anzahl von Sekunden in das MM:SS Format.
@@ -440,7 +440,6 @@
             } : null;
 
             // Zeige das erste Bestätigungs-Modal mit den Ergebnissen der Vorabprüfung
-            // NEU: Button-Text für das erste Modal angepasst
             showCustomModal(confirmationMessage, false, firstModalConfirmCallback, 'Entlassung starten');
 
         } else {
@@ -590,20 +589,20 @@
 
     /**
      * Erstellt und platziert den Button auf der Seite.
-     * Diese Funktion wird aufgerufen, sobald das Zielelement erkannt wird.
+     * Wird nur einmal ausgeführt.
      */
     function setupButton() {
-        if (buttonSetupCompleted) {
-            return;
+        if (checkPerformed) {
+            return; // Verhindert mehrfache Ausführung
         }
+        checkPerformed = true; // Markiert, dass die Prüfung stattgefunden hat
 
         const targetTable = document.getElementById('mission_vehicle_at_mission');
         if (!targetTable) {
-            // Wenn die Haupttabelle nicht da ist, brauchen wir gar nicht erst anfangen.
+            console.log("Fahrzeugtabelle nicht gefunden. Button-Setup abgebrochen.");
             return;
         }
 
-        // --- Prüfung auf FMS 5 Fahrzeuge vor dem Anzeigen des Buttons ---
         let foundFMS5Vehicles = false;
         const rows = targetTable.querySelectorAll('tbody tr');
         for (const row of rows) {
@@ -618,82 +617,67 @@
             const button = document.createElement('button');
             button.id = 'sprechwuenscheEntlassenButton';
             button.textContent = 'Sprechwünsche gesammelt entlassen';
-            // Styling leicht angepasst für bessere Integration
-            button.className = 'btn btn-success'; // Nutzt die Klassen des Spiels für ein konsistentes Aussehen
+            button.className = 'btn btn-success';
+            // KORREKTUR: Styling für die neue Position angepasst
             button.style.cssText = `
                 margin-top: 10px;
-                margin-bottom: 5px;
+                margin-bottom: 10px;
+                display: block;
                 box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
             `;
-
             button.addEventListener('click', processPatientRelease);
 
-            // NEU: Bevorzugtes Ziel für den Button
-            const preferredTarget = document.querySelector('div.alert.alert-danger');
+            const preferredTarget = document.querySelector('div.alert.alert-danger:not(.alert-missing-vehicles)');
 
             if (preferredTarget) {
-                // Wenn das Sprechwunsch-Banner gefunden wird, fügen wir den Button dort ein.
-                preferredTarget.appendChild(document.createElement('br')); // Zeilenumbruch für besseren Abstand
-                preferredTarget.appendChild(button);
-                console.log('Button "Sprechwünsche gesammelt entlassen" erfolgreich im Sprechwunsch-Banner eingefügt.');
-                buttonSetupCompleted = true;
+                // KORREKTUR: Button wird jetzt nach dem ersten Text und VOR den Links eingefügt.
+                const referenceElement = preferredTarget.querySelector('br'); // Findet das erste <br> als Anker
 
+                if (referenceElement) {
+                    preferredTarget.insertBefore(button, referenceElement);
+                } else {
+                    // Fallback, falls die Struktur anders ist (kein <br> vorhanden)
+                    preferredTarget.appendChild(button);
+                }
+                console.log('Button an der korrekten Position im Sprechwunsch-Banner eingefügt.');
             } else {
-                // FALLBACK: Wenn das Banner nicht da ist, verwenden wir die alte Methode.
                 const targetHeading = document.getElementById('vehicles-at-mission-heading');
-
                 if (targetHeading) {
                     targetHeading.insertAdjacentElement('afterend', button);
-                    console.log('Button als Fallback erfolgreich unter "vehicles-at-mission-heading" eingefügt.');
-                    buttonSetupCompleted = true;
+                    console.log('Button als Fallback unter der Überschrift eingefügt.');
                 } else if (targetTable.parentNode) {
                     targetTable.parentNode.insertBefore(button, targetTable);
-                    console.log('Button als Fallback erfolgreich vor der Tabelle "mission_vehicle_at-mission" eingefügt.');
-                    buttonSetupCompleted = true;
+                    console.log('Button als Fallback vor der Tabelle eingefügt.');
                 }
             }
+            buttonSetupCompleted = true;
         } else {
-            console.log('Keine Fahrzeuge mit FMS Status 5 gefunden. Button "Sprechwünsche gesammelt entlassen" wird nicht angezeigt.');
+            console.log('Keine Fahrzeuge mit FMS Status 5 gefunden. Button wird nicht angezeigt.');
         }
     }
 
-    // MutationObserver, um auf das Erscheinen des Zielelements zu warten
+    // MutationObserver, der wartet, bis die Fahrzeugtabelle geladen ist.
     const observer = new MutationObserver((mutationsList, observerInstance) => {
-        if (buttonSetupCompleted) {
+        const targetTable = document.getElementById('mission_vehicle_at_mission');
+        if (targetTable) {
+            // Tabelle gefunden! Wir führen die Prüfung aus und beenden den Observer.
             observerInstance.disconnect();
-            return;
-        }
-        
-        // Wir suchen nach dem Banner oder der Tabelle, um den Button zu triggern
-        const preferredTarget = document.querySelector('div.alert.alert-danger');
-        const fallbackTarget = document.getElementById('mission_vehicle_at_mission');
-
-        if (preferredTarget || fallbackTarget) {
             setupButton();
-            if (buttonSetupCompleted) {
-                observerInstance.disconnect();
-            }
         }
     });
 
-    // Starte die Beobachtung des DOM, sobald das Skript geladen ist.
+    // Startet den Prozess, sobald das Dokument geladen ist.
     document.addEventListener('DOMContentLoaded', () => {
-        if (!buttonSetupCompleted) {
-             const preferredTarget = document.querySelector('div.alert.alert-danger');
-             const fallbackTarget = document.getElementById('mission_vehicle_at_mission');
-            if (preferredTarget || fallbackTarget) {
-                 setupButton();
-            }
-            if (!buttonSetupCompleted) {
-                 observer.observe(document.body, { childList: true, subtree: true });
-            }
-        }
-    });
-
-    // Fallback-Check nach window.load, falls der Observer etwas verpasst hat
-    window.addEventListener('load', () => {
-        if (!buttonSetupCompleted) {
+        const targetTable = document.getElementById('mission_vehicle_at_mission');
+        if (targetTable) {
+            // Wenn die Tabelle beim Laden schon da ist (unwahrscheinlich aber möglich)
             setupButton();
+        } else {
+            // Normalfall: Wir beobachten das Dokument, bis die Tabelle erscheint.
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
         }
     });
 
