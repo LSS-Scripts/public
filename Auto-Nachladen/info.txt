@@ -1,0 +1,1 @@
+Ein Scriptchen, das automatisch den Fahrzeug-Nachladevorgang startet, wenn man mit der Maus auf eine nicht ausführbare AOO zeigt im Alarmfenster.
