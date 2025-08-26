@@ -70,6 +70,13 @@
     "changelog": "{2.6}Zusammenfassung, UI-Bugs, Dark-Mode-Festigung{2.4}Debugging{2.0}Patienten & Gefangene zählen"
   },
   {
+    "name": "Tab aktiv halten",
+    "version": "0.5.0",
+    "fileName": "Tab aktiv halten.v0.5.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Testding",
     "version": "2.1.2",
     "fileName": "Testding.v2.1.2.user.js",
