@@ -1,5 +1,12 @@
 [
   {
+    "name": "Auto-Nachladen",
+    "version": "9.0.1",
+    "fileName": "Auto-Nachladen.v9.0.1.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Betreuungsberechnung",
     "version": "1.0.4",
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
