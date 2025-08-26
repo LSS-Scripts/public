@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Auto-Nachladen
 // @namespace    www.leitstellenspiel.de
-// @version      9.0
+// @version      9.0.1
 // @description  
 // @author       Masklin / MissSobol / Gemini
 // @match        https://www.leitstellenspiel.de/missions/*
