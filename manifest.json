@@ -56,13 +56,6 @@
     "changelog": "{2.6}Zusammenfassung, UI-Bugs, Dark-Mode-Festigung{2.4}Debugging{2.0}Patienten & Gefangene zählen"
   },
   {
-    "name": "Testscript",
-    "version": "1.0.0",
-    "fileName": "Testscript.v1.0.0.user.js",
-    "description": "Nur ein Dummy um ein paar Funktionen zu testen.... ",
-    "changelog": ""
-  },
-  {
     "name": "VA - Verbandsmitgliedschaft prüfen",
     "version": "0.9.6",
     "fileName": "VA - Verbandsmitgliedschaft prüfen.v0.9.6.user.js",
