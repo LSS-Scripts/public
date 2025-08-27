@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Leitstellenspiel Patient Entlassen
 // @namespace    http://tampermonkey.net/
-// @version      0.7.8
-// @description  Platziert den Sammel-Button für Sprechwünsche direkt unter der Hauptmeldung im Banner.
-// @author       Masklin & Gemini
+// @version      0.8.0
+// @description  Verfeinerte ELW-SEG-Prüfung: Warnt nur, wenn der Besitzer des ELW-SEG auch FMS-5-Sprechwünsche hat.
+// @author       Gemini & Bearbeitungen
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM.xmlHttpRequest
 // @run-at       document-start
@@ -14,7 +14,7 @@
 (function() {
     'use strict';
 
-    console.log('LSS Patient Entlassen Skript geladen (Version 0.78).');
+    console.log('LSS Patient Entlassen Skript geladen (Version 0.80).');
 
     let buttonSetupCompleted = false; // Flag, um sicherzustellen, dass der Button nur einmal hinzugefügt wird
     let styleTagAdded = false; // Flag, um sicherzustellen, dass der Style-Tag nur einmal hinzugefügt wird
@@ -296,14 +296,14 @@
 
                 if (totalFMS5Count > 0) {
                     userSummaryLine += `${totalFMS5Count} ${getSprechwunschText(totalFMS5Count)}`;
-                    userSummaryLine += ` (${entlassbarCount} entlassbar)`; // Anpassung der Ausgabe
+                    userSummaryLine += ` (${entlassbarCount} entlassbar)`;
                 } else {
                     userSummaryLine += `Keine FMS 5 Sprechwünsche`;
                 }
 
 
-                // ELW-SEG Status hinzufügen mit Hervorhebung, NUR wenn gefunden
-                if (details.hasElwSegOnRoute || details.hasElwSegOnScene) {
+                // KORREKTUR: ELW-SEG Warnung nur anzeigen, wenn der Benutzer auch FMS-5-Sprechwünsche hat.
+                if ((details.hasElwSegOnRoute || details.hasElwSegOnScene) && details.totalFMS5 > 0) {
                     hasElwSegFoundOverall = true;
                     let elwSegDisplayContent = '';
                     if (details.hasElwSegOnRoute && details.hasElwSegOnScene) {
@@ -333,7 +333,6 @@
             });
 
             if (preCheckFoundButtons > 0) {
-                // NEU: Textänderung
                 confirmationMessage += `\nSoll die Entlassung der Patienten gestartet werden?`;
             }
 
@@ -409,7 +408,7 @@
                     let elwSegDetailsFormatted = [];
                     Array.from(allUniqueOwners).sort((a,b) => a.localeCompare(b)).forEach(userName => {
                         const details = preCheckDetails[userName];
-                        if (details && (details.hasElwSegOnRoute || details.hasElwSegOnScene)) {
+                        if (details && (details.hasElwSegOnRoute || details.hasElwSegOnScene) && details.totalFMS5 > 0) {
                             let statusParts = [];
                             if (details.hasElwSegOnRoute) {
                                 let timePart = details.elwSegArrivalTime !== null ? ` (${formatSecondsToMMSS(details.elwSegArrivalTime)})` : '';
@@ -433,7 +432,7 @@
 
                     showCustomModal(elwSegWarningMessage, false, performReleaseActions, 'Ja, trotzdem entlassen', 'Abbrechen');
                 } else {
-                    console.log('Kein ELW-SEG gefunden: Fahre direkt mit Entlassung fort.');
+                    console.log('Kein ELW-SEG gefunden (oder irrelevant): Fahre direkt mit Entlassung fort.');
                     // Wenn kein ELW-SEG gefunden wurde, fahre direkt mit der Entlassung fort
                     await performReleaseActions();
                 }
@@ -618,7 +617,6 @@
             button.id = 'sprechwuenscheEntlassenButton';
             button.textContent = 'Sprechwünsche gesammelt entlassen';
             button.className = 'btn btn-success';
-            // KORREKTUR: Styling für die neue Position angepasst
             button.style.cssText = `
                 margin-top: 10px;
                 margin-bottom: 10px;
@@ -630,16 +628,19 @@
             const preferredTarget = document.querySelector('div.alert.alert-danger:not(.alert-missing-vehicles)');
 
             if (preferredTarget) {
-                // KORREKTUR: Button wird jetzt nach dem ersten Text und VOR den Links eingefügt.
                 const referenceElement = preferredTarget.querySelector('br'); // Findet das erste <br> als Anker
 
                 if (referenceElement) {
+                    // Fall für mehrere Sprechwünsche mit Links
                     preferredTarget.insertBefore(button, referenceElement);
                 } else {
-                    // Fallback, falls die Struktur anders ist (kein <br> vorhanden)
+                    // Fall für einen einzelnen Sprechwunsch ohne Links
+                    const lineBreak = document.createElement('br');
+                    preferredTarget.appendChild(lineBreak);
                     preferredTarget.appendChild(button);
                 }
-                console.log('Button an der korrekten Position im Sprechwunsch-Banner eingefügt.');
+                console.log('Button im Sprechwunsch-Banner eingefügt.');
+
             } else {
                 const targetHeading = document.getElementById('vehicles-at-mission-heading');
                 if (targetHeading) {
