@@ -1,24 +1,257 @@
-<tr>
-          <td><img alt="Red truck" class="vehicle_image_reload" image_replace_allowed="true" src="https://leitstellenspiel.s3.amazonaws.com/vehicle_graphic_images/images/000/073/765/original/1715180030.png?1715180081" vehicle_type_id="30"></td>
-          <td sortvalue="HLF 20 Feuer-Fighter [Feuerwache Hamburg 017]​ 12307593">
+Request URL
+https://www.leitstellenspiel.de/vehicles/87774438/refit
+Request Method
+GET
+Status Code
+200 OK
+Remote Address
+80.239.144.194:443
+Referrer Policy
+strict-origin-when-cross-origin
+cache-control
+max-age=0, private, must-revalidate
+connection
+keep-alive
+content-encoding
+br
+content-type
+text/html; charset=utf-8
+date
+Wed, 27 Aug 2025 13:26:34 GMT
+etag
+W/"2af4ea82033ec9e7e390d44b79c4c384"
+server
+nginx
+status
+200 OK
+strict-transport-security
+max-age=31536000
+transfer-encoding
+chunked
+vary
+Accept-Encoding
+x-content-type-options
+nosniff
+x-frame-options
+SAMEORIGIN
+x-powered-by
+Phusion Passenger 6.0.1
+x-request-id
+e74ea127-1610-4d5b-90c5-931a87ceae9e
+x-runtime
+0.026749
+x-ua-compatible
+chrome=1
+x-varnish-retries
+0
+x-xss-protection
+1; mode=block
+accept
+text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7
+connection
+keep-alive
+cookie
+mc_unique_client_id=BAhJIik2MmZhMTQwMi0wMTA2LTRiOGItOWUwNy1iZjhmMmQ1MDdiMzMGOgZFRg%3D%3D--84317cb3fed0678f3bb0d555a55cbe8e65252cf9; remember_user_token=BAhbCFsGaQNqYwRJIiIkMmEkMTAkS0tJUjYxVDEzbGdLcmRsL0NCYnppdQY6BkVUSSIXMTc1NTU5NTg0Ny44NTE2NTYyBjsARg%3D%3D--5bcda0987f4b1439451d8baec943ffef7c72d570; _session_id=179441240ab66892f8a9055125b6113b; cookie_eu_consented=true; __stripe_mid=116b4c73-6e8e-46f6-af4e-d69a565a28e30ef157; deactive_selection=[%22building_selection_rettung%22%2C%22building_selection_polizei%22%2C%22building_selection_thw%22%2C%22building_selection_wasserrettung%22%2C%22building_selection_mountain_rescue%22%2C%22building_selection_coastal_rescue%22%2C%22building_selection_schule%22%2C%22building_selection_leitstelle%22%2C%22building_selection_building_complex%22]; bigMapWindowPosition={%22m%22:[661%2C908%2C1124%2C50%2Ctrue]%2C%22b%22:[689%2C602%2C0%2C350%2Ctrue]%2C%22c%22:[501%2C382%2C612%2C565%2Ctrue]%2C%22r%22:[652%2C431%2C0%2C50%2Cfalse]}
+host
+www.leitstellenspiel.de
+referer
+https://www.leitstellenspiel.de/vehicles/87774438
+sec-ch-ua
+"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+sec-fetch-dest
+document
+sec-fetch-mode
+navigate
+sec-fetch-site
+same-origin
+sec-fetch-user
+?1
+upgrade-insecure-requests
+1
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
 
 
-            <a href="/vehicles/12307593">HLF 20 Feuer-Fighter [Feuerwache Hamburg 017]​</a>
+
+Request URL
+https://www.leitstellenspiel.de/refit_vehicle/87774438
+Request Method
+POST
+Status Code
+302 Found
+Remote Address
+80.239.144.194:443
+Referrer Policy
+strict-origin-when-cross-origin
+cache-control
+no-cache
+connection
+keep-alive
+content-length
+143
+content-type
+text/html; charset=utf-8
+date
+Wed, 27 Aug 2025 13:26:46 GMT
+location
+https://www.leitstellenspiel.de/buildings/21038324?refitting_vehicle=87774438
+server
+nginx
+status
+302 Found
+strict-transport-security
+max-age=31536000
+vary
+Accept-Encoding
+x-content-type-options
+nosniff
+x-frame-options
+SAMEORIGIN
+x-powered-by
+Phusion Passenger 6.0.1
+x-request-id
+acccb2c6-91c2-4e71-bfca-256af453da48
+x-runtime
+0.039472
+x-ua-compatible
+chrome=1
+x-varnish-retries
+0
+x-xss-protection
+1; mode=block
+accept
+text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7
+cache-control
+max-age=0
+connection
+keep-alive
+content-length
+1222
+content-type
+multipart/form-data; boundary=----WebKitFormBoundary0AJstu1YEp9Nnhz8
+cookie
+mc_unique_client_id=BAhJIik2MmZhMTQwMi0wMTA2LTRiOGItOWUwNy1iZjhmMmQ1MDdiMzMGOgZFRg%3D%3D--84317cb3fed0678f3bb0d555a55cbe8e65252cf9; remember_user_token=BAhbCFsGaQNqYwRJIiIkMmEkMTAkS0tJUjYxVDEzbGdLcmRsL0NCYnppdQY6BkVUSSIXMTc1NTU5NTg0Ny44NTE2NTYyBjsARg%3D%3D--5bcda0987f4b1439451d8baec943ffef7c72d570; _session_id=179441240ab66892f8a9055125b6113b; cookie_eu_consented=true; __stripe_mid=116b4c73-6e8e-46f6-af4e-d69a565a28e30ef157; deactive_selection=[%22building_selection_rettung%22%2C%22building_selection_polizei%22%2C%22building_selection_thw%22%2C%22building_selection_wasserrettung%22%2C%22building_selection_mountain_rescue%22%2C%22building_selection_coastal_rescue%22%2C%22building_selection_schule%22%2C%22building_selection_leitstelle%22%2C%22building_selection_building_complex%22]; bigMapWindowPosition={%22m%22:[661%2C908%2C1124%2C50%2Ctrue]%2C%22b%22:[689%2C602%2C0%2C350%2Ctrue]%2C%22c%22:[501%2C382%2C612%2C565%2Ctrue]%2C%22r%22:[652%2C431%2C0%2C50%2Cfalse]}
+host
+www.leitstellenspiel.de
+origin
+https://www.leitstellenspiel.de
+referer
+https://www.leitstellenspiel.de/vehicles/87774438/refit
+sec-ch-ua
+"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+sec-fetch-dest
+document
+sec-fetch-mode
+navigate
+sec-fetch-site
+same-origin
+sec-fetch-user
+?1
+upgrade-insecure-requests
+1
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
 
 
 
-          </td>
-          <td>
-              <a class="btn btn-default btn-xs" href="/vehicles/12307593/edit"><span title="Bearbeiten" class="glyphicon glyphicon-pencil"></span></a>
-          </td>
-          <td><span class="building_list_fms building_list_fms_2">2</span>
+
+Request URL
+https://www.leitstellenspiel.de/buildings/21038324?refitting_vehicle=87774438
+Request Method
+GET
+Status Code
+200 OK
+Remote Address
+80.239.144.194:443
+Referrer Policy
+strict-origin-when-cross-origin
+cache-control
+max-age=0, private, must-revalidate
+connection
+keep-alive
+content-encoding
+br
+content-type
+text/html; charset=utf-8
+date
+Wed, 27 Aug 2025 13:26:49 GMT
+etag
+W/"1b9a2150af4c5df46df8c215ea516b29"
+server
+nginx
+status
+200 OK
+strict-transport-security
+max-age=31536000
+transfer-encoding
+chunked
+vary
+Accept-Encoding
+x-content-type-options
+nosniff
+x-frame-options
+SAMEORIGIN
+x-powered-by
+Phusion Passenger 6.0.1
+x-request-id
+cc5dd37a-e86a-4243-ac65-7c5f9c5b2a03
+x-runtime
+2.263632
+x-ua-compatible
+chrome=1
+x-varnish-retries
+0
+x-xss-protection
+1; mode=block
+accept
+text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7
+cache-control
+max-age=0
+connection
+keep-alive
+cookie
+mc_unique_client_id=BAhJIik2MmZhMTQwMi0wMTA2LTRiOGItOWUwNy1iZjhmMmQ1MDdiMzMGOgZFRg%3D%3D--84317cb3fed0678f3bb0d555a55cbe8e65252cf9; remember_user_token=BAhbCFsGaQNqYwRJIiIkMmEkMTAkS0tJUjYxVDEzbGdLcmRsL0NCYnppdQY6BkVUSSIXMTc1NTU5NTg0Ny44NTE2NTYyBjsARg%3D%3D--5bcda0987f4b1439451d8baec943ffef7c72d570; _session_id=179441240ab66892f8a9055125b6113b; cookie_eu_consented=true; __stripe_mid=116b4c73-6e8e-46f6-af4e-d69a565a28e30ef157; deactive_selection=[%22building_selection_rettung%22%2C%22building_selection_polizei%22%2C%22building_selection_thw%22%2C%22building_selection_wasserrettung%22%2C%22building_selection_mountain_rescue%22%2C%22building_selection_coastal_rescue%22%2C%22building_selection_schule%22%2C%22building_selection_leitstelle%22%2C%22building_selection_building_complex%22]; bigMapWindowPosition={%22m%22:[661%2C908%2C1124%2C50%2Ctrue]%2C%22b%22:[689%2C602%2C0%2C350%2Ctrue]%2C%22c%22:[501%2C382%2C612%2C565%2Ctrue]%2C%22r%22:[652%2C431%2C0%2C50%2Cfalse]}
+host
+www.leitstellenspiel.de
+referer
+https://www.leitstellenspiel.de/vehicles/87774438/refit
+sec-ch-ua
+"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
+sec-ch-ua-mobile
+?0
+sec-ch-ua-platform
+"Windows"
+sec-fetch-dest
+document
+sec-fetch-mode
+navigate
+sec-fetch-site
+same-origin
+sec-fetch-user
+?1
+upgrade-insecure-requests
+1
+user-agent
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
 
 
-          </td>
-          <td>
-
-          </td>
-          <td>
-            9
-          </td>
-        </tr>
