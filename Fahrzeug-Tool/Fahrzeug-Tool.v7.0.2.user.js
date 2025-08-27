@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.1
-// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an.
+// @version      7.0.2
+// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Bugfix für Refit-Template-ID.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
@@ -116,7 +116,6 @@
         if (!link) return null;
         const idMatch = link.href.match(/\/vehicles\/(\d+)/);
         const id = idMatch ? idMatch[1] : null;
-        // KORREKTUR: Unsichtbare Sonderzeichen (U+200B) aus dem Namen entfernen.
         const name = link.textContent.replace(/\u200b/g, '').trim();
         const typeIdImg = row.querySelector('img[vehicle_type_id]');
         const typeId = typeIdImg ? parseInt(typeIdImg.getAttribute('vehicle_type_id'), 10) : null;
@@ -143,6 +142,19 @@
         const initialResponse = await fetch(`/vehicles/${firstId}/refit`);
         const htmlText = await initialResponse.text();
         const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+        
+        // KORREKTUR: Finde die Template-ID dynamisch
+        const templateOption = Array.from(doc.querySelectorAll('#vehicle_fitting_template_id option'))
+                                   .find(option => option.textContent.trim() === 'Maximum LF');
+
+        if (!templateOption) {
+            alert('Fehler: Die Ausrüstungsvorlage "Maximum LF" wurde auf der Umrüst-Seite nicht gefunden. Bitte stelle sicher, dass sie existiert und exakt so heißt.');
+            return;
+        }
+        const templateId = templateOption.value;
+        console.log(`${SCRIPT_PREFIX} "Maximum LF" Vorlage gefunden mit ID: ${templateId}`);
+
+
         const form = doc.getElementById('refit_form');
         const authToken = form.querySelector('input[name="authenticity_token"]').value;
         const postUrlTemplate = form.action.replace(firstId, '{id}');
@@ -157,7 +169,8 @@
             const formData = new FormData();
             formData.append('utf8', '✓');
             formData.append('authenticity_token', authToken);
-            formData.append('vehicle_fitting_template[id]', '120');
+            formData.append('vehicle_fitting_template[id]', templateId); // Verwende die gefundene ID
+            formData.append('vehicle_fitting_template[template_caption]', '');
             formData.append('cabin_size_new_value', '9');
             formData.append('water_tank_capacity_new_value', '4500');
             formData.append('pump_capacity_new_value', '4000');
