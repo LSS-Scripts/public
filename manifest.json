@@ -36,8 +36,8 @@
   },
   {
     "name": "Fahrzeug-Tool",
-    "version": "7.0.4",
-    "fileName": "Fahrzeug-Tool.v7.0.4.user.js",
+    "version": "7.0.5",
+    "fileName": "Fahrzeug-Tool.v7.0.5.user.js",
     "description": "Ein Tool, dass alle angezeigten Fahrzeuge in einer Wache oder Leistelle verwaltet (Aktuelle Funktionen: Status 2/6 setzen, Rückalarmieren, Max. Besatzung setzen (Thema RTH-BUG), und Verschrotten)",
     "changelog": ""
   },
