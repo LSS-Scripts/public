@@ -1,0 +1,3 @@
+BETA BETA BETA BETA BETA BETA BETA 
+
+holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. 
