@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.2
-// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Bugfix für Refit-Template-ID.
+// @version      7.0.4
+// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Robuste Refit-Template-Suche.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
 // @match        https://missionchief.com/buildings/*
 // @match        https://*.missionchief.com/buildings/*
 // @match        https://leitstellenspiel.com/buildings/*
-// @match        https://*.leitstellenspiel.com/buildings/*
+// @match        https://*.leitstellensiel.com/buildings/*
 // @grant        none
 // ==/UserScript==
 
@@ -142,10 +142,10 @@
         const initialResponse = await fetch(`/vehicles/${firstId}/refit`);
         const htmlText = await initialResponse.text();
         const doc = new DOMParser().parseFromString(htmlText, 'text/html');
-        
-        // KORREKTUR: Finde die Template-ID dynamisch
-        const templateOption = Array.from(doc.querySelectorAll('#vehicle_fitting_template_id option'))
-                                   .find(option => option.textContent.trim() === 'Maximum LF');
+
+        // KORREKTUR: Suche über den Namen des Select-Elements statt über die ID
+        const templateOption = Array.from(doc.querySelectorAll('select[name="vehicle_fitting_template[id]"] option'))
+                                   .find(option => option.textContent.trim().match(/Maximum\s+LF/i));
 
         if (!templateOption) {
             alert('Fehler: Die Ausrüstungsvorlage "Maximum LF" wurde auf der Umrüst-Seite nicht gefunden. Bitte stelle sicher, dass sie existiert und exakt so heißt.');
@@ -169,7 +169,7 @@
             const formData = new FormData();
             formData.append('utf8', '✓');
             formData.append('authenticity_token', authToken);
-            formData.append('vehicle_fitting_template[id]', templateId); // Verwende die gefundene ID
+            formData.append('vehicle_fitting_template[id]', templateId);
             formData.append('vehicle_fitting_template[template_caption]', '');
             formData.append('cabin_size_new_value', '9');
             formData.append('water_tank_capacity_new_value', '4500');
@@ -253,7 +253,7 @@
         progressContainer.style.display = 'grid';
         progressContainer.style.gap = '2px';
         progressContainer.style.marginBottom = '10px';
-        
+
         const originalTotal = vehicles.length;
         if (originalTotal === 0) return;
 
@@ -277,7 +277,7 @@
                 targetTotal++;
             }
         }
-        
+
         progressContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 
         const blockElements = [];
@@ -297,7 +297,7 @@
             progressContainer.appendChild(block);
             blockElements.push(block);
         });
-        
+
         const emptyCellsToAdd = targetTotal - originalTotal;
         for (let i = 0; i < emptyCellsToAdd; i++) {
             const emptyCell = document.createElement('div');
