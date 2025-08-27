@@ -71,8 +71,8 @@
   },
   {
     "name": "Offline-Sprechwünsche entlassen",
-    "version": "0.7.8",
-    "fileName": "Offline-Sprechwünsche entlassen.v0.7.8.user.js",
+    "version": "0.8.0",
+    "fileName": "Offline-Sprechwünsche entlassen.v0.8.0.user.js",
     "description": "Prüft, ob Sprechwünsche entlassbar sind und bietet an, diese gesammelt zu entlassen.Mit Prüfung ob ELW-SEG vor Ort oder unterwegs ist. ",
     "changelog": ""
   },
