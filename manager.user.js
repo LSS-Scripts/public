@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.1 (Downgrade Detection)
-// @description  Erkennt zurückgezogene Updates (Downgrades) und bietet eine Neuinstallation der empfohlenen Version an.
+// @version      13.3.1 (Layout Fix)
+// @description  Behebt Layout-Probleme der 7-Spalten-Ansicht durch ein breiteres Modal und feste Button-Höhen.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -29,7 +29,6 @@
         _settingsCache: {},
         _branchCache: {},
 
-        // ... (openDatabase, getScriptsFromDB, etc. bleiben unverändert) ...
         openDatabase: function() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -105,7 +104,6 @@
         codeHasSettings: function(code) {
             return /\/\*--BMScriptConfig([\s\S]*?)--\*\//.test(code);
         },
-        // ########## NEUE HILFSFUNKTION ##########
         compareVersions: function(v1, v2) {
             const parts1 = v1.split('.').map(Number);
             const parts2 = v2.split('.').map(Number);
@@ -113,10 +111,10 @@
             for (let i = 0; i < len; i++) {
                 const p1 = parts1[i] || 0;
                 const p2 = parts2[i] || 0;
-                if (p1 > p2) return 1; // v1 ist größer
-                if (p1 < p2) return -1; // v1 ist kleiner
+                if (p1 > p2) return 1;
+                if (p1 < p2) return -1;
             }
-            return 0; // Versionen sind gleich
+            return 0;
         },
         _getDefaultBranch: async function(repoInfo) {
             const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
@@ -362,7 +360,6 @@
                 if (['active', 'update', 'downgrade'].includes(currentState)) {
                     scriptStates[scriptMeta.name] = 'inactive';
                 } else if (currentState === 'inactive') {
-                    // Zurück zum ursprünglichen Zustand (kann active, update oder downgrade sein)
                     scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name];
                 } else if (currentState === 'install') {
                     scriptStates[scriptMeta.name] = 'activate';
@@ -477,15 +474,14 @@
                     if (localScript.isActive === false) {
                         buttonState = 'inactive';
                     } else {
-                        // ########## ANGEPASSTE LOGIK FÜR VERSIONEN ##########
                         const versionComparison = this.compareVersions(scriptMeta.version, localScript.version);
                         if (versionComparison > 0) {
-                            buttonState = 'update'; // Online-Version ist neuer
+                            buttonState = 'update';
                         } else if (versionComparison < 0) {
-                            buttonState = 'downgrade'; // Online-Version ist älter (zurückgezogen)
+                            buttonState = 'downgrade';
                              infoText = `<strong><span class="external-warning">EMPFEHLUNG:</span> Reparatur-Update</strong>\n<hr>\nDeine installierte Version (${localScript.version}) wurde zurückgezogen. Es wird empfohlen, die stabile Version ${scriptMeta.version} zu installieren.\n<hr>\n` + fullDescription;
                         } else {
-                            buttonState = 'active'; // Versionen sind identisch
+                            buttonState = 'active';
                         }
                     }
                 }
@@ -519,31 +515,39 @@
                     const state = scriptStates[scriptName];
                     const initialState = initialScriptStates[scriptName];
                     const scriptMeta = scriptMetadataCache[scriptName];
-                    if (state === initialState) continue;
+                    const hasChanged = state !== initialState;
 
-                    // Downgrade wird hier wie activate und update behandelt
-                    if (state === 'activate' || state === 'update' || state === 'downgrade' || ((state === 'inactive' || state === 'active') && ['update', 'downgrade'].includes(initialState))) {
-                        if (!scriptMeta) continue;
-                        const action = (initialState === 'install' || initialState === 'activate') ? 'Installiere' : 'Aktualisiere/Repariere';
-                        console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (zu Version ${scriptMeta.version})`);
-                        const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
-                        if (result.success) {
+                    const needsDownload =
+                          state === 'activate' ||
+                          (state === 'update' && initialState === 'update') ||
+                          (state === 'downgrade' && initialState === 'downgrade') ||
+                          (hasChanged && state === 'inactive' && ['update', 'downgrade'].includes(initialState)) ||
+                          (hasChanged && (state === 'update' || state === 'downgrade') && initialState === 'inactive') ||
+                          (hasChanged && state === 'active' && (initialState === 'inactive' || initialState === 'update' || initialState === 'downgrade'));
+
+                    if (needsDownload && (initialState === 'update' || initialState === 'downgrade' || initialState === 'install' || state === 'activate' || state === 'active')) {
+                         if (!scriptMeta) continue;
+                         const action = (initialState === 'install' || initialState === 'activate') ? 'Installiere' : 'Aktualisiere/Repariere';
+                         console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (zu Version ${scriptMeta.version})`);
+                         const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
+                         if (result.success) {
                            const hasSettings = window.BMScriptManager.codeHasSettings(result.content);
-                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: true };
+                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: state !== 'inactive' };
                            await window.BMScriptManager.saveScriptToDB(script);
                            console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gespeichert.`);
-                        } else {
+                         } else {
                            console.error(`[B&M Manager] ❌ Fehler beim Herunterladen von Skript '${scriptName}'.`);
-                        }
+                         }
                     } else if (state === 'uninstall') {
+                        if (!hasChanged) continue;
                         console.log(`[B&M Manager] 🗑️ Deinstalliere Skript: '${scriptName}'`);
                         await window.BMScriptManager.deleteScriptFromDB(scriptName);
                         console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich deinstalliert.`);
-                    } else if (state === 'inactive' || (state === 'active' && initialState === 'inactive')) {
+                    } else if (hasChanged && state === 'inactive') {
                          console.log(`[B&M Manager] 🔄 Ändere Status für '${scriptName}' zu '${state}'`);
                          const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
                          if (localScript) {
-                             localScript.isActive = (state === 'active');
+                             localScript.isActive = false;
                              await window.BMScriptManager.saveScriptToDB(localScript);
                              console.log(`[B&M Manager] ✅ Status für '${scriptName}' erfolgreich aktualisiert.`);
                          }
@@ -651,15 +655,15 @@
 
     GM_addStyle(`
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
-        #lss-script-manager-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background-color: #222; color: #eee; border: 1px solid #555; border-radius: 5px; padding: 20px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; width: 80%; max-width: 900px; }
+        #lss-script-manager-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10000; background-color: #222; color: #eee; border: 1px solid #555; border-radius: 5px; padding: 20px; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; width: 90%; max-width: 1300px; }
         #lss-script-manager-container.visible { display: block; }
         #lss-script-manager-container h3 { color: white; text-align: center; border-bottom: 2px solid #555; padding-bottom: 10px; margin: 0 0 15px 0; }
         #bm-script-filter-wrapper { position: relative; }
         #bm-script-filter { width: 100%; padding: 8px 40px 8px 10px; margin-bottom: 20px; background-color: #333; color: #eee; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         #bm-refresh-btn { position: absolute; right: 10px; top: 7px; font-size: 1.5em; cursor: pointer; color: #aaa; transition: color .2s, transform .5s; }
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
-        #script-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
-        .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.9em; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        #script-list { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
+        .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.85em; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .script-button.hidden { display: none; }
         .script-button:hover { filter: brightness(1.15); transform: translateY(-2px); }
         .script-button strong { line-height: 1.2; }
