@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.3.1 (Layout Fix)
-// @description  Behebt Layout-Probleme der 7-Spalten-Ansicht durch ein breiteres Modal und feste Button-Höhen.
+// @version      13.3.3 (Reactivation Fix)
+// @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -350,6 +350,7 @@
             item.addEventListener('mouseout', () => {
                 document.getElementById('bm-global-tooltip').style.display = 'none';
             });
+            // ########## KORRIGIERTE KLICK-LOGIK ##########
             item.addEventListener('click', () => {
                 const currentState = scriptStates[scriptMeta.name];
 
@@ -360,7 +361,11 @@
                 if (['active', 'update', 'downgrade'].includes(currentState)) {
                     scriptStates[scriptMeta.name] = 'inactive';
                 } else if (currentState === 'inactive') {
-                    scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name];
+                    if (initialScriptStates[scriptMeta.name] === 'inactive') {
+                        scriptStates[scriptMeta.name] = 'active'; // Explizit aktivieren
+                    } else {
+                        scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name]; // Zum vorherigen Zustand zurück
+                    }
                 } else if (currentState === 'install') {
                     scriptStates[scriptMeta.name] = 'activate';
                 } else if (currentState === 'activate') {
@@ -471,6 +476,7 @@
                     }
                     scriptMeta.hasSettings = scriptMeta.hasSettings || localScript.hasSettings;
 
+                    // Wichtig: Der `initialState` wird hier anhand des DB-Eintrags gesetzt, nicht nach der Versionsprüfung
                     if (localScript.isActive === false) {
                         buttonState = 'inactive';
                     } else {
@@ -515,39 +521,31 @@
                     const state = scriptStates[scriptName];
                     const initialState = initialScriptStates[scriptName];
                     const scriptMeta = scriptMetadataCache[scriptName];
-                    const hasChanged = state !== initialState;
 
-                    const needsDownload =
-                          state === 'activate' ||
-                          (state === 'update' && initialState === 'update') ||
-                          (state === 'downgrade' && initialState === 'downgrade') ||
-                          (hasChanged && state === 'inactive' && ['update', 'downgrade'].includes(initialState)) ||
-                          (hasChanged && (state === 'update' || state === 'downgrade') && initialState === 'inactive') ||
-                          (hasChanged && state === 'active' && (initialState === 'inactive' || initialState === 'update' || initialState === 'downgrade'));
+                    if (state === initialState && !['update', 'downgrade'].includes(state)) continue;
 
-                    if (needsDownload && (initialState === 'update' || initialState === 'downgrade' || initialState === 'install' || state === 'activate' || state === 'active')) {
-                         if (!scriptMeta) continue;
-                         const action = (initialState === 'install' || initialState === 'activate') ? 'Installiere' : 'Aktualisiere/Repariere';
-                         console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (zu Version ${scriptMeta.version})`);
-                         const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
-                         if (result.success) {
+                    if (state === 'activate' || state === 'update' || state === 'downgrade') {
+                        if (!scriptMeta) continue;
+                        const action = (initialState === 'install' || initialState === 'activate') ? 'Installiere' : 'Aktualisiere/Repariere';
+                        console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (zu Version ${scriptMeta.version})`);
+                        const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
+                        if (result.success) {
                            const hasSettings = window.BMScriptManager.codeHasSettings(result.content);
-                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: state !== 'inactive' };
+                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: true };
                            await window.BMScriptManager.saveScriptToDB(script);
                            console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich gespeichert.`);
-                         } else {
+                        } else {
                            console.error(`[B&M Manager] ❌ Fehler beim Herunterladen von Skript '${scriptName}'.`);
-                         }
+                        }
                     } else if (state === 'uninstall') {
-                        if (!hasChanged) continue;
                         console.log(`[B&M Manager] 🗑️ Deinstalliere Skript: '${scriptName}'`);
                         await window.BMScriptManager.deleteScriptFromDB(scriptName);
                         console.log(`[B&M Manager] ✅ Skript '${scriptName}' erfolgreich deinstalliert.`);
-                    } else if (hasChanged && state === 'inactive') {
+                    } else if (state === 'inactive' || (state === 'active' && initialState !== 'active')) {
                          console.log(`[B&M Manager] 🔄 Ändere Status für '${scriptName}' zu '${state}'`);
                          const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
                          if (localScript) {
-                             localScript.isActive = false;
+                             localScript.isActive = (state === 'active');
                              await window.BMScriptManager.saveScriptToDB(localScript);
                              console.log(`[B&M Manager] ✅ Status für '${scriptName}' erfolgreich aktualisiert.`);
                          }
