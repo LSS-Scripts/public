@@ -1,82 +1,24 @@
-[Fahrzeug-Tool] Starte Refit-Prozess für 5 LF-Fahrzeuge.
-VM42:169  POST https://www.leitstellenspiel.de/refit_vehicle/12307593 404 (Not Found)
-
-VM42:274 [Fahrzeug-Tool] FEHLER bei Fahrzeug-ID 12307593: Server hat mit einem Fehler geantwortet: 404 Not Found
-eval			          @	VM42:274
-Promise.catch		
-processWithProgress	@	VM42:273
-handleRefitAction	  @	VM42:155
-await in handleRefitAction		
-eval			          @	VM42:48
+<tr>
+          <td><img alt="Red truck" class="vehicle_image_reload" image_replace_allowed="true" src="https://leitstellenspiel.s3.amazonaws.com/vehicle_graphic_images/images/000/073/765/original/1715180030.png?1715180081" vehicle_type_id="30"></td>
+          <td sortvalue="HLF 20 Feuer-Fighter [Feuerwache Hamburg 017]​ 12307593">
 
 
-Request URL
-https://www.leitstellenspiel.de/refit_vehicle/12307593
-Request Method
-POST
-Status Code
-404 Not Found
-Remote Address
-80.239.144.194:443
-Referrer Policy
-strict-origin-when-cross-origin
-connection
-keep-alive
-content-encoding
-br
-content-length
-368
-content-type
-text/html; charset=utf-8
-date
-Wed, 27 Aug 2025 12:44:26 GMT
-server
-nginx
-status
-404 Not Found
-strict-transport-security
-max-age=31536000
-x-powered-by
-Phusion Passenger 6.0.1
-x-request-id
-0c5c816b-2daa-488b-a6c5-287decddf166
-x-runtime
-0.024600
-x-varnish-retries
-0
-accept
-*/*
-accept-encoding
-gzip, deflate, br, zstd
-accept-language
-de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7
-connection
-keep-alive
-content-length
-1204
-content-type
-multipart/form-data; boundary=----WebKitFormBoundaryEwUsumk4BuCA37WZ
-cookie
-mc_unique_client_id=BAhJIik2MmZhMTQwMi0wMTA2LTRiOGItOWUwNy1iZjhmMmQ1MDdiMzMGOgZFRg%3D%3D--84317cb3fed0678f3bb0d555a55cbe8e65252cf9; remember_user_token=BAhbCFsGaQNqYwRJIiIkMmEkMTAkS0tJUjYxVDEzbGdLcmRsL0NCYnppdQY6BkVUSSIXMTc1NTU5NTg0Ny44NTE2NTYyBjsARg%3D%3D--5bcda0987f4b1439451d8baec943ffef7c72d570; _session_id=179441240ab66892f8a9055125b6113b; cookie_eu_consented=true; __stripe_mid=116b4c73-6e8e-46f6-af4e-d69a565a28e30ef157; deactive_selection=[%22building_selection_rettung%22%2C%22building_selection_polizei%22%2C%22building_selection_thw%22%2C%22building_selection_wasserrettung%22%2C%22building_selection_mountain_rescue%22%2C%22building_selection_coastal_rescue%22%2C%22building_selection_schule%22%2C%22building_selection_leitstelle%22%2C%22building_selection_building_complex%22]; bigMapWindowPosition={%22m%22:[661%2C908%2C1124%2C50%2Ctrue]%2C%22b%22:[506%2C478%2C0%2C478%2Ctrue]%2C%22c%22:[622%2C465%2C505%2C486%2Ctrue]%2C%22r%22:[652%2C431%2C0%2C50%2Cfalse]}
-host
-www.leitstellenspiel.de
-origin
-https://www.leitstellenspiel.de
-referer
-https://www.leitstellenspiel.de/buildings/3428821
-sec-ch-ua
-"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"
-sec-ch-ua-mobile
-?0
-sec-ch-ua-platform
-"Windows"
-sec-fetch-dest
-empty
-sec-fetch-mode
-cors
-sec-fetch-site
-same-origin
-user-agent
-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36
+            <a href="/vehicles/12307593">HLF 20 Feuer-Fighter [Feuerwache Hamburg 017]​</a>
 
 
+
+          </td>
+          <td>
+              <a class="btn btn-default btn-xs" href="/vehicles/12307593/edit"><span title="Bearbeiten" class="glyphicon glyphicon-pencil"></span></a>
+          </td>
+          <td><span class="building_list_fms building_list_fms_2">2</span>
+
+
+          </td>
+          <td>
+
+          </td>
+          <td>
+            9
+          </td>
+        </tr>
