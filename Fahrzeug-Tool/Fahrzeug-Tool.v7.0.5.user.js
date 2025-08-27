@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.4
-// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Robuste Refit-Template-Suche.
+// @version      7.0.5
+// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Verbesserte Grid-Logik.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
 // @match        https://missionchief.com/buildings/*
 // @match        https://*.missionchief.com/buildings/*
 // @match        https://leitstellenspiel.com/buildings/*
-// @match        https://*.leitstellensiel.com/buildings/*
+// @match        https://*.leitstellenspiel.com/buildings/*
 // @grant        none
 // ==/UserScript==
 
@@ -143,7 +143,6 @@
         const htmlText = await initialResponse.text();
         const doc = new DOMParser().parseFromString(htmlText, 'text/html');
 
-        // KORREKTUR: Suche über den Namen des Select-Elements statt über die ID
         const templateOption = Array.from(doc.querySelectorAll('select[name="vehicle_fitting_template[id]"] option'))
                                    .find(option => option.textContent.trim().match(/Maximum\s+LF/i));
 
@@ -253,31 +252,34 @@
         progressContainer.style.display = 'grid';
         progressContainer.style.gap = '2px';
         progressContainer.style.marginBottom = '10px';
-
+        
         const originalTotal = vehicles.length;
         if (originalTotal === 0) return;
 
+        // --- Verbesserte Berechnungslogik ---
         let targetTotal = originalTotal;
-        let columns = 0;
+        let columns = 20; // Standard für große Mengen
 
-        if (originalTotal <= 20) {
-            columns = originalTotal;
-            targetTotal = originalTotal;
-        } else {
-            while (true) {
-                let foundDivisor = false;
-                for (let i = 20; i >= 2; i--) {
-                    if (targetTotal % i === 0) {
-                        columns = i;
-                        foundDivisor = true;
-                        break;
+        if (originalTotal <= 40) {
+             // Für kleine Mengen, suche das perfekte Rechteck
+            if (originalTotal <= 20) {
+                columns = originalTotal;
+            } else {
+                 while (true) {
+                    let foundDivisor = false;
+                    for (let i = 20; i >= 2; i--) {
+                        if (targetTotal % i === 0) {
+                            columns = i;
+                            foundDivisor = true;
+                            break;
+                        }
                     }
+                    if (foundDivisor) break;
+                    targetTotal++;
                 }
-                if (foundDivisor) break;
-                targetTotal++;
             }
         }
-
+        
         progressContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 
         const blockElements = [];
@@ -297,13 +299,15 @@
             progressContainer.appendChild(block);
             blockElements.push(block);
         });
-
+        
         const emptyCellsToAdd = targetTotal - originalTotal;
-        for (let i = 0; i < emptyCellsToAdd; i++) {
-            const emptyCell = document.createElement('div');
-            emptyCell.style.border = '1px solid transparent';
-            emptyCell.style.backgroundColor = '#f8f8f8';
-            progressContainer.appendChild(emptyCell);
+        if (originalTotal <= 40) {
+            for (let i = 0; i < emptyCellsToAdd; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.style.border = '1px solid transparent';
+                emptyCell.style.backgroundColor = '#f8f8f8';
+                progressContainer.appendChild(emptyCell);
+            }
         }
 
         const promises = [];
