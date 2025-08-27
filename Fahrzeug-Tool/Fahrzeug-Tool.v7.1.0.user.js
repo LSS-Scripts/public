@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.7
-// @description  Fügt eine Werkzeugleiste hinzu. Setzt nach erfolgreichem Refit automatisch den FMS-Status auf 2.
+// @version      7.1.0
+// @description  Fügt eine Werkzeugleiste hinzu. Die Abarbeitung erfolgt nun in kontrollierten 20er-Batches für mehr Stabilität bei großen Mengen.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
@@ -164,26 +164,18 @@
         }
 
         await processWithProgress(vehicles, async (vehicle) => {
-            // Schritt 1: Fahrzeug umrüsten
             const postUrl = postUrlTemplate.replace('{id}', vehicle.id);
             const formData = new FormData();
             formData.append('utf8', '✓');
             formData.append('authenticity_token', authToken);
             formData.append('vehicle_fitting_template[id]', templateId);
-            formData.append('vehicle_fitting_template[template_caption]', '');
-            formData.append('cabin_size_new_value', '9');
-            formData.append('water_tank_capacity_new_value', '4500');
-            formData.append('pump_capacity_new_value', '4000');
-            formData.append('foam_capacity_new_value', '1000');
             formData.append('commit', 'Fahrzeug umrüsten');
             const postResponse = await fetch(postUrl, { method: 'POST', body: formData });
             if (!postResponse.ok && postResponse.status !== 302) throw new Error(`Refit-Serverfehler: ${postResponse.status}`);
 
-            // Schritt 2: Wenn Refit erfolgreich war, FMS auf 2 setzen
             const fmsResponse = await fetch(`/vehicles/${vehicle.id}/set_fms/2`);
             if (!fmsResponse.ok) throw new Error(`FMS-Serverfehler: ${fmsResponse.status}`);
-
-        }, 100);
+        });
     }
 
     async function handleCrewAction() {
@@ -203,7 +195,7 @@
                 formData.set('vehicle[personal_max]', maxValue);
                 await fetch(form.action, { method: 'POST', body: formData });
             }
-        }, 250);
+        });
     }
 
     async function handleScrapAction() {
@@ -213,7 +205,7 @@
         await processWithProgress(vehicles, async (vehicle) => {
             const token = document.querySelector('meta[name="csrf-token"]').content;
             await fetch(`/vehicles/${vehicle.id}`, { method: 'DELETE', headers: { 'X-CSRF-Token': token } });
-        }, 100);
+        });
     }
 
     function handleKilometerAction() {
@@ -238,7 +230,7 @@
         if (!confirm(`Möchten Sie ${vehicles.length} Fahrzeuge zur Wache zurückalarmieren?`)) return;
         await processWithProgress(vehicles, async (vehicle) => {
             await fetch(`/vehicles/${vehicle.id}/backalarm?return=vehicle_show`);
-        }, 50);
+        });
     }
 
     async function handleSetFms(targetStatus, currentStatusFilter) {
@@ -249,10 +241,11 @@
         if (!confirm(`Möchten Sie ${vehicles.length} Fahrzeuge von Status ${currentStatusFilter} auf ${targetStatus} setzen?`)) return;
         await processWithProgress(vehicles, async (vehicle) => {
             await fetch(`/vehicles/${vehicle.id}/set_fms/${targetStatus}`);
-        }, 50);
+        });
     }
 
-    async function processWithProgress(vehicles, action, delay) {
+    async function processWithProgress(vehicles, action) {
+        const BATCH_SIZE = 20;
         const progressContainer = document.getElementById('lssToolProgressContainer');
         progressContainer.innerHTML = '';
         progressContainer.style.display = 'grid';
@@ -286,7 +279,7 @@
 
         progressContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 
-        const blockElements = [];
+        const blockElements = new Map();
         vehicles.forEach(vehicle => {
             const block = document.createElement('div');
             block.style.height = '18px';
@@ -301,7 +294,7 @@
             block.textContent = vehicle.id;
             block.title = `Fahrzeug: ${vehicle.name}\nID: ${vehicle.id}`;
             progressContainer.appendChild(block);
-            blockElements.push(block);
+            blockElements.set(vehicle.id, block);
         });
 
         const emptyCellsToAdd = targetTotal - originalTotal;
@@ -314,36 +307,33 @@
             }
         }
 
-        const promises = [];
-        for (let i = 0; i < vehicles.length; i++) {
-            const vehicle = vehicles[i];
-            const currentBlock = blockElements[i];
-            currentBlock.style.backgroundColor = 'gold';
-            currentBlock.style.color = '#000';
+        let failedCount = 0;
+        for (let i = 0; i < originalTotal; i += BATCH_SIZE) {
+            const batch = vehicles.slice(i, i + BATCH_SIZE);
+            const promises = batch.map(vehicle => {
+                const block = blockElements.get(vehicle.id);
+                block.style.backgroundColor = 'gold';
+                block.style.color = '#000';
 
-            const promise = action(vehicle)
-                .then(result => {
-                    currentBlock.style.backgroundColor = 'limegreen';
-                    return result;
-                })
-                .catch(e => {
-                    currentBlock.style.backgroundColor = 'crimson';
-                    currentBlock.style.color = '#fff';
-                    currentBlock.title += `\nFEHLER: ${e.message}`;
-                    console.error(`${SCRIPT_PREFIX} FEHLER bei Fahrzeug-ID ${vehicle.id}:`, e.message);
-                    return Promise.reject(e);
-                });
-            promises.push(promise);
-            await new Promise(res => setTimeout(res, delay));
+                return action(vehicle)
+                    .then(result => {
+                        block.style.backgroundColor = 'limegreen';
+                        return { status: 'fulfilled' };
+                    })
+                    .catch(e => {
+                        block.style.backgroundColor = 'crimson';
+                        block.style.color = '#fff';
+                        block.title += `\nFEHLER: ${e.message}`;
+                        console.error(`${SCRIPT_PREFIX} FEHLER bei Fahrzeug-ID ${vehicle.id}:`, e.message);
+                        failedCount++;
+                        return { status: 'rejected' };
+                    });
+            });
+            await Promise.all(promises);
         }
 
-        await Promise.allSettled(promises);
-
-        setTimeout(() => {
-            const failedCount = promises.filter(p => p.status === 'rejected').length;
-            alert(`Vorgang abgeschlossen. ${vehicles.length - failedCount} erfolgreich, ${failedCount} Fehler.`);
-            if (failedCount === 0) finishAndReload();
-        }, 0);
+        alert(`Vorgang abgeschlossen. ${originalTotal - failedCount} erfolgreich, ${failedCount} Fehler.`);
+        if (failedCount === 0) finishAndReload();
     }
 
     function finishAndReload() {
