@@ -77,6 +77,13 @@
     "changelog": ""
   },
   {
+    "name": "Reale Gebäudeliste",
+    "version": "0.5.0",
+    "fileName": "Reale Gebäudeliste.v0.5.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Summenleiste",
     "version": "2.8.0",
     "fileName": "Summenleiste.v2.8.0.user.js",
