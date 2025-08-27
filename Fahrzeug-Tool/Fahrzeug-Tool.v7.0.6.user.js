@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.5
-// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Verbesserte Grid-Logik.
+// @version      7.0.6
+// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Refit-Timer auf 100ms reduziert.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
@@ -177,7 +177,7 @@
             formData.append('commit', 'Fahrzeug umrüsten');
             const postResponse = await fetch(postUrl, { method: 'POST', body: formData });
             if (!postResponse.ok && postResponse.status !== 302) throw new Error(`Serverfehler: ${postResponse.status}`);
-        }, 400);
+        }, 100); // <-- Wert auf 100ms geändert
     }
 
     async function handleCrewAction() {
@@ -252,16 +252,14 @@
         progressContainer.style.display = 'grid';
         progressContainer.style.gap = '2px';
         progressContainer.style.marginBottom = '10px';
-        
+
         const originalTotal = vehicles.length;
         if (originalTotal === 0) return;
 
-        // --- Verbesserte Berechnungslogik ---
         let targetTotal = originalTotal;
-        let columns = 20; // Standard für große Mengen
+        let columns = 20;
 
         if (originalTotal <= 40) {
-             // Für kleine Mengen, suche das perfekte Rechteck
             if (originalTotal <= 20) {
                 columns = originalTotal;
             } else {
@@ -279,7 +277,7 @@
                 }
             }
         }
-        
+
         progressContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
 
         const blockElements = [];
@@ -299,7 +297,7 @@
             progressContainer.appendChild(block);
             blockElements.push(block);
         });
-        
+
         const emptyCellsToAdd = targetTotal - originalTotal;
         if (originalTotal <= 40) {
             for (let i = 0; i < emptyCellsToAdd; i++) {
