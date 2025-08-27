@@ -1,20 +1,21 @@
 // ==UserScript==
 // @name         Leitstellenspiel Patient Entlassen
 // @namespace    http://tampermonkey.net/
-// @version      0.8.0
-// @description  Verfeinerte ELW-SEG-Prüfung: Warnt nur, wenn der Besitzer des ELW-SEG auch FMS-5-Sprechwünsche hat.
+// @version      0.8.1
+// @description  Verbesserte Ziel-Suche: Platziert den Button zuverlässig im korrekten Sprechwunsch-Banner durch Text-Analyse.
 // @author       Gemini & Bearbeitungen
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM.xmlHttpRequest
 // @run-at       document-start
 // @license MIT
-
+// @downloadURL https://update.greasyfork.org/scripts/537616/Leitstellenspiel%20Patient%20Entlassen.user.js
+// @updateURL https://update.greasyfork.org/scripts/537616/Leitstellenspiel%20Patient%20Entlassen.meta.js
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    console.log('LSS Patient Entlassen Skript geladen (Version 0.80).');
+    console.log('LSS Patient Entlassen Skript geladen (Version 0.81).');
 
     let buttonSetupCompleted = false; // Flag, um sicherzustellen, dass der Button nur einmal hinzugefügt wird
     let styleTagAdded = false; // Flag, um sicherzustellen, dass der Style-Tag nur einmal hinzugefügt wird
@@ -302,7 +303,7 @@
                 }
 
 
-                // KORREKTUR: ELW-SEG Warnung nur anzeigen, wenn der Benutzer auch FMS-5-Sprechwünsche hat.
+                // ELW-SEG Warnung nur anzeigen, wenn der Benutzer auch FMS-5-Sprechwünsche hat.
                 if ((details.hasElwSegOnRoute || details.hasElwSegOnScene) && details.totalFMS5 > 0) {
                     hasElwSegFoundOverall = true;
                     let elwSegDisplayContent = '';
@@ -625,7 +626,16 @@
             `;
             button.addEventListener('click', processPatientRelease);
 
-            const preferredTarget = document.querySelector('div.alert.alert-danger:not(.alert-missing-vehicles)');
+            // KORREKTUR: Sucht jetzt nach dem Banner, der "Sprechwunsch" im Text enthält
+            const allAlerts = document.querySelectorAll('div.alert.alert-danger');
+            let preferredTarget = null;
+
+            for (const alertDiv of allAlerts) {
+                if (alertDiv.textContent.includes('Sprechwunsch')) {
+                    preferredTarget = alertDiv;
+                    break;
+                }
+            }
 
             if (preferredTarget) {
                 const referenceElement = preferredTarget.querySelector('br'); // Findet das erste <br> als Anker
