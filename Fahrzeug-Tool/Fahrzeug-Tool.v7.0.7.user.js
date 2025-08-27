@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      7.0.6
-// @description  Fügt eine Werkzeugleiste hinzu. Die Fortschrittsanzeige ("Defrag"-Bar) ordnet sich immer als perfektes, symmetrisches Rechteck an. Refit-Timer auf 100ms reduziert.
+// @version      7.0.7
+// @description  Fügt eine Werkzeugleiste hinzu. Setzt nach erfolgreichem Refit automatisch den FMS-Status auf 2.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://*.leitstellenspiel.de/buildings/*
@@ -136,7 +136,7 @@
             alert('Keine passenden LF-Fahrzeuge für ein Refit in der aktuellen Ansicht gefunden.');
             return;
         }
-        if (!confirm(`Möchten Sie ${vehicles.length} passende LF-Fahrzeuge auf 'Maximum LF' umrüsten?`)) return;
+        if (!confirm(`Möchten Sie ${vehicles.length} passende LF-Fahrzeuge auf 'Maximum LF' umrüsten und danach auf FMS 2 setzen?`)) return;
 
         const firstId = vehicles[0].id;
         const initialResponse = await fetch(`/vehicles/${firstId}/refit`);
@@ -147,7 +147,7 @@
                                    .find(option => option.textContent.trim().match(/Maximum\s+LF/i));
 
         if (!templateOption) {
-            alert('Fehler: Die Ausrüstungsvorlage "Maximum LF" wurde auf der Umrüst-Seite nicht gefunden. Bitte stelle sicher, dass sie existiert und exakt so heißt.');
+            alert('Fehler: Die Ausrüstungsvorlage "Maximum LF" wurde auf der Umrüst-Seite nicht gefunden. Bitte stelle sicher, dass sie existiert.');
             return;
         }
         const templateId = templateOption.value;
@@ -164,6 +164,7 @@
         }
 
         await processWithProgress(vehicles, async (vehicle) => {
+            // Schritt 1: Fahrzeug umrüsten
             const postUrl = postUrlTemplate.replace('{id}', vehicle.id);
             const formData = new FormData();
             formData.append('utf8', '✓');
@@ -176,8 +177,13 @@
             formData.append('foam_capacity_new_value', '1000');
             formData.append('commit', 'Fahrzeug umrüsten');
             const postResponse = await fetch(postUrl, { method: 'POST', body: formData });
-            if (!postResponse.ok && postResponse.status !== 302) throw new Error(`Serverfehler: ${postResponse.status}`);
-        }, 100); // <-- Wert auf 100ms geändert
+            if (!postResponse.ok && postResponse.status !== 302) throw new Error(`Refit-Serverfehler: ${postResponse.status}`);
+
+            // Schritt 2: Wenn Refit erfolgreich war, FMS auf 2 setzen
+            const fmsResponse = await fetch(`/vehicles/${vehicle.id}/set_fms/2`);
+            if (!fmsResponse.ok) throw new Error(`FMS-Serverfehler: ${fmsResponse.status}`);
+
+        }, 100);
     }
 
     async function handleCrewAction() {
