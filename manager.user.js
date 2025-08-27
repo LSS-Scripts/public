@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      12.8 (Korrektur)
-// @description  Finale, stabile Version mit Bugfixes für Lade- und Konfigurationsprozesse. Update-Logik korrigiert.
-// @author       Masklin (und Gemini)
+// @version      13.1 (Downgrade Detection)
+// @description  Erkennt zurückgezogene Updates (Downgrades) und bietet eine Neuinstallation der empfohlenen Version an.
+// @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
@@ -21,7 +21,7 @@
     const CACHE_DURATION_MS = 10 * 60 * 1000;
 
     let scriptStates = {};
-    let initialScriptStates = {}; // Speichert den Ausgangszustand der Skripte beim Laden der UI
+    let initialScriptStates = {};
     let scriptMetadataCache = {};
     let db;
 
@@ -29,6 +29,7 @@
         _settingsCache: {},
         _branchCache: {},
 
+        // ... (openDatabase, getScriptsFromDB, etc. bleiben unverändert) ...
         openDatabase: function() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -104,6 +105,19 @@
         codeHasSettings: function(code) {
             return /\/\*--BMScriptConfig([\s\S]*?)--\*\//.test(code);
         },
+        // ########## NEUE HILFSFUNKTION ##########
+        compareVersions: function(v1, v2) {
+            const parts1 = v1.split('.').map(Number);
+            const parts2 = v2.split('.').map(Number);
+            const len = Math.max(parts1.length, parts2.length);
+            for (let i = 0; i < len; i++) {
+                const p1 = parts1[i] || 0;
+                const p2 = parts2[i] || 0;
+                if (p1 > p2) return 1; // v1 ist größer
+                if (p1 < p2) return -1; // v1 ist kleiner
+            }
+            return 0; // Versionen sind gleich
+        },
         _getDefaultBranch: async function(repoInfo) {
             const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
             if (this._branchCache[repoPath]) {
@@ -126,13 +140,47 @@
                 const name = repoInfo ? repoInfo.name : GITHUB_REPO_NAME;
                 const token = repoInfo ? repoInfo.token : null;
                 const defaultBranch = await this._getDefaultBranch({owner, name, token});
-                const fileUrl = `https://raw.githubusercontent.com/${owner}/${name}/${defaultBranch}/${filePath}`;
+                let fileUrl = `https://raw.githubusercontent.com/${owner}/${name}/${defaultBranch}/${filePath}`;
                 const headers = token ? { 'Authorization': `token ${token}` } : {};
+                console.log(`[B&M GitHub Log] ➡️ Fordere Roh-Datei an: ${fileUrl}`);
                 GM_xmlhttpRequest({
                     method: 'GET', url: fileUrl, headers,
-                    onload: res => (res.status === 200 && res.responseText) ? resolve({ success: true, content: res.responseText }) : resolve({ success: false }),
-                    onerror: () => resolve({ success: false })
+                    onload: res => {
+                        if (res.status === 200 && res.responseText) {
+                            console.log(`[B&M GitHub Log] ✅ Datei empfangen (Status: ${res.status}) von: ${fileUrl}`);
+                            resolve({ success: true, content: res.responseText });
+                        } else {
+                            console.error(`[B&M GitHub Log] ❌ Fehler beim Abrufen der Datei (Status: ${res.status}) von: ${fileUrl}`);
+                            resolve({ success: false });
+                        }
+                    },
+                    onerror: (err) => {
+                        console.error(`[B&M GitHub Log] ❌ Netzwerkfehler beim Anfordern der Datei von: ${fileUrl}`, err);
+                        resolve({ success: false });
+                    }
                 });
+            });
+        },
+        _fetchFileWithAPI: async function(filePath, repoInfo) {
+             return new Promise(async (resolve) => {
+                const owner = repoInfo.owner;
+                const name = repoInfo.name;
+                const token = repoInfo.token;
+                const apiPath = `${owner}/${name}/contents/${filePath}`;
+                const result = await this._fetchRESTContents(apiPath, token);
+
+                if (result.success && result.data.content) {
+                    try {
+                        const decodedContent = decodeURIComponent(escape(window.atob(result.data.content)));
+                        console.log(`[B&M GitHub Log] ✅ API-Datei dekodiert: ${filePath}`);
+                        resolve({ success: true, content: decodedContent });
+                    } catch (e) {
+                        console.error(`[B&M GitHub Log] ❌ Fehler beim Dekodieren der API-Datei: ${filePath}`, e);
+                        resolve({ success: false });
+                    }
+                } else {
+                    resolve({ success: false });
+                }
             });
         },
         fetchRawScript: function(dirName, fileName, repoInfo) {
@@ -140,17 +188,24 @@
         },
         _fetchRESTContents: function(path, token = null) {
             return new Promise((resolve) => {
+                const fullUrl = GITHUB_API_URL + path;
                 const headers = token ? { 'Authorization': `token ${token}` } : {};
+                console.log(`[B&M GitHub Log] ➡️ Fordere API-Daten an: ${fullUrl}`);
                 GM_xmlhttpRequest({
-                    method: 'GET', url: GITHUB_API_URL + path, headers,
+                    method: 'GET', url: fullUrl, headers,
                     onload: res => {
                         if (res.status === 200) {
+                            console.log(`[B&M GitHub Log] ✅ API-Daten empfangen (Status: ${res.status}) von: ${fullUrl}`);
                             resolve({ success: true, data: JSON.parse(res.responseText) });
                         } else {
+                            console.error(`[B&M GitHub Log] ❌ Fehler beim Abrufen der API-Daten (Status: ${res.status}) von: ${fullUrl}`);
                             resolve({ success: false, status: res.status });
                         }
                     },
-                    onerror: () => resolve({ success: false, status: 'NETWORK_ERROR' })
+                    onerror: (err) => {
+                         console.error(`[B&M GitHub Log] ❌ Netzwerkfehler beim Anfordern von API-Daten von: ${fullUrl}`, err);
+                         resolve({ success: false, status: 'NETWORK_ERROR' });
+                    }
                 });
             });
         },
@@ -177,7 +232,7 @@
             }
         },
         fetchScriptsWithManifest: async function(repoInfo) {
-            const result = await this._fetchRawFile('manifest.json', repoInfo);
+            const result = await this._fetchFileWithAPI('manifest.json', repoInfo);
             if (result.success) {
                 try {
                     const manifest = JSON.parse(result.content);
@@ -208,6 +263,18 @@
                 return [];
             }
         },
+        fetchPrivateRepoScripts: async function(repoInfo, progressCallback) {
+            const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
+            if(progressCallback) progressCallback(`Prüfe Manifest für ${repoPath}...`);
+            const manifestResult = await this.fetchScriptsWithManifest(repoInfo);
+            if (manifestResult.length > 0) {
+                console.log(`[B&M Manager] ✅ Manifest in privatem Repo '${repoPath}' gefunden und verwendet.`);
+                return manifestResult;
+            } else {
+                console.log(`[B&M Manager] ℹ️ Kein Manifest in privatem Repo '${repoPath}' gefunden. Fallback auf Verzeichnis-Scan.`);
+                return this.fetchScriptsWithREST(repoInfo, progressCallback);
+            }
+        },
         runActiveScripts: async function() {
             await this.openDatabase();
             const scripts = await this.getScriptsFromDB();
@@ -234,10 +301,13 @@
             if (buttonState === 'update') {
                 icons += ` <span class="update-symbol" title="Update verfügbar">🔄</span>`;
             }
+            if (buttonState === 'downgrade') {
+                icons += ` <span class="downgrade-symbol" title="Reparatur-Update empfohlen">↩️</span>`;
+            }
             item.innerHTML = `${icons} ${buttonContent}`;
             item.dataset.description = infoText;
 
-            if (['active', 'update', 'inactive'].includes(buttonState) && scriptMeta.hasSettings) {
+            if (['active', 'update', 'inactive', 'downgrade'].includes(buttonState) && scriptMeta.hasSettings) {
                 const configBtn = document.createElement('span');
                 configBtn.className = 'bm-config-btn';
                 configBtn.innerHTML = '⚙️';
@@ -249,7 +319,7 @@
                 item.appendChild(configBtn);
             }
 
-            if (['active', 'update', 'inactive'].includes(buttonState)) {
+            if (['active', 'update', 'inactive', 'removed', 'downgrade'].includes(buttonState)) {
                  const uninstallBtn = document.createElement('span');
                  uninstallBtn.className = 'bm-uninstall-btn';
                  uninstallBtn.innerHTML = '&times;';
@@ -285,10 +355,15 @@
             item.addEventListener('click', () => {
                 const currentState = scriptStates[scriptMeta.name];
 
-                if (['active', 'update'].includes(currentState)) {
+                if (initialScriptStates[scriptMeta.name] === 'removed' && currentState !== 'uninstall') {
+                    return;
+                }
+
+                if (['active', 'update', 'downgrade'].includes(currentState)) {
                     scriptStates[scriptMeta.name] = 'inactive';
                 } else if (currentState === 'inactive') {
-                    scriptStates[scriptMeta.name] = 'active';
+                    // Zurück zum ursprünglichen Zustand (kann active, update oder downgrade sein)
+                    scriptStates[scriptMeta.name] = initialScriptStates[scriptMeta.name];
                 } else if (currentState === 'install') {
                     scriptStates[scriptMeta.name] = 'activate';
                 } else if (currentState === 'activate') {
@@ -305,29 +380,42 @@
             const scriptList = document.getElementById('script-list');
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
+
+            if (forceRefresh) {
+                console.log('[B&M Manager] Cache wird geleert (forceRefresh=true).');
+                sessionStorage.removeItem('bm_cache_timestamp');
+                sessionStorage.removeItem('bm_cache_data');
+                this._branchCache = {};
+            }
+
             const now = Date.now();
             const cacheTimestamp = sessionStorage.getItem('bm_cache_timestamp');
             const cachedScripts = sessionStorage.getItem('bm_cache_data');
+
             if (!forceRefresh && cachedScripts && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION_MS)) {
                 scriptList.innerHTML = '';
                 const allScripts = JSON.parse(cachedScripts);
                 await this._populateUI(allScripts);
                 return;
             }
+
             const loaderContainer = `<div class="bm-loader-container"><div class="bm-loader"></div> <span id="bm-loader-text">Initialisiere...</span></div>`;
             scriptList.innerHTML = loaderContainer;
             saveButton.style.display = 'none';
             filterInput.style.display = 'none';
             filterInput.value = '';
             scriptStates = {}; scriptMetadataCache = {};
+
             const updateLoaderText = (text) => {
                 const loaderText = document.getElementById('bm-loader-text');
                 if (loaderText) loaderText.textContent = text;
             };
+
             try {
                 updateLoaderText('Lese Repositories...');
                 const publicRepoInfo = { owner: GITHUB_REPO_OWNER, name: GITHUB_REPO_NAME, token: null };
                 const publicScriptsPromise = this.fetchScriptsWithManifest(publicRepoInfo);
+
                 const privateScriptPromises = [];
                 const accessConfigString = localStorage.getItem('bm_access_cfg');
                 if (accessConfigString) {
@@ -337,15 +425,19 @@
                             try {
                                 const [token, repoPath] = config.split('@');
                                 const [owner, name] = repoPath.split('/');
-                                privateScriptPromises.push(this.fetchScriptsWithREST({ owner, name, token }, updateLoaderText));
+                                privateScriptPromises.push(this.fetchPrivateRepoScripts({ owner, name, token }, updateLoaderText));
                             } catch (e) { console.error(`[B&M Manager] Fehler beim Parsen: "${config}"`); }
                         }
                     }
                 }
-                const [publicScripts, ...privateScriptsArrays] = await Promise.all([publicScriptsPromise, ...privateScriptPromises]);
-                const allScripts = [...publicScripts, ...privateScriptsArrays.flat()];
+
+                const promises = [publicScriptsPromise, ...privateScriptPromises];
+                const scriptArrays = await Promise.all(promises);
+                const allScripts = scriptArrays.flat();
+
                 sessionStorage.setItem('bm_cache_data', JSON.stringify(allScripts));
                 sessionStorage.setItem('bm_cache_timestamp', Date.now());
+
                 await this._populateUI(allScripts);
             } catch (error) {
                 console.error('B&M Manager: Kritischer Fehler:', error);
@@ -361,6 +453,7 @@
             allScripts.sort((a, b) => a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase()));
             scriptList.innerHTML = '';
             initialScriptStates = {};
+
             for (const scriptMeta of allScripts) {
                 scriptMetadataCache[scriptMeta.name] = scriptMeta;
                 const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
@@ -372,33 +465,47 @@
                 const fullDescription = extraInfo + (scriptMeta.description || "Keine Beschreibung.") + (scriptMeta.changelog || "");
                 const localScript = dbScripts.find(s => s.name === scriptMeta.name);
                 let buttonState = 'install';
+                let infoText = fullDescription;
 
                 if (localScript) {
                     if (typeof localScript.hasSettings === 'undefined') {
                         localScript.hasSettings = window.BMScriptManager.codeHasSettings(localScript.code);
                         window.BMScriptManager.saveScriptToDB(localScript);
                     }
-
                     scriptMeta.hasSettings = scriptMeta.hasSettings || localScript.hasSettings;
 
                     if (localScript.isActive === false) {
                         buttonState = 'inactive';
                     } else {
-                         const onlineVersion = scriptMeta.version.split('.').map(Number);
-                         const localVersion = localScript.version.split('.').map(Number);
-                         if (onlineVersion[0] > localVersion[0] ||
-                            (onlineVersion[0] === localVersion[0] && onlineVersion[1] > localVersion[1]) ||
-                            (onlineVersion[0] === localVersion[0] && onlineVersion[1] === localVersion[1] && onlineVersion[2] > localVersion[2])) {
-                            buttonState = 'update';
+                        // ########## ANGEPASSTE LOGIK FÜR VERSIONEN ##########
+                        const versionComparison = this.compareVersions(scriptMeta.version, localScript.version);
+                        if (versionComparison > 0) {
+                            buttonState = 'update'; // Online-Version ist neuer
+                        } else if (versionComparison < 0) {
+                            buttonState = 'downgrade'; // Online-Version ist älter (zurückgezogen)
+                             infoText = `<strong><span class="external-warning">EMPFEHLUNG:</span> Reparatur-Update</strong>\n<hr>\nDeine installierte Version (${localScript.version}) wurde zurückgezogen. Es wird empfohlen, die stabile Version ${scriptMeta.version} zu installieren.\n<hr>\n` + fullDescription;
                         } else {
-                            buttonState = 'active';
+                            buttonState = 'active'; // Versionen sind identisch
                         }
                     }
                 }
-                this.createUIElement(scriptMeta, fullDescription, buttonState);
+                this.createUIElement(scriptMeta, infoText, buttonState);
                 scriptStates[scriptMeta.name] = buttonState;
                 initialScriptStates[scriptMeta.name] = buttonState;
             }
+
+            const onlineScriptNames = new Set(allScripts.map(s => s.name));
+            for (const localScript of dbScripts) {
+                if (!onlineScriptNames.has(localScript.name)) {
+                    console.warn(`[B&M Manager] Verwaistes Skript gefunden: '${localScript.name}'.`);
+                    const scriptMeta = { name: localScript.name, version: localScript.version, repoInfo: { owner: 'Unbekannt', name: 'Unbekannt' } };
+                    const infoText = `<strong><span class="external-warning">VORSICHT:</span> Skript wurde online entfernt!</strong>\n<hr>\nDieses Skript ist lokal installiert, wurde aber online nicht mehr gefunden. Es wird empfohlen, es zu deinstallieren.`;
+                    this.createUIElement(scriptMeta, infoText, 'removed');
+                    scriptStates[localScript.name] = 'removed';
+                    initialScriptStates[localScript.name] = 'removed';
+                }
+            }
+
             saveButton.style.display = 'block';
             filterInput.style.display = 'block';
         },
@@ -406,23 +513,19 @@
             const saveButton = document.getElementById('save-scripts-button');
             saveButton.disabled = true;
             saveButton.innerHTML = 'Wende Änderungen an...';
-
             try {
                 console.log(`[B&M Manager] Starte Speichervorgang...`);
                 for (const scriptName in scriptStates) {
                     const state = scriptStates[scriptName];
                     const initialState = initialScriptStates[scriptName];
                     const scriptMeta = scriptMetadataCache[scriptName];
-                    if (!scriptMeta) continue;
+                    if (state === initialState) continue;
 
-                    // ########## KORREKTUR-BLOCK FÜR UPDATES ##########
-                    // Führe die Aktion aus, wenn sich der Zustand geändert hat, ODER wenn der Zustand 'update' ist (dieser muss immer ausgeführt werden).
-                    if (state === initialState && state !== 'update') continue;
-                    // ##################################################
-
-                    if (state === 'activate' || state === 'update') {
-                        const action = state === 'activate' ? 'Installiere' : 'Aktualisiere';
-                        console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (Version ${scriptMeta.version})`);
+                    // Downgrade wird hier wie activate und update behandelt
+                    if (state === 'activate' || state === 'update' || state === 'downgrade' || ((state === 'inactive' || state === 'active') && ['update', 'downgrade'].includes(initialState))) {
+                        if (!scriptMeta) continue;
+                        const action = (initialState === 'install' || initialState === 'activate') ? 'Installiere' : 'Aktualisiere/Repariere';
+                        console.log(`[B&M Manager] 📥 ${action} Skript: '${scriptName}' (zu Version ${scriptMeta.version})`);
                         const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
                         if (result.success) {
                            const hasSettings = window.BMScriptManager.codeHasSettings(result.content);
@@ -440,19 +543,16 @@
                          console.log(`[B&M Manager] 🔄 Ändere Status für '${scriptName}' zu '${state}'`);
                          const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
                          if (localScript) {
-                             localScript.isActive = (state === 'active' || state === 'update');
+                             localScript.isActive = (state === 'active');
                              await window.BMScriptManager.saveScriptToDB(localScript);
                              console.log(`[B&M Manager] ✅ Status für '${scriptName}' erfolgreich aktualisiert.`);
                          }
                     }
                 }
-
                 console.log(`[B&M Manager] Alle Änderungen verarbeitet. Aktualisiere UI...`);
                 await window.BMScriptManager.loadAndDisplayScripts(true);
-
             } catch (error) {
                 console.error('[B&M Manager] Ein Fehler ist beim Anwenden der Änderungen aufgetreten:', error);
-
             } finally {
                 saveButton.disabled = false;
                 saveButton.innerHTML = 'Änderungen anwenden';
@@ -570,6 +670,11 @@
         .script-button.inactive { background-color: #6c757d; color: white; border-color: #6c757d; }
         .script-button.uninstall { background-color: #dc3545; color: white; border-color: #dc3545; }
         .script-button.activate { background-color: #17a2b8; border-color: #17a2b8; color: white; }
+        .script-button.removed { background-color: #495057; color: #ced4da; border-color: #343a40; }
+        .script-button.removed:hover { filter: brightness(1); transform: none; }
+        .script-button.removed strong { text-decoration: line-through; }
+        .script-button.downgrade { background-color: #fd7e14; border-color: #fd7e14; color: white; }
+        .downgrade-symbol { display: inline-block; transform: scaleX(-1); }
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; }
         #save-scripts-button { display: none; width: 100%; padding: 10px; margin-top: 20px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 5px; cursor: pointer; }
         .script-button.external-script { border-color: #ff9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
