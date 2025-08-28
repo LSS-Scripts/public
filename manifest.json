@@ -42,6 +42,13 @@
     "changelog": ""
   },
   {
+    "name": "Fahrzeuge auf Karte",
+    "version": "1.0.0",
+    "fileName": "Fahrzeuge auf Karte.v1.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Fahrzeugfilter",
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
