@@ -29,8 +29,8 @@
   },
   {
     "name": "Fahrzeug-Benennungs-Generator",
-    "version": "13.1.0",
-    "fileName": "Fahrzeug-Benennungs-Generator.v13.1.0.user.js",
+    "version": "13.1.1",
+    "fileName": "Fahrzeug-Benennungs-Generator.v13.1.1.user.js",
     "description": "Ein Script, das Fahrzeuge random benennt. Mit großer Wortliste....",
     "changelog": ""
   },
