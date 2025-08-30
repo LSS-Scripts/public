@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
+// @name         Fahrzeug & Flotten-Tool (FMS 6, Besatzung, Refit etc.)
 // @namespace    http://tampermonkey.net/
-// @version      8.0.0
-// @description  Erweitert das Fahrzeug-Tool um einen globalen FMS 6 Status-Viewer und behält alle Werkzeuge auf Gebäude-Seiten bei.
+// @version      8.1.0
+// @description  Erweitert das Fahrzeug-Tool um einen globalen FMS 6 Status-Viewer mit Sortierung & Typen-Anzeige. Behält alle Werkzeuge auf Gebäude-Seiten bei.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -15,81 +15,68 @@
     const SCRIPT_PREFIX = '[Fahrzeug & Flotten-Tool]';
 
     // ========================================================================
-    // === STYLING (CSS für das neue Modal-Fenster)
+    // === STYLING (CSS für das Modal-Fenster)
     // ========================================================================
     GM_addStyle(`
         #fms6-modal-backdrop {
-            position: fixed;
-            top: 0; left: 0;
+            position: fixed; top: 0; left: 0;
             width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.6);
-            z-index: 10000;
-            display: none; /* Standardmäßig ausgeblendet */
+            z-index: 10000; display: none;
         }
         #fms6-modal {
-            position: fixed;
-            top: 50%; left: 50%;
+            position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 500px;
-            background-color: #fdfdfd;
-            border-radius: 8px;
+            width: 90%; max-width: 600px; /* Etwas breiter für mehr Details */
+            background-color: #fdfdfd; border-radius: 8px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            z-index: 10001;
-            display: flex;
-            flex-direction: column;
+            z-index: 10001; display: flex; flex-direction: column;
         }
         #fms6-modal-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 15px 20px; border-bottom: 1px solid #ddd;
+            display: flex; justify-content: space-between; align-items: center;
         }
         #fms6-modal-header h3 {
-            margin: 0;
-            font-size: 18px;
-            color: #333;
+            margin: 0; font-size: 18px; color: #333;
         }
         #fms6-modal-close {
-            border: none;
-            background: none;
-            font-size: 24px;
-            cursor: pointer;
-            color: #888;
+            border: none; background: none; font-size: 24px;
+            cursor: pointer; color: #888;
         }
         #fms6-modal-body {
-            padding: 20px;
-            max-height: 60vh;
-            overflow-y: auto;
+            padding: 20px; max-height: 70vh; overflow-y: auto;
         }
         #fms6-building-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            text-align: center;
+            list-style: none; padding: 0; margin: 0;
+        }
+        #fms6-building-list li {
+            background-color: #f8f9fa; border-radius: 5px;
+            margin-bottom: 10px; padding: 10px 15px;
+            border: 1px solid #dee2e6;
         }
         #fms6-building-list a {
-            display: block;
-            padding: 10px 15px;
-            margin-bottom: 5px;
-            background-color: #f0f0f0;
-            border-radius: 5px;
-            color: #337ab7;
-            text-decoration: none;
-            transition: background-color 0.2s, color 0.2s;
+            font-weight: bold; color: #337ab7;
+            text-decoration: none; display: block;
+            margin-bottom: 8px; font-size: 16px;
         }
         #fms6-building-list a:hover {
-            background-color: #337ab7;
-            color: white;
+            text-decoration: underline;
         }
         .fms6-count-badge {
-            background-color: #c9302c;
-            color: white;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-size: 12px;
-            margin-left: 8px;
+            background-color: #c9302c; color: white;
+            padding: 3px 8px; border-radius: 12px;
+            font-size: 13px; margin-left: 8px;
+            font-weight: normal;
+        }
+        .vehicle-types-container {
+            display: flex; flex-wrap: wrap; gap: 5px;
+            justify-content: flex-start;
+        }
+        .vehicle-type-tag {
+            display: inline-block; background-color: #e9ecef;
+            color: #495057; padding: 3px 8px;
+            border-radius: 12px; font-size: 11px;
+            font-weight: bold; white-space: nowrap;
         }
     `);
 
@@ -97,15 +84,10 @@
     // === SECTION 1: FMS 6 STATUS VIEWER (GLOBAL)
     // ========================================================================
 
-    /**
-     * Erstellt das Grundgerüst für das Modal-Fenster und fügt es zum DOM hinzu.
-     */
     function createFms6Modal() {
         if (document.getElementById('fms6-modal-backdrop')) return;
-
         const backdrop = document.createElement('div');
         backdrop.id = 'fms6-modal-backdrop';
-
         const modal = document.createElement('div');
         modal.id = 'fms6-modal';
         modal.innerHTML = `
@@ -115,107 +97,106 @@
             </div>
             <div id="fms6-modal-body">
                 <ul id="fms6-building-list"><li>Lade Daten...</li></ul>
-            </div>
-        `;
-
+            </div>`;
         backdrop.appendChild(modal);
         document.body.appendChild(backdrop);
-
         const closeHandler = () => backdrop.style.display = 'none';
         document.getElementById('fms6-modal-close').addEventListener('click', closeHandler);
-        backdrop.addEventListener('click', (e) => {
-            if (e.target === backdrop) {
-                closeHandler();
-            }
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeHandler(); });
+    }
+
+    async function fetchApiData(url) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET', url,
+                onload: response => resolve(JSON.parse(response.responseText)),
+                onerror: reject
+            });
         });
     }
 
-    /**
-     * Ruft die Fahrzeug-API ab, verarbeitet die Daten und zeigt sie im Modal an.
-     */
     async function fetchAndShowFms6Vehicles() {
         const modalBackdrop = document.getElementById('fms6-modal-backdrop');
         const buildingList = document.getElementById('fms6-building-list');
-
         modalBackdrop.style.display = 'block';
-        buildingList.innerHTML = '<li>Lade Fahrzeugdaten von der API...</li>';
+        buildingList.innerHTML = '<li>Lade Fahrzeug- & Typen-Daten von den APIs...</li>';
 
-        GM_xmlhttpRequest({
-            method: 'GET',
-            url: '/api/vehicles',
-            onload: function(response) {
-                try {
-                    const allVehicles = JSON.parse(response.responseText);
-                    const fms6Vehicles = allVehicles.filter(v => v.fms_real === 6);
+        try {
+            const [allVehicles, vehicleTypes] = await Promise.all([
+                fetchApiData('/api/vehicles'),
+                fetchApiData('https://api.lss-manager.de/de_DE/vehicles')
+            ]);
 
-                    if (fms6Vehicles.length === 0) {
-                        buildingList.innerHTML = '<li>Keine Fahrzeuge in Status 6 gefunden.</li>';
-                        return;
-                    }
-
-                    // Fahrzeuge nach Gebäude-ID gruppieren
-                    const buildings = {};
-                    fms6Vehicles.forEach(v => {
-                        if (!buildings[v.building_id]) {
-                            buildings[v.building_id] = { count: 0, vehicleNames: [] };
-                        }
-                        buildings[v.building_id].count++;
-                        buildings[v.building_id].vehicleNames.push(v.caption);
-                    });
-
-                    // Liste leeren und neu aufbauen
-                    buildingList.innerHTML = '';
-                    for (const buildingId in buildings) {
-                        const data = buildings[buildingId];
-                        const listItem = document.createElement('li');
-                        const link = document.createElement('a');
-                        link.href = `/buildings/${buildingId}`;
-                        link.target = "_blank"; // In neuem Tab öffnen, um die Übersicht nicht zu verlieren
-                        link.title = `Fahrzeuge:\n- ${data.vehicleNames.join('\n- ')}`;
-                        link.innerHTML = `Gebäude #${buildingId} <span class="fms6-count-badge">${data.count} Fzg.</span>`;
-                        listItem.appendChild(link);
-                        buildingList.appendChild(listItem);
-                    }
-
-                } catch (e) {
-                    buildingList.innerHTML = '<li>Fehler beim Verarbeiten der API-Daten.</li>';
-                    console.error(`${SCRIPT_PREFIX} Fehler bei der FMS 6-Anzeige:`, e);
-                }
-            },
-            onerror: function() {
-                buildingList.innerHTML = '<li>Fehler beim Abrufen der API-Daten.</li>';
+            const fms6Vehicles = allVehicles.filter(v => v.fms_real === 6);
+            if (fms6Vehicles.length === 0) {
+                buildingList.innerHTML = '<li>Keine Fahrzeuge in Status 6 gefunden.</li>';
+                return;
             }
-        });
+
+            const buildings = {};
+            fms6Vehicles.forEach(v => {
+                if (!buildings[v.building_id]) {
+                    buildings[v.building_id] = { count: 0, vehicleNames: [], typeCounts: {} };
+                }
+                buildings[v.building_id].count++;
+                buildings[v.building_id].vehicleNames.push(v.caption);
+
+                const typeCaption = vehicleTypes[v.vehicle_type]?.caption || 'Unbekannt';
+                buildings[v.building_id].typeCounts[typeCaption] = (buildings[v.building_id].typeCounts[typeCaption] || 0) + 1;
+            });
+
+            const sortedBuildingIds = Object.keys(buildings).sort((a, b) => buildings[b].count - buildings[a].count);
+
+            buildingList.innerHTML = '';
+            sortedBuildingIds.forEach(buildingId => {
+                const data = buildings[buildingId];
+                const listItem = document.createElement('li');
+
+                const link = document.createElement('a');
+                link.href = `/buildings/${buildingId}`;
+                link.target = "_blank";
+                link.title = `Fahrzeuge:\n- ${data.vehicleNames.join('\n- ')}`;
+                link.innerHTML = `Gebäude #${buildingId} <span class="fms6-count-badge">${data.count} Fzg.</span>`;
+
+                const typesContainer = document.createElement('div');
+                typesContainer.className = 'vehicle-types-container';
+                for (const type in data.typeCounts) {
+                    const count = data.typeCounts[type];
+                    const typeTag = document.createElement('span');
+                    typeTag.className = 'vehicle-type-tag';
+                    typeTag.textContent = `${count}x ${type}`;
+                    typesContainer.appendChild(typeTag);
+                }
+
+                listItem.appendChild(link);
+                listItem.appendChild(typesContainer);
+                buildingList.appendChild(listItem);
+            });
+
+        } catch (e) {
+            buildingList.innerHTML = '<li>Fehler beim Abrufen oder Verarbeiten der API-Daten.</li>';
+            console.error(`${SCRIPT_PREFIX} Fehler bei der FMS 6-Anzeige:`, e);
+        }
     }
 
-    /**
-     * Fügt den Menüpunkt zum Profil-Dropdown hinzu.
-     */
     function injectFms6ViewerMenuItem() {
         const profileMenu = document.querySelector('#menu_profile + .dropdown-menu');
         if (profileMenu && !document.getElementById('fms6-status-button')) {
             const divider = document.createElement('li');
             divider.className = 'divider';
             divider.setAttribute('role', 'presentation');
-
             const listItem = document.createElement('li');
             listItem.setAttribute('role', 'presentation');
-
             const link = document.createElement('a');
             link.id = 'fms6-status-button';
             link.href = '#';
             link.innerHTML = '<span class="glyphicon glyphicon-signal" style="color: #c9302c;"></span> FMS 6 Status';
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                fetchAndShowFms6Vehicles();
-            });
-
+            link.addEventListener('click', (e) => { e.preventDefault(); fetchAndShowFms6Vehicles(); });
             listItem.appendChild(link);
             profileMenu.insertBefore(divider, profileMenu.firstChild);
             profileMenu.insertBefore(listItem, profileMenu.firstChild);
         }
     }
-
 
     // ========================================================================
     // === SECTION 2: FAHRZEUG TOOL (ORIGINAL-FUNKTIONEN FÜR GEBÄUDE-SEITEN)
@@ -226,25 +207,18 @@
         const isDispatchPage = !!document.querySelector('ul.nav-tabs a[href="#tab_vehicle"]');
         const allowedLfTypeIds = [0, 1, 6, 7, 8, 9, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 30, 37, 87, 88, 89, 90, 163, 166];
 
-        // --- UI-Erstellung ---
         function buildControls(shouldShowRefitButton) {
             const mainContainer = document.createElement('div');
             mainContainer.id = 'lssToolContainer';
-            mainContainer.style.display = 'flex';
-            mainContainer.style.justifyContent = 'space-between';
-            mainContainer.style.alignItems = 'center';
-            mainContainer.style.padding = '10px 0';
-
+            mainContainer.style.display = 'flex'; mainContainer.style.justifyContent = 'space-between';
+            mainContainer.style.alignItems = 'center'; mainContainer.style.padding = '10px 0';
             const leftContainer = document.createElement('div');
-            leftContainer.style.display = 'flex';
-            leftContainer.style.alignItems = 'center';
+            leftContainer.style.display = 'flex'; leftContainer.style.alignItems = 'center';
             leftContainer.className = 'btn-group';
-
             const crewBtn = document.createElement('button');
             crewBtn.className = 'btn btn-success btn-sm';
             crewBtn.innerHTML = '<span class="glyphicon glyphicon-user"></span> Max. Besatzung';
             leftContainer.appendChild(crewBtn);
-
             if (shouldShowRefitButton) {
                 const refitBtn = document.createElement('button');
                 refitBtn.className = 'btn btn-primary btn-sm';
@@ -253,55 +227,38 @@
                 leftContainer.appendChild(refitBtn);
                 refitBtn.addEventListener('click', () => handleRefitAction());
             }
-
             const fmsContainer = document.createElement('div');
-            fmsContainer.style.marginLeft = '20px';
-            fmsContainer.style.display = 'flex';
-            fmsContainer.style.alignItems = 'center';
+            fmsContainer.style.marginLeft = '20px'; fmsContainer.style.display = 'flex'; fmsContainer.style.alignItems = 'center';
             const fmsLabel = document.createElement('span');
-            fmsLabel.textContent = 'FMS:';
-            fmsLabel.style.marginRight = '5px';
+            fmsLabel.textContent = 'FMS:'; fmsLabel.style.marginRight = '5px';
             fmsContainer.appendChild(fmsLabel);
             const fmsBtnGroup = document.createElement('div');
             fmsBtnGroup.className = 'btn-group';
             const setFms2Btn = document.createElement('button');
-            setFms2Btn.textContent = '2';
-            setFms2Btn.className = 'btn btn-xs building_list_fms building_list_fms_2';
-            setFms2Btn.style.width = '25px';
+            setFms2Btn.textContent = '2'; setFms2Btn.className = 'btn btn-xs building_list_fms building_list_fms_2'; setFms2Btn.style.width = '25px';
             fmsBtnGroup.appendChild(setFms2Btn);
             const setFms6Btn = document.createElement('button');
-            setFms6Btn.textContent = '6';
-            setFms6Btn.className = 'btn btn-xs';
-            setFms6Btn.style.backgroundColor = 'black';
-            setFms6Btn.style.color = 'white';
-            setFms6Btn.style.borderColor = 'black';
-            setFms6Btn.style.width = '25px';
+            setFms6Btn.textContent = '6'; setFms6Btn.className = 'btn btn-xs'; setFms6Btn.style.backgroundColor = 'black'; setFms6Btn.style.color = 'white'; setFms6Btn.style.borderColor = 'black'; setFms6Btn.style.width = '25px';
             fmsBtnGroup.appendChild(setFms6Btn);
             fmsContainer.appendChild(fmsBtnGroup);
             leftContainer.appendChild(fmsContainer);
             const backalarmBtn = document.createElement('button');
             backalarmBtn.className = 'btn btn-warning btn-sm';
-            backalarmBtn.innerHTML = '<span class="glyphicon glyphicon-bell"></span> Rückalarmieren';
-            backalarmBtn.style.marginLeft = '20px';
+            backalarmBtn.innerHTML = '<span class="glyphicon glyphicon-bell"></span> Rückalarmieren'; backalarmBtn.style.marginLeft = '20px';
             leftContainer.appendChild(backalarmBtn);
             const scrapBtn = document.createElement('button');
             scrapBtn.className = 'btn btn-danger btn-sm';
-            scrapBtn.innerHTML = '<span class="glyphicon glyphicon-trash"></span> Verschrotten';
-            scrapBtn.style.marginLeft = '5px';
+            scrapBtn.innerHTML = '<span class="glyphicon glyphicon-trash"></span> Verschrotten'; scrapBtn.style.marginLeft = '5px';
             leftContainer.appendChild(scrapBtn);
             mainContainer.appendChild(leftContainer);
-
             if (isDispatchPage) {
                 const rightContainer = document.createElement('div');
                 const kmBtn = document.createElement('button');
-                kmBtn.className = 'btn btn-default btn-xs';
-                kmBtn.title = 'Gesamtkilometer der sichtbaren Fahrzeuge berechnen';
-                kmBtn.innerHTML = '<span class="glyphicon glyphicon-road"></span>';
+                kmBtn.className = 'btn btn-default btn-xs'; kmBtn.title = 'Gesamtkilometer der sichtbaren Fahrzeuge berechnen'; kmBtn.innerHTML = '<span class="glyphicon glyphicon-road"></span>';
                 rightContainer.appendChild(kmBtn);
                 mainContainer.appendChild(rightContainer);
                 kmBtn.addEventListener('click', handleKilometerAction);
             }
-
             crewBtn.addEventListener('click', () => handleCrewAction());
             backalarmBtn.addEventListener('click', () => handleBackalarmAction());
             scrapBtn.addEventListener('click', () => handleScrapAction());
@@ -317,13 +274,10 @@
         }
 
         function getVehicleDataFromRow(row) {
-            const link = row.querySelector('td a[href*="/vehicles/"]');
-            if (!link) return null;
-            const idMatch = link.href.match(/\/vehicles\/(\d+)/);
-            const id = idMatch ? idMatch[1] : null;
+            const link = row.querySelector('td a[href*="/vehicles/"]'); if (!link) return null;
+            const idMatch = link.href.match(/\/vehicles\/(\d+)/); const id = idMatch ? idMatch[1] : null;
             const name = link.textContent.replace(/\u200b/g, '').trim();
-            const typeIdImg = row.querySelector('img[vehicle_type_id]');
-            const typeId = typeIdImg ? parseInt(typeIdImg.getAttribute('vehicle_type_id'), 10) : null;
+            const typeIdImg = row.querySelector('img[vehicle_type_id]'); const typeId = typeIdImg ? parseInt(typeIdImg.getAttribute('vehicle_type_id'), 10) : null;
             const fms = row.querySelector('span.building_list_fms')?.textContent.trim();
             if (!id || !name) return null;
             return { id, name, typeId, fms };
@@ -334,8 +288,7 @@
             if (vehicles.length === 0) { alert('Keine passenden LF-Fahrzeuge für ein Refit in der aktuellen Ansicht gefunden.'); return; }
             if (!confirm(`Möchten Sie ${vehicles.length} passende LF-Fahrzeuge auf 'Maximum LF' umrüsten und danach auf FMS 2 setzen?`)) return;
             const firstId = vehicles[0].id;
-            const initialResponse = await fetch(`/vehicles/${firstId}/refit`);
-            const htmlText = await initialResponse.text();
+            const initialResponse = await fetch(`/vehicles/${firstId}/refit`); const htmlText = await initialResponse.text();
             const doc = new DOMParser().parseFromString(htmlText, 'text/html');
             const templateOption = Array.from(doc.querySelectorAll('select[name="vehicle_fitting_template[id]"] option')).find(option => option.textContent.trim().match(/Maximum\s+LF/i));
             if (!templateOption) { alert('Fehler: Die Ausrüstungsvorlage "Maximum LF" wurde nicht gefunden.'); return; }
@@ -347,10 +300,7 @@
             await processWithProgress(vehicles, async (vehicle) => {
                 const postUrl = postUrlTemplate.replace('{id}', vehicle.id);
                 const formData = new FormData();
-                formData.append('utf8', '✓');
-                formData.append('authenticity_token', authToken);
-                formData.append('vehicle_fitting_template[id]', templateId);
-                formData.append('commit', 'Fahrzeug umrüsten');
+                formData.append('utf8', '✓'); formData.append('authenticity_token', authToken); formData.append('vehicle_fitting_template[id]', templateId); formData.append('commit', 'Fahrzeug umrüsten');
                 const postResponse = await fetch(postUrl, { method: 'POST', body: formData });
                 if (!postResponse.ok && postResponse.status !== 302) throw new Error(`Refit-Serverfehler: ${postResponse.status}`);
                 const fmsResponse = await fetch(`/vehicles/${vehicle.id}/set_fms/2`);
@@ -363,15 +313,12 @@
             if (vehicles.length === 0) { alert('Keine sichtbaren Fahrzeuge gefunden.'); return; }
             if (!confirm(`Für ${vehicles.length} Fahrzeuge die maximale Besatzung einstellen?`)) return;
             await processWithProgress(vehicles, async (vehicle) => {
-                const response = await fetch(`/vehicles/${vehicle.id}/edit`);
-                const text = await response.text();
+                const response = await fetch(`/vehicles/${vehicle.id}/edit`); const text = await response.text();
                 const doc = new DOMParser().parseFromString(text, 'text/html');
-                const select = doc.getElementById('vehicle_personal_max');
-                if (!select) throw new Error('Dropdown nicht gefunden');
+                const select = doc.getElementById('vehicle_personal_max'); if (!select) throw new Error('Dropdown nicht gefunden');
                 const maxValue = Math.max(...Array.from(select.options).map(o => parseInt(o.value, 10)));
                 if (parseInt(select.value, 10) !== maxValue) {
-                    const form = doc.querySelector('form');
-                    const formData = new FormData(form);
+                    const form = doc.querySelector('form'); const formData = new FormData(form);
                     formData.set('vehicle[personal_max]', maxValue);
                     await fetch(form.action, { method: 'POST', body: formData });
                 }
@@ -389,12 +336,10 @@
         }
 
         function handleKilometerAction() {
-            const rows = getVisibleVehicleRows();
-            if (rows.length === 0) { alert('Keine sichtbaren Fahrzeuge gefunden.'); return; }
+            const rows = getVisibleVehicleRows(); if (rows.length === 0) { alert('Keine sichtbaren Fahrzeuge gefunden.'); return; }
             let totalMeters = 0;
             rows.forEach(row => {
-                const kmCell = row.querySelector('td:last-child');
-                const sortValue = kmCell?.getAttribute('sortvalue');
+                const kmCell = row.querySelector('td:last-child'); const sortValue = kmCell?.getAttribute('sortvalue');
                 if (sortValue) totalMeters += parseInt(sortValue, 10);
             });
             const totalKilometers = totalMeters / 1000;
@@ -425,8 +370,7 @@
             const progressContainer = document.getElementById('lssToolProgressContainer');
             progressContainer.innerHTML = ''; progressContainer.style.display = 'grid';
             progressContainer.style.gap = '2px'; progressContainer.style.marginBottom = '10px';
-            const originalTotal = vehicles.length;
-            if (originalTotal === 0) return;
+            const originalTotal = vehicles.length; if (originalTotal === 0) return;
             let targetTotal = originalTotal; let columns = 20;
             if (originalTotal <= 40) {
                 if (originalTotal <= 20) { columns = originalTotal; }
@@ -473,15 +417,13 @@
         function run() {
             const vehicleTable = document.getElementById('vehicle_table');
             if (!vehicleTable || document.getElementById('lssToolContainer')) return;
-            document.getElementById('lssToolContainer')?.remove();
-            document.getElementById('lssToolProgressContainer')?.remove();
+            document.getElementById('lssToolContainer')?.remove(); document.getElementById('lssToolProgressContainer')?.remove();
             const visibleRows = getVisibleVehicleRows();
             const shouldShowRefitButton = visibleRows.some(row => {
                 const data = getVehicleDataFromRow(row);
                 return data && data.typeId !== null && allowedLfTypeIds.includes(data.typeId);
             });
-            const progressContainer = document.createElement('div');
-            progressContainer.id = 'lssToolProgressContainer';
+            const progressContainer = document.createElement('div'); progressContainer.id = 'lssToolProgressContainer';
             const controls = buildControls(shouldShowRefitButton);
             vehicleTable.parentNode.insertBefore(controls, vehicleTable);
             vehicleTable.parentNode.insertBefore(progressContainer, vehicleTable);
@@ -493,16 +435,12 @@
         setTimeout(run, 500);
     }
 
-
     // ========================================================================
     // === MAIN INITIALIZER (ROUTER)
     // ========================================================================
     (function main() {
-        // Feature 1: FMS 6 Viewer (wird immer ausgeführt)
         createFms6Modal();
         injectFms6ViewerMenuItem();
-
-        // Feature 2: Fahrzeug-Tool (wird nur auf Gebäude-Seiten ausgeführt)
         if (window.location.pathname.startsWith('/buildings/')) {
             runVehicleTool();
         }
