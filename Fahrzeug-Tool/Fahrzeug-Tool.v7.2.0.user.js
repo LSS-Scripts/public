@@ -1,26 +1,223 @@
 // ==UserScript==
-// @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
+// @name         Fahrzeug & Flotten-Tool (FMS 6, Besatzung, Refit etc.)
 // @namespace    http://tampermonkey.net/
-// @version      7.2.0
-// @description  Fügt eine Werkzeugleiste hinzu. Die Abarbeitung erfolgt nun über einen hocheffizienten "Worker Pool" (konstante Parallelität).
+// @version      7.3.0
+// @description  Kombiniert die Werkzeugleiste (mit Worker-Pool-Abarbeitung) mit dem globalen FMS 6 Status-Viewer.
 // @author       Masklin, Gemini & Community-Feedback
-// @match        https://www.leitstellenspiel.de/buildings/*
-// @match        https://*.leitstellenspiel.de/buildings/*
-// @match        https://missionchief.com/buildings/*
-// @match        https://*.missionchief.com/buildings/*
-// @match        https://leitstellenspiel.com/buildings/*
-// @match        https://*.leitstellenspiel.com/buildings/*
-// @grant        none
+// @match        https://www.leitstellenspiel.de/*
+// @match        https://*.leitstellenspiel.de/*
+// @match        https://missionchief.com/*
+// @match        https://*.missionchief.com/*
+// @match        https://leitstellenspiel.com/*
+// @match        https://*.leitstellenspiel.com/*
+// @grant        GM_xmlhttpRequest
+// @grant        GM_addStyle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const SCRIPT_PREFIX = '[Fahrzeug-Tool]';
+    const SCRIPT_PREFIX = '[Fahrzeug & Flotten-Tool]';
+
+    // ========================================================================
+    // === STYLING (CSS für das FMS 6 Modal-Fenster)
+    // ========================================================================
+    GM_addStyle(`
+        #fms6-modal-backdrop {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            z-index: 10000; display: none;
+        }
+        #fms6-modal {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%; max-width: 600px;
+            background-color: #fdfdfd; border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            z-index: 10001; display: flex; flex-direction: column;
+        }
+        #fms6-modal-header {
+            padding: 15px 20px; border-bottom: 1px solid #ddd;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        #fms6-modal-header h3 {
+            margin: 0; font-size: 18px; color: #333;
+        }
+        #fms6-modal-close {
+            border: none; background: none; font-size: 24px;
+            cursor: pointer; color: #888;
+        }
+        #fms6-modal-body {
+            padding: 20px; max-height: 70vh; overflow-y: auto;
+        }
+        #fms6-building-list {
+            list-style: none; padding: 0; margin: 0;
+        }
+        #fms6-building-list li {
+            background-color: #f8f9fa; border-radius: 5px;
+            margin-bottom: 10px; padding: 10px 15px;
+            border: 1px solid #dee2e6;
+        }
+        #fms6-building-list a {
+            font-weight: bold; color: #337ab7;
+            text-decoration: none; display: block;
+            margin-bottom: 8px; font-size: 16px;
+        }
+        #fms6-building-list a:hover {
+            text-decoration: underline;
+        }
+        .fms6-count-badge {
+            background-color: #c9302c; color: white;
+            padding: 3px 8px; border-radius: 12px;
+            font-size: 13px; margin-left: 8px;
+            font-weight: normal;
+        }
+        .vehicle-types-container {
+            display: flex; flex-wrap: wrap; gap: 5px;
+            justify-content: flex-start;
+        }
+        .vehicle-type-tag {
+            display: inline-block; background-color: #e9ecef;
+            color: #495057; padding: 3px 8px;
+            border-radius: 12px; font-size: 11px;
+            font-weight: bold; white-space: nowrap;
+        }
+    `);
+
+
+    // ========================================================================
+    // === SECTION 1: FMS 6 STATUS VIEWER (Globale Funktion)
+    // ========================================================================
+
+    function createFms6Modal() {
+        if (document.getElementById('fms6-modal-backdrop')) return;
+        const backdrop = document.createElement('div');
+        backdrop.id = 'fms6-modal-backdrop';
+        const modal = document.createElement('div');
+        modal.id = 'fms6-modal';
+        modal.innerHTML = `
+            <div id="fms6-modal-header">
+                <h3><span class="glyphicon glyphicon-signal" style="color: #c9302c;"></span> Gebäude mit Fahrzeugen in FMS 6</h3>
+                <button id="fms6-modal-close">&times;</button>
+            </div>
+            <div id="fms6-modal-body">
+                <ul id="fms6-building-list"><li>Lade Daten...</li></ul>
+            </div>`;
+        backdrop.appendChild(modal);
+        document.body.appendChild(backdrop);
+        const closeHandler = () => backdrop.style.display = 'none';
+        document.getElementById('fms6-modal-close').addEventListener('click', closeHandler);
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeHandler(); });
+    }
+
+    async function fetchApiData(url, isExternal = false) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: isExternal ? url : `https://www.leitstellenspiel.de${url}`,
+                onload: response => resolve(JSON.parse(response.responseText)),
+                onerror: reject
+            });
+        });
+    }
+
+    async function fetchAndShowFms6Vehicles() {
+        const modalBackdrop = document.getElementById('fms6-modal-backdrop');
+        const buildingList = document.getElementById('fms6-building-list');
+        modalBackdrop.style.display = 'block';
+        buildingList.innerHTML = '<li>Lade Fahrzeug- & Typen-Daten von den APIs...</li>';
+
+        try {
+            const [allVehicles, vehicleTypes] = await Promise.all([
+                fetchApiData('/api/vehicles'),
+                fetchApiData('https://api.lss-manager.de/de_DE/vehicles', true)
+            ]);
+
+            const fms6Vehicles = allVehicles.filter(v => v.fms_real === 6);
+            if (fms6Vehicles.length === 0) {
+                buildingList.innerHTML = '<li>Keine Fahrzeuge in Status 6 gefunden.</li>';
+                return;
+            }
+
+            const buildings = {};
+            fms6Vehicles.forEach(v => {
+                if (!buildings[v.building_id]) {
+                    buildings[v.building_id] = { count: 0, vehicleNames: [], typeCounts: {} };
+                }
+                buildings[v.building_id].count++;
+                buildings[v.building_id].vehicleNames.push(v.caption);
+
+                const typeCaption = vehicleTypes[v.vehicle_type]?.caption || 'Unbekannt';
+                buildings[v.building_id].typeCounts[typeCaption] = (buildings[v.building_id].typeCounts[typeCaption] || 0) + 1;
+            });
+
+            const sortedBuildingIds = Object.keys(buildings).sort((a, b) => buildings[b].count - buildings[a].count);
+
+            buildingList.innerHTML = '';
+            sortedBuildingIds.forEach(buildingId => {
+                const data = buildings[buildingId];
+                const listItem = document.createElement('li');
+
+                const link = document.createElement('a');
+                link.href = `/buildings/${buildingId}`;
+                link.target = "_blank";
+                link.title = `Fahrzeuge:\n- ${data.vehicleNames.join('\n- ')}`;
+                link.innerHTML = `Gebäude #${buildingId} <span class="fms6-count-badge">${data.count} Fzg.</span>`;
+
+                const typesContainer = document.createElement('div');
+                typesContainer.className = 'vehicle-types-container';
+                for (const type in data.typeCounts) {
+                    const count = data.typeCounts[type];
+                    const typeTag = document.createElement('span');
+                    typeTag.className = 'vehicle-type-tag';
+                    typeTag.textContent = `${count}x ${type}`;
+                    typesContainer.appendChild(typeTag);
+                }
+
+                listItem.appendChild(link);
+                listItem.appendChild(typesContainer);
+                buildingList.appendChild(listItem);
+            });
+
+        } catch (e) {
+            buildingList.innerHTML = '<li>Fehler beim Abrufen oder Verarbeiten der API-Daten.</li>';
+            console.error(`${SCRIPT_PREFIX} Fehler bei der FMS 6-Anzeige:`, e);
+        }
+    }
+
+    function injectFms6ViewerMenuItem() {
+        // Warten, bis das Menü sicher im DOM ist
+        const checkExist = setInterval(function() {
+            const profileMenu = document.querySelector('#menu_profile + .dropdown-menu');
+            if (profileMenu) {
+                clearInterval(checkExist);
+                if (!document.getElementById('fms6-status-button')) {
+                    const divider = document.createElement('li');
+                    divider.className = 'divider';
+                    divider.setAttribute('role', 'presentation');
+                    const listItem = document.createElement('li');
+                    listItem.setAttribute('role', 'presentation');
+                    const link = document.createElement('a');
+                    link.id = 'fms6-status-button';
+                    link.href = '#';
+                    link.innerHTML = '<span class="glyphicon glyphicon-signal" style="color: #c9302c;"></span> FMS 6 Status';
+                    link.addEventListener('click', (e) => { e.preventDefault(); fetchAndShowFms6Vehicles(); });
+                    listItem.appendChild(link);
+                    profileMenu.insertBefore(divider, profileMenu.firstChild);
+                    profileMenu.insertBefore(listItem, profileMenu.firstChild);
+                }
+            }
+        }, 100);
+    }
+
+
+    // ========================================================================
+    // === SECTION 2: FAHRZEUG-TOOL AUF WACHEN-SEITEN (Basis: v7.2.0)
+    // ========================================================================
     const isDispatchPage = !!document.querySelector('ul.nav-tabs a[href="#tab_vehicle"]');
     const allowedLfTypeIds = [0, 1, 6, 7, 8, 9, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 30, 37, 87, 88, 89, 90, 163, 166];
 
-    // --- UI-Erstellung ---
     function buildControls(shouldShowRefitButton) {
         const mainContainer = document.createElement('div');
         mainContainer.id = 'lssToolContainer';
@@ -104,7 +301,6 @@
         return mainContainer;
     }
 
-    // --- Hilfsfunktionen ---
     function getVisibleVehicleRows() {
         const vehicleTable = document.getElementById('vehicle_table');
         if (!vehicleTable) return [];
@@ -125,8 +321,6 @@
         return { id, name, typeId, fms };
     }
 
-
-    // --- Aktionen ---
     async function handleRefitAction() {
         const vehicles = getVisibleVehicleRows()
             .map(getVehicleDataFromRow)
@@ -351,8 +545,7 @@
         }, 1000);
     }
 
-    // --- Haupt-Startfunktion ---
-    function run() {
+    function runBuildingTool() {
         const vehicleTable = document.getElementById('vehicle_table');
         if (!vehicleTable || document.getElementById('lssToolContainer')) return;
 
@@ -376,9 +569,20 @@
         console.log(`${SCRIPT_PREFIX} Steuerung erfolgreich eingefügt.`);
     }
 
-    const observer = new MutationObserver(run);
-    if (window.location.pathname.startsWith('/buildings/')) {
-        observer.observe(document.body, { childList: true, subtree: true });
-        setTimeout(run, 500);
-    }
+    // ========================================================================
+    // === MAIN INITIALIZER (ROUTER)
+    // ========================================================================
+    (function main() {
+        // Feature 1: FMS 6 Viewer (läuft auf ALLEN Seiten)
+        createFms6Modal();
+        injectFms6ViewerMenuItem();
+
+        // Feature 2: Fahrzeug-Tool (läuft NUR auf Wachen-Seiten)
+        if (window.location.pathname.startsWith('/buildings/')) {
+            const observer = new MutationObserver(runBuildingTool);
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(runBuildingTool, 500);
+        }
+    })();
+
 })();
