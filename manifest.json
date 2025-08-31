@@ -38,7 +38,7 @@
     "name": "Fahrzeug-Tool",
     "version": "14.3.1",
     "fileName": "Fahrzeug-Tool.v14.3.1.user.js",
-    "description": "Ein Tool, dass alle angezeigten Fahrzeuge in einer Wache oder Leistelle verwaltet (Aktuelle Funktionen: Status 2/6 setzen, Rückalarmieren, Max. Besatzung setzen (Thema RTH-BUG), und Verschrotten)",
+    "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
     "changelog": ""
   },
   {
