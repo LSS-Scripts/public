@@ -1,2 +1,3 @@
-Ein Tool, dass alle angezeigten Fahrzeuge in einer Wache oder Leistelle verwaltet 
-(Aktuelle Funktionen: Status 2/6 setzen, Rückalarmieren, Max. Besatzung setzen (Thema RTH-BUG), und Verschrotten)
+Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)
+
+NEU NEU NEU: jetzt auch als standalone-tool über die API. 
