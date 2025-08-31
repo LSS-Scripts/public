@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      14.3.1
+// @version      14.3.2
 // @description  Massenaktionen mit optimiertem Feedback. Intelligentes MAX-Refit: Prüft auf Vorlagen, erstellt sie bei Bedarf und rüstet dann alle Fahrzeuge um.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
@@ -220,7 +220,9 @@
                 alert(`Keine umrüstbaren "${vehicleTypeName}" in Status 2 gefunden.`);
                 return;
             }
-            if (!confirm(`Sollen ${vehiclesToRefit.length} "${vehicleTypeName}" maximiert werden?\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`)) return;
+
+            const confirmationMessage = `Möchten Sie wirklich ${vehiclesToRefit.length} "${vehicleTypeName}" maximieren?\n\nAchtung:\n- Die Umrüstung kostet Credits.\n- Jedes Fahrzeug ist für 48 Stunden nicht verfügbar.\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`;
+            if (!confirm(confirmationMessage)) return;
 
             const logContainer = document.getElementById('lssToolLogContainer');
             if(logContainer) logContainer.innerHTML = '';
@@ -505,7 +507,8 @@
             btn.className = 'btn btn-primary btn-sm';
             btn.textContent = `MAX ${vehicleTypeName} (${vehiclesToRefit.length})`;
             btn.onclick = async function refitStandaloneHandler() {
-                if (!confirm(`Sollen ${vehiclesToRefit.length} "${vehicleTypeName}" maximiert werden?\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`)) return;
+                const confirmationMessage = `Möchten Sie wirklich ${vehiclesToRefit.length} "${vehicleTypeName}" maximieren?\n\nAchtung:\n- Die Umrüstung kostet Credits.\n- Jedes Fahrzeug ist für 48 Stunden nicht verfügbar.\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`;
+                if (!confirm(confirmationMessage)) return;
 
                 const logContainer = document.getElementById('lssToolLogContainer');
                 if(logContainer) logContainer.innerHTML = '';
