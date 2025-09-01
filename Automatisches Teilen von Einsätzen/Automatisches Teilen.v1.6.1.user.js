@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.6.0 // Breiteres Input-Feld & Zähler für fertige Einsätze
+// @version      1.6.1
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -143,7 +143,7 @@
         const completedIndicator = document.createElement('div');
         completedIndicator.id = 'bm-completed-indicator';
         completedIndicator.className = 'bm-completed-indicator';
-        completedIndicator.textContent = '✔ Fertig: 0';
+        completedIndicator.textContent = '✔ Geteilt: 0';
 
         const progressIndicator = document.createElement('div');
         progressIndicator.id = 'bm-progress-indicator';
