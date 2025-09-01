@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.5.1 
+// @version      1.6.0 // Breiteres Input-Feld & Zähler für fertige Einsätze
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -80,11 +80,12 @@
         const header = document.querySelector('#mission_list + .panel-body') || document.querySelector('#mission_list')?.parentElement;
         if (!header || document.getElementById('bm-share-panel')) return;
 
-        // ANGEPASST: Etwas mehr Abstand für die Steuerungselemente
         const styles = `
+            .bm-indicators-container { display: flex; gap: 6px; }
             .bm-panel-control { display: flex; align-items: center; gap: 6px; }
             .bm-panel-control input[type="number"] {
-                width: 55px; padding: 4px; border-radius: 4px; text-align: center;
+                width: 65px; /* ANGEPASST: Feld verbreitert */
+                padding: 4px; border-radius: 4px; text-align: center;
                 background-color: #fff; color: #333; border: 1px solid #ddd;
             }
             .bm-panel-control button {
@@ -94,11 +95,13 @@
             }
             .bm-panel-control button:hover { background-color: #2980b9; }
             .bm-panel-control button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-            .bm-progress-indicator {
+            .bm-progress-indicator, .bm-completed-indicator { /* GEMEINSAME STILE FÜR ANZEIGEN */
                 color: #fff; padding: 4px 8px; border-radius: 5px;
-                font-weight: bold; min-width: 140px; text-align: center;
-                background-color: #2ecc71;
+                font-weight: bold; min-width: 100px; text-align: center;
             }
+            .bm-progress-indicator { background-color: #2ecc71; }
+            .bm-completed-indicator { background-color: #3498db; } /* NEU: Eigene Klasse für den Zähler der fertigen Einsätze */
+
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
             }
@@ -111,19 +114,11 @@
         const panel = document.createElement('div');
         panel.id = 'bm-share-panel';
 
-        // ANGEPASST: justifyContent: 'space-between' hinzugefügt, um den Platz zu nutzen
         Object.assign(panel.style, {
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between', // Diese Zeile verteilt die Elemente
-            fontSize: '12px',
-            padding: '6px',
-            borderRadius: '6px',
-            marginBottom: '10px',
-            boxShadow: '0 0 4px rgba(0,0,0,0.4)',
-            border: '1px solid #c0392b',
-            background: isDarkMode() ? '#1e1e1e' : '#ffffff',
-            color: isDarkMode() ? '#fff' : '#000'
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            fontSize: '12px', padding: '6px', borderRadius: '6px', marginBottom: '10px',
+            boxShadow: '0 0 4px rgba(0,0,0,0.4)', border: '1px solid #c0392b',
+            background: isDarkMode() ? '#1e1e1e' : '#ffffff', color: isDarkMode() ? '#fff' : '#000'
         });
 
         const controls = document.createElement('div');
@@ -141,12 +136,22 @@
 
         controls.append(numberInput, shareButton);
 
+        // ANGEPASST: Container für beide Anzeigen, um sie rechts zu gruppieren
+        const indicatorsContainer = document.createElement('div');
+        indicatorsContainer.className = 'bm-indicators-container';
+
+        const completedIndicator = document.createElement('div');
+        completedIndicator.id = 'bm-completed-indicator';
+        completedIndicator.className = 'bm-completed-indicator';
+        completedIndicator.textContent = '✔ Fertig: 0';
+
         const progressIndicator = document.createElement('div');
         progressIndicator.id = 'bm-progress-indicator';
         progressIndicator.className = 'bm-progress-indicator';
-        progressIndicator.textContent = 'Bereit: 0 Einsätze';
-
-        panel.append(controls, progressIndicator);
+        progressIndicator.textContent = 'Bereit: 0';
+        
+        indicatorsContainer.append(completedIndicator, progressIndicator);
+        panel.append(controls, indicatorsContainer);
         header.prepend(panel);
 
         shareButton.addEventListener('click', () => {
@@ -170,13 +175,7 @@
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const messageText = NOTIZ_VORLAGE.replace('{stunden}', hours).replace('{minuten}', minutes);
-            const payload = {
-                "utf8": "✓",
-                "authenticity_token": authToken,
-                "mission_reply[mission_id]": missionId,
-                "mission_reply[content]": messageText,
-                "mission_reply[alliance_chat]": "0"
-            };
+            const payload = { "utf8": "✓", "authenticity_token": authToken, "mission_reply[mission_id]": missionId, "mission_reply[content]": messageText, "mission_reply[alliance_chat]": "0" };
             await $.post('/mission_replies', payload);
             processedMissions.add(missionId);
             return 1;
@@ -202,9 +201,7 @@
         const allEligibleMissions = [];
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
-            if (!missionId || processedMissions.has(missionId)) continue;
-
-            if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
+            if (!missionId || processedMissions.has(missionId) || missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
                 continue;
             }
 
@@ -239,38 +236,49 @@
         }
 
         updateProgress(`✔ ${sharedCount} Einsätze geteilt.`);
-
         isProcessing = false;
         shareButton.disabled = false;
         numberInput.disabled = false;
         numberInput.value = '';
         shareButton.textContent = 'Teilen';
-
         setTimeout(() => updateAvailableCount(), 3000);
     }
 
+    // ANGEPASST: Zählt jetzt auch die geteilten Einsätze
     function updateAvailableCount() {
         if (isProcessing || isTextFieldActive()) return;
         const missionContainer = document.querySelector('#mission_list');
         if (!missionContainer) return;
-        let count = 0;
+        
+        let readyCount = 0;
+        let completedCount = 0;
+
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
-            if (!missionId || processedMissions.has(missionId)) continue;
+            if (!missionId) continue;
 
             if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
-                continue;
+                completedCount++;
+                continue; // Gehe zum nächsten Einsatz, zähle nicht als "bereit"
             }
+            
+            if (processedMissions.has(missionId)) continue;
 
             const rawData = missionEntry.getAttribute('data-sortable-by');
             if (!rawData) continue;
             try {
                 const avgCredits = JSON.parse(rawData.replace(/&quot;/g, '"')).average_credits;
-                if (avgCredits > CREDIT_THRESHOLD) count++;
+                if (avgCredits > CREDIT_THRESHOLD) readyCount++;
             } catch (e) { /* Ignorieren */ }
         }
-        availableToShareCount = count;
-        updateProgress(`Bereit: ${availableToShareCount} Einsätze`);
+
+        availableToShareCount = readyCount;
+        updateProgress(`Bereit: ${availableToShareCount}`);
+
+        const completedIndicator = document.getElementById('bm-completed-indicator');
+        if (completedIndicator) {
+            completedIndicator.textContent = `✔ Fertig: ${completedCount}`;
+        }
     }
 
     function timedLoop() {
@@ -281,7 +289,7 @@
         }
         setTimeout(timedLoop, 5000);
     }
-
+    
     async function init() {
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) ?? 4999;
