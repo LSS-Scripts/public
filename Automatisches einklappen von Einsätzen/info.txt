@@ -1,0 +1,1 @@
+Sorgt für eine aufgeräumte Einsatzliste, indem es bereits angefahrene Einsätze automatisch einklappt.
