@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      14.3.2
-// @description  Massenaktionen mit optimiertem Feedback. Intelligentes MAX-Refit: Prüft auf Vorlagen, erstellt sie bei Bedarf und rüstet dann alle Fahrzeuge um.
+// @version      16.0.0
+// @description  Massenaktionen mit Kombi-Dialog (Dropdown & Zufallsauswahl) beim Refit. Intelligentes MAX-Refit: Prüft, erstellt & rüstet um.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
 // @match        https://*.missionchief.com/*
@@ -170,6 +170,69 @@
         }
     }
 
+    // ========== NEUE HELFERFUNKTIONEN ==========
+    function shuffleArray(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function showRefitConfirmationModal(vehicleCount, vehicleTypeName) {
+        return new Promise((resolve, reject) => {
+            document.getElementById('lss-refit-modal-container')?.remove();
+
+            const modalHtml = `
+                <div id="lss-refit-modal-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1055; display: flex; align-items: center; justify-content: center;">
+                    <div style="background: #fff; color: #333; padding: 20px; border-radius: 5px; width: 90%; max-width: 500px; border: 1px solid #ddd; box-shadow: 0 5px 15px rgba(0,0,0,0.5);">
+                        <h3 style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Umrüstung bestätigen</h3>
+                        <p>Möchten Sie wirklich <strong>${vehicleCount} ${vehicleTypeName}</strong> maximieren?</p>
+                        <div style="background: #fcf8e3; border: 1px solid #faebcc; color: #8a6d3b; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                            <strong>Achtung:</strong>
+                            <ul style="margin: 5px 0 0 20px; padding: 0;">
+                                <li>Die Umrüstung kostet Credits.</li>
+                                <li>Jedes Fahrzeug ist für 48 Stunden nicht verfügbar.</li>
+                            </ul>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <label for="lss-refit-percentage-select">Wie viele der ${vehicleCount} Fahrzeuge sollen umgerüstet werden?</label>
+                            <select id="lss-refit-percentage-select" class="form-control" style="margin-top: 5px;">
+                                <option value="25">25%</option>
+                                <option value="50">50%</option>
+                                <option value="75">75%</option>
+                                <option value="100" selected>100%</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 25px; text-align: right;">
+                            <button id="lss-refit-cancel-btn" class="btn btn-default" style="margin-right: 10px;">Abbrechen</button>
+                            <button id="lss-refit-confirm-btn" class="btn btn-primary">Bestätigen & Starten</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+            const confirmBtn = document.getElementById('lss-refit-confirm-btn');
+            const cancelBtn = document.getElementById('lss-refit-cancel-btn');
+            const modalContainer = document.getElementById('lss-refit-modal-container');
+            const select = document.getElementById('lss-refit-percentage-select');
+
+            confirmBtn.addEventListener('click', () => {
+                modalContainer.remove();
+                resolve(parseInt(select.value, 10));
+            });
+
+            cancelBtn.addEventListener('click', () => {
+                modalContainer.remove();
+                reject(new Error('User cancelled.'));
+            });
+        });
+    }
+    // ===========================================
+
     function findTemplateIdInDoc(doc, templateName) {
         const options = doc.querySelectorAll('#fitting_template_select option');
         for (const option of options) {
@@ -221,14 +284,23 @@
                 return;
             }
 
-            const confirmationMessage = `Möchten Sie wirklich ${vehiclesToRefit.length} "${vehicleTypeName}" maximieren?\n\nAchtung:\n- Die Umrüstung kostet Credits.\n- Jedes Fahrzeug ist für 48 Stunden nicht verfügbar.\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`;
-            if (!confirm(confirmationMessage)) return;
+            let percentage;
+            try {
+                percentage = await showRefitConfirmationModal(vehiclesToRefit.length, vehicleTypeName);
+            } catch (error) {
+                console.log("Umrüstung vom Benutzer abgebrochen.");
+                return;
+            }
+
+            const shuffledVehicles = shuffleArray([...vehiclesToRefit]);
+            const vehicleCountToSend = Math.ceil(shuffledVehicles.length * (percentage / 100));
+            const vehiclesToSend = shuffledVehicles.slice(0, vehicleCountToSend);
 
             const logContainer = document.getElementById('lssToolLogContainer');
             if(logContainer) logContainer.innerHTML = '';
 
             try {
-                const firstVehicleId = vehiclesToRefit[0].id;
+                const firstVehicleId = vehiclesToSend[0].id;
 
                 logToPage(`Prüfe auf Vorlage "${templateName}"...`);
                 const refitPageResponse = await fetch(`/vehicles/${firstVehicleId}/refit`);
@@ -254,13 +326,13 @@
                     logToPage(`Vorlage gefunden.`);
                 }
 
-                logToPage(`Starte Umrüstung für ${vehiclesToRefit.length} Fahrzeuge...`);
+                logToPage(`Starte zufällige Umrüstung für ${vehiclesToSend.length} von ${vehiclesToRefit.length} Fahrzeugen (${percentage}%)...`);
                 const context = {
                     postUrlTemplate: '/refit_vehicle/{id}',
                     authToken,
                     templateId
                 };
-                await processWithProgress(vehiclesToRefit, vehicleActions.refit, context);
+                await processWithProgress(vehiclesToSend, vehicleActions.refit, context);
 
             } catch (e) {
                 logToPage(`FEHLER: ${e.message}`);
@@ -507,14 +579,23 @@
             btn.className = 'btn btn-primary btn-sm';
             btn.textContent = `MAX ${vehicleTypeName} (${vehiclesToRefit.length})`;
             btn.onclick = async function refitStandaloneHandler() {
-                const confirmationMessage = `Möchten Sie wirklich ${vehiclesToRefit.length} "${vehicleTypeName}" maximieren?\n\nAchtung:\n- Die Umrüstung kostet Credits.\n- Jedes Fahrzeug ist für 48 Stunden nicht verfügbar.\n\nDie Vorlage "${templateName}" wird bei Bedarf automatisch erstellt.`;
-                if (!confirm(confirmationMessage)) return;
+                let percentage;
+                try {
+                    percentage = await showRefitConfirmationModal(vehiclesToRefit.length, vehicleTypeName);
+                } catch (error) {
+                    console.log("Umrüstung vom Benutzer abgebrochen.");
+                    return;
+                }
+
+                const shuffledVehicles = shuffleArray([...vehiclesToRefit]);
+                const vehicleCountToSend = Math.ceil(shuffledVehicles.length * (percentage / 100));
+                const vehiclesToSend = shuffledVehicles.slice(0, vehicleCountToSend);
 
                 const logContainer = document.getElementById('lssToolLogContainer');
                 if(logContainer) logContainer.innerHTML = '';
 
                 try {
-                    const firstVehicleId = vehiclesToRefit[0].id;
+                    const firstVehicleId = vehiclesToSend[0].id;
 
                     logToPage(`Prüfe auf Vorlage "${templateName}"...`);
                     const refitPageResponse = await fetch(`/vehicles/${firstVehicleId}/refit`);
@@ -540,13 +621,13 @@
                         logToPage(`Vorlage gefunden.`);
                     }
 
-                    logToPage(`Starte Umrüstung für ${vehiclesToRefit.length} Fahrzeuge...`);
+                    logToPage(`Starte zufällige Umrüstung für ${vehiclesToSend.length} von ${vehiclesToRefit.length} Fahrzeugen (${percentage}%)...`);
                     const context = {
                         postUrlTemplate: '/refit_vehicle/{id}',
                         authToken,
                         templateId
                     };
-                    await processWithProgress(vehiclesToRefit, vehicleActions.refit, context);
+                    await processWithProgress(vehiclesToSend, vehicleActions.refit, context);
                     await handleLoadApiData();
                 } catch (e) {
                     logToPage(`FEHLER: ${e.message}`);
