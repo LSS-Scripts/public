@@ -22,13 +22,6 @@
     "type": "text",
     "default": "ELW/FüKw ab {stunden}:{minuten}",
     "info": "Platzhalter: {stunden} und {minuten} für die berechnete Endzeit."
-  },
-  {
-    "param": 6,
-    "label": "Text für Rückmeldung im Chat",
-    "type": "text",
-    "default": "Habe {anzahl} Einsätze für euch freigegeben.",
-    "info": "Rückmeldung für den Verbands-Chat. Platzhalter: {anzahl}."
   }
 ]
 --*/
@@ -36,8 +29,8 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    Hendrik & Masklin
-// @version      1.1.0 // NEU: Versionsnummer erhöht
-// @description  Teilt eine festgelegte Anzahl an Einsätzen und gibt eine Rückmeldung im Verbands-Chat.
+// @version      1.2.0 // KORREKTUR: Bugfix für Notiz-Funktion
+// @description  Teilt eine festgelegte Anzahl an Einsätzen und setzt eine Notiz am Einsatz.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -64,7 +57,7 @@
     const SKRIPT_NAME = 'Auto-Teilen';
 
     // --- Konfiguration & Konstanten ---
-    let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE, RUECKMELDUNG_VORLAGE; // NEU: RUECKMELDUNG_VORLAGE
+    let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE;
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 500;
 
@@ -77,19 +70,6 @@
 
     function isTextFieldActive() {
         return document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable);
-    }
-
-    // NEU: Funktion zum Posten im Verbands-Chat
-    async function postAllianceChat(message) {
-        const authToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        if (!authToken || !message) return;
-
-        try {
-            const payload = { "utf8": "✓", "authenticity_token": authToken, "alliance_chat[message]": message };
-            await $.post('/alliance_chats', payload);
-        } catch (error) {
-            console.error(`[${SKRIPT_NAME}] Fehler beim Senden der Chat-Nachricht:`, error);
-        }
     }
 
     function createControlPanel() {
@@ -162,21 +142,33 @@
         const missionId = missionEntry.getAttribute('mission_id');
         if (!missionId) return 0;
         try {
+            // 1. Einsatz teilen
             await $.get(`/missions/${missionId}/alliance`);
+
+            // 2. Notiz am Einsatz setzen
             const now = new Date();
             now.setMinutes(now.getMinutes() + NOTIZ_ZEIT_IN_MINUTEN);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const messageText = NOTIZ_VORLAGE.replace('{stunden}', hours).replace('{minuten}', minutes);
-            const payload = { "authenticity_token": authToken, "mission_reply[content]": messageText };
-            await $.post(`/missions/${missionId}/mission_replies`, payload);
+
+            // KORREKTUR: Hier wurde die originale, funktionierende Payload wiederhergestellt.
+            const payload = {
+                "utf8": "✓",
+                "authenticity_token": authToken,
+                "mission_reply[mission_id]": missionId,
+                "mission_reply[content]": messageText,
+                "mission_reply[alliance_chat]": "0" // Wichtig: 0 = Notiz, 1 = Chat
+            };
+            await $.post('/mission_replies', payload); // Wichtig: korrekter Endpunkt
+
             processedMissions.add(missionId);
-            return 1;
+            return 1; // Erfolg
         } catch (error) {
             console.error(`[${SKRIPT_NAME}] Fehler bei Mission ${missionId}:`, error);
             missionEntry.style.backgroundColor = '#f2dede';
             missionEntry.title = `Fehler beim Teilen oder Notiz setzen für Mission ${missionId}.`;
-            return 0;
+            return 0; // Fehler
         }
     }
 
@@ -225,15 +217,8 @@
             if (i + BATCH_SIZE < missionsToProcess.length) await delay(DELAY_BETWEEN_BATCHES);
         }
         
-        // GEÄNDERT: Logik nach dem Teilen
         updateProgress(`✔ ${sharedCount} Einsätze geteilt.`);
-
-        // NEU: Rückmeldung im Chat posten
-        if (sharedCount > 0 && RUECKMELDUNG_VORLAGE) {
-            const chatMessage = RUECKMELDUNG_VORLAGE.replace('{anzahl}', sharedCount);
-            await postAllianceChat(chatMessage);
-        }
-
+        
         isProcessing = false;
         shareButton.disabled = false;
         numberInput.disabled = false;
@@ -276,7 +261,6 @@
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) ?? 4999;
         NOTIZ_ZEIT_IN_MINUTEN = parseInt(settings.param4, 10) ?? 180;
         NOTIZ_VORLAGE = settings.param5 ?? "ELW/FüKw ab {stunden}:{minuten}";
-        RUECKMELDUNG_VORLAGE = settings.param6 ?? ""; // NEU: Einstellung für Rückmeldung laden
 
         createControlPanel();
         timedLoop();
