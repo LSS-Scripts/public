@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.6.1
+// @version      1.6.2
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -100,7 +100,7 @@
                 font-weight: bold; min-width: 100px; text-align: center;
             }
             .bm-progress-indicator { background-color: #2ecc71; }
-            .bm-completed-indicator { background-color: #3498db; } /* NEU: Eigene Klasse für den Zähler der fertigen Einsätze */
+            .bm-completed-indicator { background-color: #3498db; } /* NEU: Eigene Klasse für den Zähler der geteilten Einsätze */
 
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
@@ -277,7 +277,7 @@
 
         const completedIndicator = document.getElementById('bm-completed-indicator');
         if (completedIndicator) {
-            completedIndicator.textContent = `✔ Fertig: ${completedCount}`;
+            completedIndicator.textContent = `✔ Geteilt: ${completedCount}`;
         }
     }
 
