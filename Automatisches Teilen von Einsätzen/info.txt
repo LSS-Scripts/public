@@ -1,0 +1,1 @@
+Teilt auf Knopfdruck eine von dir festgelegte Anzahl an Einsätzen, wobei es nach einem einstellbaren Creditlimit filtert und bereits geteilte Einsätze ignoriert. Zusätzlich versieht es jeden geteilten Einsatz mit einer anpassbaren Notiz, wie z.B. einer Endzeit.
