@@ -29,8 +29,8 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.4.0
-// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind. Design an Endzeit-Anzeige angepasst & Dark Mode fix.
+// @version      1.5.0
+// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -66,7 +66,6 @@
     let isProcessing = false;
     let availableToShareCount = 0;
 
-    // Funktion zur zuverlässigen Erkennung des Dark Mode
     function isDarkMode() {
         return document.body.classList.contains('dark');
     }
@@ -81,28 +80,25 @@
         const header = document.querySelector('#mission_list + .panel-body') || document.querySelector('#mission_list')?.parentElement;
         if (!header || document.getElementById('bm-share-panel')) return;
 
-        // CSS-Stile für die internen Elemente des Panels
+        // ANGEPASST: Kleinere Schriftgrößen und Abstände für ein dezenteres Design
         const styles = `
-            /* Interne Elemente des Panels */
-            .bm-panel-control { display: flex; align-items: center; gap: 6px; }
-            .bm-panel-control label { font-weight: bold; }
+            .bm-panel-control { display: flex; align-items: center; gap: 4px; }
             .bm-panel-control input[type="number"] {
-                width: 60px; padding: 5px; border-radius: 4px; text-align: center;
+                width: 55px; padding: 4px; border-radius: 4px; text-align: center;
                 background-color: #fff; color: #333; border: 1px solid #ddd;
             }
             .bm-panel-control button {
-                padding: 6px 12px; border: none; border-radius: 5px; color: white;
+                padding: 4px 8px; border: none; border-radius: 5px; color: white;
                 font-weight: bold; cursor: pointer; transition: background-color 0.2s;
                 background-color: #3498db;
             }
             .bm-panel-control button:hover { background-color: #2980b9; }
             .bm-panel-control button:disabled { background-color: #95a5a6; cursor: not-allowed; }
             .bm-progress-indicator {
-                color: #fff; padding: 5px 10px; border-radius: 5px;
-                font-weight: bold; min-width: 150px; text-align: center;
+                color: #fff; padding: 4px 8px; border-radius: 5px;
+                font-weight: bold; min-width: 140px; text-align: center;
                 background-color: #2ecc71;
             }
-            /* Dark Mode Overrides für interne Elemente */
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
             }
@@ -115,36 +111,36 @@
         const panel = document.createElement('div');
         panel.id = 'bm-share-panel';
 
-        // Styling direkt per JS setzen, adaptiert vom Endzeit-Skript
+        // ANGEPASST: Kleinere Abstände, Schriftgröße und Rand
         Object.assign(panel.style, {
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            fontSize: '13px',
-            padding: '10px',
-            borderRadius: '8px',
+            gap: '8px',
+            fontSize: '12px',
+            padding: '6px',
+            borderRadius: '6px',
             marginBottom: '10px',
-            boxShadow: '0 0 6px rgba(0,0,0,0.5)',
-            border: '2px solid #c0392b', // Die rote Umrandung
+            boxShadow: '0 0 4px rgba(0,0,0,0.4)',
+            border: '1px solid #c0392b', // Dezenterer Rand
             background: isDarkMode() ? '#1e1e1e' : '#ffffff',
             color: isDarkMode() ? '#fff' : '#000'
         });
 
-        // Steuerungselemente
         const controls = document.createElement('div');
         controls.className = 'bm-panel-control';
 
-        const label = document.createElement('label');
-        label.textContent = 'Anzahl teilen:';
         const numberInput = document.createElement('input');
         numberInput.type = 'number';
         numberInput.id = 'bm-share-amount';
         numberInput.min = '1';
-        numberInput.placeholder = 'Alle';
+        numberInput.placeholder = 'Anzahl'; // ANGEPASST: Platzhalter statt Label
+
         const shareButton = document.createElement('button');
         shareButton.id = 'bm-share-button';
         shareButton.textContent = 'Teilen';
-        controls.append(label, numberInput, shareButton);
+
+        // ANGEPASST: Das Text-Label wurde entfernt
+        controls.append(numberInput, shareButton);
 
         const progressIndicator = document.createElement('div');
         progressIndicator.id = 'bm-progress-indicator';
