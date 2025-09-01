@@ -28,9 +28,9 @@
 
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
-// @namespace    Hendrik & Masklin
-// @version      1.3.0
-// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
+// @namespace    B & M
+// @version      1.4.0
+// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind. Design an Endzeit-Anzeige angepasst & Dark Mode fix.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -66,6 +66,11 @@
     let isProcessing = false;
     let availableToShareCount = 0;
 
+    // Funktion zur zuverlässigen Erkennung des Dark Mode
+    function isDarkMode() {
+        return document.body.classList.contains('dark');
+    }
+
     const delay = ms => new Promise(res => setTimeout(res, ms));
 
     function isTextFieldActive() {
@@ -76,26 +81,32 @@
         const header = document.querySelector('#mission_list + .panel-body') || document.querySelector('#mission_list')?.parentElement;
         if (!header || document.getElementById('bm-share-panel')) return;
 
+        // CSS-Stile für die internen Elemente des Panels
         const styles = `
-            :root {
-                --bm-panel-bg: #f5f5f5; --bm-panel-border: #ddd; --bm-text-color: #333; --bm-input-bg: #fff; --bm-button-bg: #3498db;
-                --bm-button-hover-bg: #2980b9; --bm-button-disabled-bg: #95a5a6; --bm-progress-bg: #2ecc71; --bm-progress-text: #fff;
-            }
-            [data-theme="dark"] {
-                --bm-panel-bg: #2c3e50; --bm-panel-border: #34495e; --bm-text-color: #ecf0f1; --bm-input-bg: #34495e;
-            }
-            .bm-panel { background-color: var(--bm-panel-bg); border: 1px solid var(--bm-panel-border); border-radius: 8px; padding: 10px; margin-bottom: 10px;
-                display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--bm-text-color); }
+            /* Interne Elemente des Panels */
             .bm-panel-control { display: flex; align-items: center; gap: 6px; }
-            .bm-panel label { font-weight: bold; }
-            .bm-panel input[type="number"] { width: 60px; padding: 5px; border: 1px solid var(--bm-panel-border); border-radius: 4px;
-                background-color: var(--bm-input-bg); color: var(--bm-text-color); text-align: center; }
-            .bm-panel button { padding: 6px 12px; border: none; border-radius: 5px; background-color: var(--bm-button-bg); color: white;
-                font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-            .bm-panel button:hover { background-color: var(--bm-button-hover-bg); }
-            .bm-panel button:disabled { background-color: var(--bm-button-disabled-bg); cursor: not-allowed; }
-            .bm-progress-indicator { background-color: var(--bm-progress-bg); color: var(--bm-progress-text); padding: 5px 10px;
-                border-radius: 5px; font-weight: bold; min-width: 150px; text-align: center; }
+            .bm-panel-control label { font-weight: bold; }
+            .bm-panel-control input[type="number"] {
+                width: 60px; padding: 5px; border-radius: 4px; text-align: center;
+                background-color: #fff; color: #333; border: 1px solid #ddd;
+            }
+            .bm-panel-control button {
+                padding: 6px 12px; border: none; border-radius: 5px; color: white;
+                font-weight: bold; cursor: pointer; transition: background-color 0.2s;
+                background-color: #3498db;
+            }
+            .bm-panel-control button:hover { background-color: #2980b9; }
+            .bm-panel-control button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+            .bm-progress-indicator {
+                color: #fff; padding: 5px 10px; border-radius: 5px;
+                font-weight: bold; min-width: 150px; text-align: center;
+                background-color: #2ecc71;
+            }
+            /* Dark Mode Overrides für interne Elemente */
+            [data-theme="dark"] .bm-panel-control input[type="number"] {
+                background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
+            }
+            [data-theme="dark"] .bm-panel-control button:disabled { background-color: #7f8c8d; }
         `;
         const styleSheet = document.createElement("style");
         styleSheet.innerText = styles;
@@ -103,10 +114,26 @@
 
         const panel = document.createElement('div');
         panel.id = 'bm-share-panel';
-        panel.className = 'bm-panel';
 
+        // Styling direkt per JS setzen, adaptiert vom Endzeit-Skript
+        Object.assign(panel.style, {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '13px',
+            padding: '10px',
+            borderRadius: '8px',
+            marginBottom: '10px',
+            boxShadow: '0 0 6px rgba(0,0,0,0.5)',
+            border: '2px solid #c0392b', // Die rote Umrandung
+            background: isDarkMode() ? '#1e1e1e' : '#ffffff',
+            color: isDarkMode() ? '#fff' : '#000'
+        });
+
+        // Steuerungselemente
         const controls = document.createElement('div');
         controls.className = 'bm-panel-control';
+
         const label = document.createElement('label');
         label.textContent = 'Anzahl teilen:';
         const numberInput = document.createElement('input');
@@ -149,8 +176,11 @@
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const messageText = NOTIZ_VORLAGE.replace('{stunden}', hours).replace('{minuten}', minutes);
             const payload = {
-                "utf8": "✓", "authenticity_token": authToken, "mission_reply[mission_id]": missionId,
-                "mission_reply[content]": messageText, "mission_reply[alliance_chat]": "0"
+                "utf8": "✓",
+                "authenticity_token": authToken,
+                "mission_reply[mission_id]": missionId,
+                "mission_reply[content]": messageText,
+                "mission_reply[alliance_chat]": "0"
             };
             await $.post('/mission_replies', payload);
             processedMissions.add(missionId);
@@ -265,7 +295,7 @@
 
         createControlPanel();
         timedLoop();
-        console.log(`[${SKRIPT_NAME}] Skript (Public Version) gestartet.`);
+        console.log(`[${SKRIPT_NAME}] Skript gestartet.`);
     }
 
     try {
