@@ -14,6 +14,13 @@
     "changelog": ""
   },
   {
+    "name": "Automatisches einklappen von Einsätzen",
+    "version": "2.0.0",
+    "fileName": "Automatisches Einklappen.v2.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Betreuungsberechnung",
     "version": "1.0.4",
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
