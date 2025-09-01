@@ -53,10 +53,10 @@
 --*/
 
 // ==UserScript==
-// @name         Automatisches Einklappen
+// @name         Automatisches Einklappen (Kompatibel)
 // @namespace    B&M
-// @version      2.0.0
-// @description  Klappt Einsätze mit "User"-Icon ein, basierend auf den Einstellungen im B&M Scriptmanager.
+// @version      3.0
+// @description  Klappt Einsätze ein. Kompatibel mit LSSMv4 und manuellem Fallback-Skript.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -82,27 +82,47 @@
 
     const SKRIPT_NAME = 'Automatisches Einklappen';
 
-    // Globale Variablen für das Skript
     let missionLists = [];
     const eingeklappteMissionen = new Set();
     const manuallyExpandedTimers = new Map();
-    const collapseIconName = 'down-left-and-up-right-to-center';
-    const expandIconName = 'up-right-and-down-left-from-center';
+
+    // NEU: Eine Hilfsfunktion, die beide Knopf-Arten erkennt
+    function getCollapseInfo(missionEntry) {
+        // 1. Suche nach dem LSSMv4-Knopf
+        const lssmBtn = missionEntry.querySelector('button.lssmv4-extendedCallList_collapsable-missions_btn');
+        if (lssmBtn) {
+            const svgIcon = lssmBtn.querySelector('svg[data-icon]');
+            if (svgIcon) {
+                const isExpanded = svgIcon.getAttribute('data-icon') === 'down-left-and-up-right-to-center';
+                return { button: lssmBtn, isExpanded: isExpanded };
+            }
+        }
+
+        // 2. Wenn nicht gefunden, suche nach dem manuellen Fallback-Knopf
+        const fallbackBtn = missionEntry.querySelector('.collapse-button-tm');
+        const missionPanel = missionEntry.querySelector('.panel');
+        if (fallbackBtn && missionPanel) {
+            const isExpanded = !missionPanel.classList.contains('mission-collapsed');
+            return { button: fallbackBtn, isExpanded: isExpanded };
+        }
+
+        // 3. Keinen passenden Knopf gefunden
+        return null;
+    }
 
     function isTextFieldActive() {
         return document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable);
     }
 
+    // ANGEPASST: Nutzt jetzt die neue Hilfsfunktion
     function attemptReCollapse(missionId, missionEntry) {
         manuallyExpandedTimers.delete(missionId);
         if (!document.body.contains(missionEntry)) return;
-        const collapseBtn = missionEntry.querySelector('button.lssmv4-extendedCallList_collapsable-missions_btn');
-        if (collapseBtn) {
-            const svgIcon = collapseBtn.querySelector('svg[data-icon]');
-            if (svgIcon && svgIcon.getAttribute('data-icon') === collapseIconName) {
-                collapseBtn.click();
-                eingeklappteMissionen.add(missionId);
-            }
+
+        const collapseInfo = getCollapseInfo(missionEntry);
+        if (collapseInfo && collapseInfo.isExpanded) {
+            collapseInfo.button.click();
+            eingeklappteMissionen.add(missionId);
         }
     }
 
@@ -112,6 +132,7 @@
         manuallyExpandedTimers.set(missionId, { timerId, entry: missionEntry });
     }
 
+    // ANGEPASST: Nutzt jetzt die neue Hilfsfunktion
     function handleMissionCollapse() {
         const textFieldCurrentlyActive = isTextFieldActive();
 
@@ -127,29 +148,30 @@
 
                 const isUserMission = missionEntry.querySelector('.glyphicon.glyphicon-user');
                 const isAsteriskMission = missionEntry.querySelector('.glyphicon.glyphicon-asterisk:not(.hidden)');
+                const shouldManage = isUserMission && !isAsteriskMission;
 
-                const shouldAttemptToManageCollapse = isUserMission && !isAsteriskMission;
+                if (shouldManage) {
+                    const collapseInfo = getCollapseInfo(missionEntry);
+                    if (!collapseInfo) continue; // Wenn kein Knopf da ist, nichts tun
 
-                if (shouldAttemptToManageCollapse) {
-                    const collapseBtn = missionEntry.querySelector('button.lssmv4-extendedCallList_collapsable-missions_btn');
-                    if (collapseBtn) {
-                        const svgIcon = collapseBtn.querySelector('svg[data-icon]');
-                        if (svgIcon) {
-                            const currentIcon = svgIcon.getAttribute('data-icon');
-                            if (eingeklappteMissionen.has(missionId) && currentIcon === collapseIconName && !manuallyExpandedTimers.has(missionId)) {
-                                eingeklappteMissionen.delete(missionId);
-                                scheduleReCollapse(missionId, missionEntry);
-                            } else if (!eingeklappteMissionen.has(missionId) && !manuallyExpandedTimers.has(missionId)) {
-                                if (currentIcon === collapseIconName && !textFieldCurrentlyActive) {
-                                    collapseBtn.click();
-                                    eingeklappteMissionen.add(missionId);
-                                } else if (currentIcon === expandIconName) {
-                                    eingeklappteMissionen.add(missionId);
-                                }
-                            }
+                    // Fall 1: Wir dachten, er ist eingeklappt, aber er ist es nicht mehr (User hat ihn geöffnet)
+                    if (eingeklappteMissionen.has(missionId) && collapseInfo.isExpanded && !manuallyExpandedTimers.has(missionId)) {
+                        eingeklappteMissionen.delete(missionId);
+                        scheduleReCollapse(missionId, missionEntry);
+                    }
+                    // Fall 2: Er ist noch nicht in unserer Liste und ist offen (soll eingeklappt werden)
+                    else if (!eingeklappteMissionen.has(missionId) && collapseInfo.isExpanded && !manuallyExpandedTimers.has(missionId)) {
+                        if (!textFieldCurrentlyActive) {
+                            collapseInfo.button.click();
+                            eingeklappteMissionen.add(missionId);
                         }
                     }
+                    // Fall 3: Er ist bereits eingeklappt (nur den Status synchronisieren)
+                    else if (!collapseInfo.isExpanded) {
+                        eingeklappteMissionen.add(missionId);
+                    }
                 } else {
+                    // Aufräumen, falls der Einsatz die Bedingungen nicht mehr erfüllt
                     if (manuallyExpandedTimers.has(missionId)) {
                         clearTimeout(manuallyExpandedTimers.get(missionId).timerId);
                         manuallyExpandedTimers.delete(missionId);
@@ -169,10 +191,7 @@
     }
 
     async function init() {
-        // Einstellungen aus dem Manager laden
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
-
-        // Die missionLists-Array mit den Werten aus den Einstellungen füllen
         missionLists = [
             { id: 'mission_list', enabled: settings.param1 ?? true },
             { id: 'mission_list_krankentransporte', enabled: settings.param2 ?? true },
@@ -182,13 +201,10 @@
             { id: 'mission_list_alliance', enabled: settings.param6 ?? true },
             { id: 'mission_list_alliance_event', enabled: settings.param7 ?? true }
         ];
-
-        // Hauptschleife starten
         timedLoop();
         console.log(`[${SKRIPT_NAME}] Skript gestartet.`);
     }
 
-    // Startpunkt des Skripts
     try {
         await ensureBMScriptManager();
         init();
@@ -196,5 +212,4 @@
         console.error(`[${SKRIPT_NAME}] konnte nicht gestartet werden:`, error);
         alert(`Das Skript "${SKRIPT_NAME}" konnte nicht gestartet werden, da der B&M ScriptManager nicht gefunden wurde.`);
     }
-
 })();
