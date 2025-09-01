@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.5.0
+// @version      1.5.1 
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -80,9 +80,9 @@
         const header = document.querySelector('#mission_list + .panel-body') || document.querySelector('#mission_list')?.parentElement;
         if (!header || document.getElementById('bm-share-panel')) return;
 
-        // ANGEPASST: Kleinere Schriftgrößen und Abstände für ein dezenteres Design
+        // ANGEPASST: Etwas mehr Abstand für die Steuerungselemente
         const styles = `
-            .bm-panel-control { display: flex; align-items: center; gap: 4px; }
+            .bm-panel-control { display: flex; align-items: center; gap: 6px; }
             .bm-panel-control input[type="number"] {
                 width: 55px; padding: 4px; border-radius: 4px; text-align: center;
                 background-color: #fff; color: #333; border: 1px solid #ddd;
@@ -111,17 +111,17 @@
         const panel = document.createElement('div');
         panel.id = 'bm-share-panel';
 
-        // ANGEPASST: Kleinere Abstände, Schriftgröße und Rand
+        // ANGEPASST: justifyContent: 'space-between' hinzugefügt, um den Platz zu nutzen
         Object.assign(panel.style, {
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
+            justifyContent: 'space-between', // Diese Zeile verteilt die Elemente
             fontSize: '12px',
             padding: '6px',
             borderRadius: '6px',
             marginBottom: '10px',
             boxShadow: '0 0 4px rgba(0,0,0,0.4)',
-            border: '1px solid #c0392b', // Dezenterer Rand
+            border: '1px solid #c0392b',
             background: isDarkMode() ? '#1e1e1e' : '#ffffff',
             color: isDarkMode() ? '#fff' : '#000'
         });
@@ -133,13 +133,12 @@
         numberInput.type = 'number';
         numberInput.id = 'bm-share-amount';
         numberInput.min = '1';
-        numberInput.placeholder = 'Anzahl'; // ANGEPASST: Platzhalter statt Label
+        numberInput.placeholder = 'Anzahl';
 
         const shareButton = document.createElement('button');
         shareButton.id = 'bm-share-button';
         shareButton.textContent = 'Teilen';
 
-        // ANGEPASST: Das Text-Label wurde entfernt
         controls.append(numberInput, shareButton);
 
         const progressIndicator = document.createElement('div');
@@ -204,7 +203,7 @@
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
             if (!missionId || processedMissions.has(missionId)) continue;
-            
+
             if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
                 continue;
             }
@@ -238,15 +237,15 @@
             updateProgress(`Geteilt: ${sharedCount} / ${missionsToProcess.length}`);
             if (i + BATCH_SIZE < missionsToProcess.length) await delay(DELAY_BETWEEN_BATCHES);
         }
-        
+
         updateProgress(`✔ ${sharedCount} Einsätze geteilt.`);
-        
+
         isProcessing = false;
         shareButton.disabled = false;
         numberInput.disabled = false;
         numberInput.value = '';
         shareButton.textContent = 'Teilen';
-        
+
         setTimeout(() => updateAvailableCount(), 3000);
     }
 
@@ -258,7 +257,7 @@
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
             if (!missionId || processedMissions.has(missionId)) continue;
-            
+
             if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
                 continue;
             }
@@ -282,7 +281,7 @@
         }
         setTimeout(timedLoop, 5000);
     }
-    
+
     async function init() {
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) ?? 4999;
