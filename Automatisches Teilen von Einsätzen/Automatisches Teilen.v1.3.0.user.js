@@ -29,8 +29,8 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    Hendrik & Masklin
-// @version      1.2.0 // KORREKTUR: Bugfix für Notiz-Funktion
-// @description  Teilt eine festgelegte Anzahl an Einsätzen und setzt eine Notiz am Einsatz.
+// @version      1.3.0
+// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -142,33 +142,24 @@
         const missionId = missionEntry.getAttribute('mission_id');
         if (!missionId) return 0;
         try {
-            // 1. Einsatz teilen
             await $.get(`/missions/${missionId}/alliance`);
-
-            // 2. Notiz am Einsatz setzen
             const now = new Date();
             now.setMinutes(now.getMinutes() + NOTIZ_ZEIT_IN_MINUTEN);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const messageText = NOTIZ_VORLAGE.replace('{stunden}', hours).replace('{minuten}', minutes);
-
-            // KORREKTUR: Hier wurde die originale, funktionierende Payload wiederhergestellt.
             const payload = {
-                "utf8": "✓",
-                "authenticity_token": authToken,
-                "mission_reply[mission_id]": missionId,
-                "mission_reply[content]": messageText,
-                "mission_reply[alliance_chat]": "0" // Wichtig: 0 = Notiz, 1 = Chat
+                "utf8": "✓", "authenticity_token": authToken, "mission_reply[mission_id]": missionId,
+                "mission_reply[content]": messageText, "mission_reply[alliance_chat]": "0"
             };
-            await $.post('/mission_replies', payload); // Wichtig: korrekter Endpunkt
-
+            await $.post('/mission_replies', payload);
             processedMissions.add(missionId);
-            return 1; // Erfolg
+            return 1;
         } catch (error) {
             console.error(`[${SKRIPT_NAME}] Fehler bei Mission ${missionId}:`, error);
             missionEntry.style.backgroundColor = '#f2dede';
             missionEntry.title = `Fehler beim Teilen oder Notiz setzen für Mission ${missionId}.`;
-            return 0; // Fehler
+            return 0;
         }
     }
 
@@ -187,6 +178,11 @@
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
             if (!missionId || processedMissions.has(missionId)) continue;
+            
+            if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
+                continue;
+            }
+
             const rawData = missionEntry.getAttribute('data-sortable-by');
             if (!rawData) continue;
             try {
@@ -236,6 +232,11 @@
         for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
             const missionId = missionEntry.getAttribute('mission_id');
             if (!missionId || processedMissions.has(missionId)) continue;
+            
+            if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
+                continue;
+            }
+
             const rawData = missionEntry.getAttribute('data-sortable-by');
             if (!rawData) continue;
             try {
