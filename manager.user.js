@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.3.3 (Reactivation Fix)
+// @version      13.3.4 (Reactivation Fix)
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
@@ -216,7 +216,7 @@
                 const scriptMeta = this.getScriptNameAndVersion(userJsFile.name);
                 if (!scriptMeta) return null;
                 const [info, changelog] = await Promise.all([
-                    this._fetchRawFile(`${dir.name}/info.txt`, repoInfo).then(r => r.success ? r.content : `Keine info.txt gefunden.`),
+                    this._fetchRawFile(`${dir.name}/info.txt`, repoInfo).then(r => r.success ? r.content.trim() : `Keine info.txt gefunden.`),
                     this._fetchRawFile(`${dir.name}/changelog.txt`, repoInfo).then(r => r.success && r.content.trim() ? `\n<hr>\n<strong>Changelog:</strong>\n${r.content}` : "")
                 ]);
                 scriptMeta.description = info;
