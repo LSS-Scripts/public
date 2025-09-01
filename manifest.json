@@ -138,5 +138,12 @@
     "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
     "description": "Prüft anhand eines ZUVOR erstellten Wachenbauplans die Personalstärke, die Erweiterungen und bietet ggf. an diese zu bauen oder das Personal auszubilden (In freigegebenen Lehrgängen) oder die entpsrechende Anzahl über den verbandschat anzufragen. ",
     "changelog": ""
+  },
+    {
+    "name": "Automatisches Teilen von Einsätzen",
+    "version": "1.3.0",
+    "fileName": "Automatisches Teilen.v1.3.0.user.js",
+    "description": "Dieses Skript teilt auf Knopfdruck eine von dir festgelegte Anzahl an Einsätzen, wobei es nach einem einstellbaren Kreditlimit filtert und bereits geteilte Einsätze ignoriert. Zusätzlich versieht es jeden geteilten Einsatz mit einer anpassbaren Notiz, wie z.B. einer Endzeit. ",
+    "changelog": ""
   }
 ]
