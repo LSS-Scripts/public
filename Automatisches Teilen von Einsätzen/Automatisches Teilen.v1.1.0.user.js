@@ -22,6 +22,13 @@
     "type": "text",
     "default": "ELW/FüKw ab {stunden}:{minuten}",
     "info": "Platzhalter: {stunden} und {minuten} für die berechnete Endzeit."
+  },
+  {
+    "param": 6,
+    "label": "Text für Rückmeldung im Chat",
+    "type": "text",
+    "default": "Habe {anzahl} Einsätze für euch freigegeben.",
+    "info": "Rückmeldung für den Verbands-Chat. Platzhalter: {anzahl}."
   }
 ]
 --*/
