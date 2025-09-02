@@ -1,1 +1,3 @@
 Stelle eine Wachenliste bereit, filter- und sortierbar.
+
+Aktuell NUR für Feuerwachen. Weitere Wachentypen werden folgen... Stay tuned.
