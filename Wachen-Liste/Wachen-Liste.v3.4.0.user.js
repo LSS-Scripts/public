@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Wachen-Liste
+// @name         Leitstellenspiel Wachen-Übersicht (Dark-Mode-Design)
 // @namespace    http://tampermonkey.net/
-// @version      3.2.0
-// @description  Hinzugefügt: Min- und Max-Level-Filter für eine präzisere Suche.
+// @version      3.4.0
+// @description  Korrigiert die Text-Ausrichtung des Menüpunkts für eine saubere Optik.
 // @author       Masklin
 // @match        https://www.leitstellenspiel.de/
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
@@ -41,6 +41,11 @@
         .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background: #4a5162; border-color: #666; }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #e03c31; color: #ffffff !important; border-color: #e03c31; }
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ### NEU: CSS-Regel zur Korrektur der Ausrichtung ### */
+        #wachen-uebersicht-link > .glyphicon {
+            margin-right: 10px;
+        }
     `);
 
     let wachenTableInstance = null;
@@ -86,7 +91,6 @@
             const extensionOptionsHtml = uniqueExtensions.map(e => `<option value="${e}">${e}</option>`).join('');
 
             const modalContent = document.querySelector('#wachenUebersichtModal .lss-modal-content');
-            // ### NEU: HTML um Max-Level-Slider erweitert ###
             modalContent.innerHTML = `
                 <span class="lss-modal-close">&times;</span>
                 <h2>Feuerwachen-Übersicht (${fireStations.length} Wachen)</h2>
@@ -141,7 +145,6 @@
             });
 
             $('#nameFilter').on('keyup', () => wachenTableInstance.draw());
-            // ### NEU: Event-Listener für beide Level-Slider ###
             $('#levelFilterMin').on('input', () => { $('#levelValueMin').text($('#levelFilterMin').val()); wachenTableInstance.draw(); });
             $('#levelFilterMax').on('input', () => { $('#levelValueMax').text($('#levelFilterMax').val()); wachenTableInstance.draw(); });
 
@@ -151,12 +154,9 @@
                 if (!station) return false;
                 const nameFilter = $('#nameFilter').val().toLowerCase();
                 if (nameFilter && !station.caption.toLowerCase().includes(nameFilter)) return false;
-
-                // ### NEU: Min- und Max-Level-Filterung ###
                 const minLevelFilter = parseInt($('#levelFilterMin').val(), 10);
                 const maxLevelFilter = parseInt($('#levelFilterMax').val(), 10);
                 if (station.level < minLevelFilter || station.level > maxLevelFilter) return false;
-
                 let allRulesMet = true;
                 document.querySelectorAll('#extensionFiltersContainer .filter-row').forEach(row => {
                     if (!allRulesMet) return;
@@ -190,7 +190,7 @@
             const newLink = document.createElement('a');
             newLink.id = 'wachen-uebersicht-link';
             newLink.href = '#';
-            newLink.innerHTML = '<img class="icon icons8-Binoculars" src="/images/icons8-binoculars.svg" width="24" height="24"> Wachen-Übersicht';
+            newLink.innerHTML = '<span class="glyphicon glyphicon-home" aria-hidden="true"></span> Wachen-Übersicht';
             newLink.style.cursor = 'pointer';
             newLink.addEventListener('click', (e) => { e.preventDefault(); showWachenModal(); });
             newLi.appendChild(newLink);
