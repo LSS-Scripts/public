@@ -140,6 +140,13 @@
     "changelog": ""
   },
   {
+    "name": "Wachen-Liste",
+    "version": "3.2.0",
+    "fileName": "Wachen-Liste.v3.2.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Wachen-Personal- & Erweiterungs-Prüfer",
     "version": "6.0.0",
     "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
