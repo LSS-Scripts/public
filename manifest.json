@@ -143,7 +143,7 @@
     "name": "Wachen-Liste",
     "version": "3.2.0",
     "fileName": "Wachen-Liste.v3.2.0.user.js",
-    "description": "Stelle eine Wachenliste bereit, filter- und sortierbar.Aktuell NUR für Feuerwachen. Weitere Wachentypen werden folgen... Stay tuned.",
+    "description": "Stellt eine Wachenliste (Name, Persona, Stellplätze, FREIE Stellplätze) bereit, filter- und sortierbar.Aktuell NUR für Feuerwachen. Weitere Wachentypen werden folgen... Stay tuned.NOCH werden die Erweiterungen nicht korrekt bewertet!!!",
     "changelog": ""
   },
   {
