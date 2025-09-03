@@ -50,8 +50,8 @@
   },
   {
     "name": "Fahrzeug-Tool",
-    "version": "16.0.0",
-    "fileName": "Fahrzeug-Tool.v16.0.0.user.js",
+    "version": "17.2.0",
+    "fileName": "Fahrzeug-Tool.v17.2.0.user.js",
     "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
     "changelog": ""
   },
