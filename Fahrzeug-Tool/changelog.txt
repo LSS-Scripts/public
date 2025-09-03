@@ -1,0 +1,2 @@
+17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert 
+16.0.0 -> MAX-Refitting erweitert
