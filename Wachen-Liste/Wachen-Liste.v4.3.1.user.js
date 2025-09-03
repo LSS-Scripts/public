@@ -1,18 +1,51 @@
 // ==UserScript==
-// @name         Leitstellenspiel Wachen-Übersicht (Dark-Mode-Design)
+// @name         Leitstellenspiel Wachen-Übersicht (Dark-Mode-Design) [Angepasst für B&M Manager]
 // @namespace    http://tampermonkey.net/
-// @version      4.3.0
-// @description  Korrekte Stellplatz-Berechnung für Rettungswachen (+10 für Großwache).
-// @author       Masklin
+// @version      4.3.1
+// @description  Korrekte Stellplatz-Berechnung für Rettungswachen (+10 für Großwache). Lädt Abhängigkeiten selbst.
+// @author       Masklin / Anpassung von Gemini
 // @match        https://www.leitstellenspiel.de/
-// @require      https://code.jquery.com/jquery-3.7.1.min.js
-// @require      https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js
 // @grant        GM_addStyle
 // ==/UserScript==
 
-(function() {
+(async function() {
     'use strict';
 
+    /**
+     * NEUER ABSCHNITT: Abhängigkeiten dynamisch nachladen
+     * Diese Funktion sorgt dafür, dass jQuery und DataTables geladen werden,
+     * da der B&M Scriptmanager die @require-Anweisungen ignoriert.
+     */
+    const loadScript = (url) => new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = url;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    try {
+        // Prüfen, ob jQuery geladen ist. Leitstellenspiel.de lädt es oft selbst, aber sicher ist sicher.
+        if (typeof jQuery === 'undefined' || typeof $ === 'undefined') {
+            console.log('Wachen-Übersicht: Lade jQuery...');
+            await loadScript('https://code.jquery.com/jquery-3.7.1.min.js');
+        }
+        // Prüfen, ob die DataTables-Bibliothek geladen ist.
+        if (typeof $.fn.dataTable === 'undefined') {
+            console.log('Wachen-Übersicht: Lade DataTables...');
+            await loadScript('https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js');
+        }
+    } catch (error) {
+        console.error("Fehler beim Laden der Abhängigkeiten für Wachen-Übersicht:", error);
+        alert("Wachen-Übersicht konnte nicht gestartet werden, da eine benötigte Bibliothek nicht geladen werden konnte. Bitte die Seite neu laden.");
+        return; // Skriptausführung abbrechen
+    }
+    // ENDE DES NEUEN ABSCHNITTS
+
+
+    /*
+     * AB HIER FOLGT DER ORIGINALE, UNVERÄNDERTE SKRIPT-CODE
+     */
     GM_addStyle(`
         /* CSS für Dark-Mode-Design und den Filter-Bauer */
         @import url('https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css');
@@ -226,6 +259,8 @@
         }
     }
 
+    // Warten, bis das Dokument geladen ist, bevor wir den Menüpunkt hinzufügen.
+    // jQuery ($) ist dank unseres Laders an dieser Stelle garantiert verfügbar.
     $(document).ready(function() {
         addMenuItem();
     });
