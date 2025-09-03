@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      16.0.0
-// @description  Massenaktionen mit Kombi-Dialog (Dropdown & Zufallsauswahl) beim Refit. Intelligentes MAX-Refit: Prüft, erstellt & rüstet um.
+// @version      17.2.0
+// @description  Standalone-Tool filtert jetzt sofort und zeigt die exakte Anzahl umrüstbarer Fahrzeuge direkt auf den Buttons an.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
 // @match        https://*.missionchief.com/*
@@ -21,6 +21,7 @@
     const refitVehicleTypeIds = [0, 1, 6, 7, 8, 9, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 30, 37, 75, 87, 88, 89, 90, 121, 163, 166, 167];
     let allApiVehicles = [];
     let currentlyFilteredVehicles = [];
+    let maxStatsCache = {};
 
     refitVehicleTypeIds.sort((a, b) => (VEHICLE_TYPE_MAP[a] || '').localeCompare(VEHICLE_TYPE_MAP[b] || ''));
 
@@ -170,7 +171,7 @@
         }
     }
 
-    // ========== NEUE HELFERFUNKTIONEN ==========
+    // ========== HELFERFUNKTIONEN ==========
     function shuffleArray(array) {
         let currentIndex = array.length, randomIndex;
         while (currentIndex !== 0) {
@@ -231,7 +232,6 @@
             });
         });
     }
-    // ===========================================
 
     function findTemplateIdInDoc(doc, templateName) {
         const options = doc.querySelectorAll('#fitting_template_select option');
@@ -256,6 +256,43 @@
         }
     }
 
+    async function getMaxStatsForType(typeId) {
+        if (maxStatsCache[typeId]) return maxStatsCache[typeId];
+
+        const exampleVehicle = allApiVehicles.find(v => v.vehicle_type === typeId);
+        if (!exampleVehicle) return {};
+
+        try {
+            const response = await fetch(`/vehicles/${exampleVehicle.id}/refit`);
+            if (!response.ok) return {};
+            const htmlText = await response.text();
+            const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+
+            const stats = {};
+            const sliderToApiMap = {
+                'cabinSizeSlider': 'personal_max',
+                'waterTankCapacitySlider': 'water_tank_capacity',
+                'pumpCapacitySlider': 'pump_capacity',
+                'foamCapacitySlider': 'foam_capacity'
+            };
+
+            for (const sliderId in sliderToApiMap) {
+                const slider = doc.getElementById(sliderId);
+                if (slider) {
+                    const apiField = sliderToApiMap[sliderId];
+                    stats[apiField] = parseInt(slider.getAttribute('max'), 10);
+                }
+            }
+
+            maxStatsCache[typeId] = stats;
+            return stats;
+        } catch (e) {
+            console.error(`${SCRIPT_PREFIX} Fehler beim Holen der Max-Werte für Typ ${typeId}: ${e.message}`);
+            return {};
+        }
+    }
+    // ===========================================
+
     // =================================================================================
     // --- 2. IN-PAGE-MODUL ---
     // =================================================================================
@@ -265,11 +302,17 @@
             if (!link) return null;
             const idMatch = link.href.match(/\/vehicles\/(\d+)/);
             const id = idMatch ? idMatch[1] : null;
+
+            const cell = link.closest('td');
             const name = link.textContent.replace(/\u200b/g, '').trim();
+            const smallTag = cell.querySelector('small');
+            const refitName = smallTag ? smallTag.textContent.trim() : '';
+            const combinedName = `${name} ${refitName}`;
+
             const typeId = parseInt(row.querySelector('img[vehicle_type_id]')?.getAttribute('vehicle_type_id'), 10);
             const fms = row.querySelector('span.building_list_fms')?.textContent.trim();
-            if (!id || !name) return null;
-            return { id, name, typeId, fms };
+            if (!id) return null;
+            return { id, name: combinedName, typeId, fms };
         };
         const getVisibleVehicleRowsInPage = () => Array.from(document.querySelectorAll('#vehicle_table tbody tr')).filter(row => row.style.display !== 'none');
         const getVehiclesFromTable = (filterFunc = () => true) => getVisibleVehicleRowsInPage().map(getVehicleDataFromRow).filter(Boolean).filter(filterFunc);
@@ -277,7 +320,7 @@
         const refitHandler = async (typeId) => {
             const vehicleTypeName = VEHICLE_TYPE_MAP[typeId] || `Fahrzeugtyp ${typeId}`;
             const templateName = `MAX ${vehicleTypeName}`;
-            const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes('maximum'));
+            const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes(templateName.toLowerCase()));
 
             if (vehiclesToRefit.length === 0) {
                 alert(`Keine umrüstbaren "${vehicleTypeName}" in Status 2 gefunden.`);
@@ -389,7 +432,8 @@
             refitVehicleTypeIds.forEach(typeId => {
                 const vehicleTypeName = VEHICLE_TYPE_MAP[typeId];
                 if (!vehicleTypeName) return;
-                const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes('maximum'));
+                const templateName = `MAX ${vehicleTypeName}`;
+                const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes(templateName.toLowerCase()));
                 if (vehiclesToRefit.length > 0) {
                     refitActionsGroup.appendChild(createButton(`MAX ${vehicleTypeName} (${vehiclesToRefit.length})`, 'btn-primary', () => refitHandler(typeId), 'wrench'));
                 }
@@ -465,7 +509,7 @@
                     </div>
                     <div id="lssToolActionButtons" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; min-height: 34px;"></div>
                     <div id="lssToolLogContainer" style="margin-bottom: 10px; max-height: 100px; overflow-y: auto; background: #f5f5f5; border: 1px solid #ddd; padding: 5px;"></div>
-                    <div id="lssToolProgressContainer" style="flex-shrink: 0;"></div>
+                    <div id="lssToolProgressContainer" style="flex-grow: 1; overflow-y: auto;"></div>
                 </div>
             </div>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
@@ -498,6 +542,7 @@
         const btn = document.getElementById('lssToolLoadDataBtn');
         btn.textContent = 'Lade...'; btn.disabled = true;
         document.getElementById('lssToolVehicleCount').textContent = 'Lade Fahrzeuge...';
+        maxStatsCache = {};
         try {
             const response = await fetch('/api/vehicles');
             if (!response.ok) throw new Error(`Serverantwort: ${response.status}`);
@@ -526,10 +571,10 @@
             vehicleTypeFilter.disabled = false;
             document.getElementById('lssToolFmsFilter').disabled = false;
         } catch(e) { alert(`Fehler beim Laden der Fahrzeuge: ${e.message}`); document.getElementById('lssToolVehicleCount').textContent = 'Fehler!'; }
-        finally { btn.textContent = 'Aktualisieren'; btn.disabled = false; handleApplyFilters(); }
+        finally { btn.textContent = 'Aktualisieren'; btn.disabled = false; await handleApplyFilters(); }
     }
 
-    function handleApplyFilters() {
+    async function handleApplyFilters() {
         const typeFilter = document.getElementById('lssToolVehicleTypeFilter').value;
         const fmsFilter = document.getElementById('lssToolFmsFilter').value;
         currentlyFilteredVehicles = allApiVehicles.filter(v =>
@@ -537,10 +582,10 @@
             (fmsFilter == -1 || v.fms_real == fmsFilter)
         );
         document.getElementById('lssToolVehicleCount').textContent = `${currentlyFilteredVehicles.length} Fahrzeuge im Filter`;
-        generateActionButtonsForApi();
+        await generateActionButtonsForApi();
     }
 
-    function generateActionButtonsForApi() {
+    async function generateActionButtonsForApi() {
         const container = document.getElementById('lssToolActionButtons');
         container.innerHTML = '';
         const standardButtonsGroup = document.createElement('div');
@@ -569,12 +614,43 @@
             standardButtonsGroup.appendChild(btn);
         });
 
-        refitVehicleTypeIds.forEach(typeId => {
+        if (standardButtonsGroup.hasChildNodes()) container.appendChild(standardButtonsGroup);
+        container.appendChild(refitButtonsGroup);
+
+        const loadingIndicator = document.createElement('p');
+        loadingIndicator.textContent = 'Prüfe Umrüst-Optionen...';
+        refitButtonsGroup.appendChild(loadingIndicator);
+
+        for (const typeId of refitVehicleTypeIds) {
             const vehicleTypeName = VEHICLE_TYPE_MAP[typeId];
-            if (!vehicleTypeName) return;
-            const templateName = `MAX ${vehicleTypeName}`;
-            const vehiclesToRefit = currentlyFilteredVehicles.filter(v => v.vehicle_type === typeId && !v.caption.toLowerCase().includes('maximum') && v.fms_real === 2);
-            if (vehiclesToRefit.length === 0) return;
+            if (!vehicleTypeName) continue;
+
+            const vehiclesOfType = currentlyFilteredVehicles.filter(v => v.vehicle_type === typeId && v.fms_real === 2);
+            if(vehiclesOfType.length === 0) continue;
+
+            const maxStats = await getMaxStatsForType(typeId);
+
+            const isMaximized = (vehicle, maxStats) => {
+                if (!maxStats || Object.keys(maxStats).length === 0) return false;
+                const statsToApiMap = {
+                    'personal_max': 'custom_personal_max',
+                    'water_tank_capacity': 'custom_water_amount',
+                    'pump_capacity': 'custom_pump_amount',
+                    'foam_capacity': 'custom_foam_amount'
+                };
+
+                for (const statKey in maxStats) {
+                    const apiVehicleKey = statsToApiMap[statKey];
+                    if (vehicle[apiVehicleKey] !== maxStats[statKey]) {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            const vehiclesToRefit = vehiclesOfType.filter(v => !isMaximized(v, maxStats));
+            if (vehiclesToRefit.length === 0) continue;
+
             const btn = document.createElement('button');
             btn.className = 'btn btn-primary btn-sm';
             btn.textContent = `MAX ${vehicleTypeName} (${vehiclesToRefit.length})`;
@@ -597,23 +673,23 @@
                 try {
                     const firstVehicleId = vehiclesToSend[0].id;
 
-                    logToPage(`Prüfe auf Vorlage "${templateName}"...`);
+                    logToPage(`Prüfe auf Vorlage "MAX ${vehicleTypeName}"...`);
                     const refitPageResponse = await fetch(`/vehicles/${firstVehicleId}/refit`);
                     const htmlText = await refitPageResponse.text();
                     const doc = new DOMParser().parseFromString(htmlText, 'text/html');
                     const authToken = doc.querySelector('input[name="authenticity_token"]')?.value;
                     if (!authToken) throw new Error("Authenticity Token nicht gefunden.");
 
-                    let templateId = findTemplateIdInDoc(doc, templateName);
+                    let templateId = findTemplateIdInDoc(doc, `MAX ${vehicleTypeName}`);
 
                     if (!templateId) {
                         logToPage(`Vorlage nicht gefunden. Erstelle sie jetzt...`);
-                        await createMaximumTemplate(doc, templateName);
+                        await createMaximumTemplate(doc, `MAX ${vehicleTypeName}`);
 
                         const newRefitPageResponse = await fetch(`/vehicles/${firstVehicleId}/refit`);
                         const newHtmlText = await newRefitPageResponse.text();
                         const newDoc = new DOMParser().parseFromString(newHtmlText, 'text/html');
-                        templateId = findTemplateIdInDoc(newDoc, templateName);
+                        templateId = findTemplateIdInDoc(newDoc, `MAX ${vehicleTypeName}`);
 
                         if (!templateId) throw new Error("Vorlage konnte nach der Erstellung nicht gefunden werden.");
                         logToPage(`Vorlage erfolgreich erstellt.`);
@@ -635,10 +711,8 @@
                 }
             };
             refitButtonsGroup.appendChild(btn);
-        });
-
-        if (standardButtonsGroup.hasChildNodes()) container.appendChild(standardButtonsGroup);
-        if (refitButtonsGroup.hasChildNodes()) container.appendChild(refitButtonsGroup);
+        }
+        loadingIndicator.remove();
     }
 
     // =================================================================================
