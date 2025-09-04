@@ -13,7 +13,7 @@
     "param": 4,
     "label": "Endzeit für geteilte Einsätze (in Minuten)",
     "type": "number",
-    "default": "180",
+    "default": 60,
     "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll. MUSS gesetzt werden!"
   },
   {
@@ -27,13 +27,13 @@
 --*/
 
 // ==UserScript==
-// @name B&M Script-Manager: Auto-Teilen (Public)
-// @namespace B & M
-// @version 1.7.3
-// @description Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
-// @match https://www.leitstellenspiel.de/
-// @grant none
-// @license MIT
+// @name         B&M Script-Manager: Auto-Teilen (Public)
+// @namespace    B & M
+// @version      1.7.4
+// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
+// @match        https://www.leitstellenspiel.de/
+// @grant        none
+// @license      MIT
 // ==/UserScript==
 
 (async function () {
@@ -321,15 +321,16 @@
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
         NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
-        const rawMinutes = settings.param4;
-        const parsedMinutes = parseInt(rawMinutes, 10);
-
-        if (typeof rawMinutes !== 'undefined' && rawMinutes !== '' && !isNaN(parsedMinutes)) {
-            NOTIZ_ZEIT_IN_MINUTEN = parsedMinutes;
+        // ========== KORRIGIERTE UND ROBUSTERE VALIDIERUNG ==========
+        const timeValue = settings.param4;
+        // Wir prüfen, ob der Wert aus dem Speicher eine Zahl und größer als 0 ist.
+        if (typeof timeValue === 'number' && timeValue > 0) {
+            NOTIZ_ZEIT_IN_MINUTEN = timeValue;
             settingsAreValid = true;
         } else {
             settingsAreValid = false;
         }
+        // ========== ENDE DER KORREKTUR ==========
 
         createControlPanel();
         updateTimeDisplay();
