@@ -27,13 +27,13 @@
 --*/
 
 // ==UserScript==
-// @name         B&M Script-Manager: Auto-Teilen (Public)
-// @namespace    B & M
-// @version      1.7.1
-// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
-// @match        https://www.leitstellenspiel.de/
-// @grant        none
-// @license      MIT
+// @name B&M Script-Manager: Auto-Teilen (Public)
+// @namespace B & M
+// @version 1.7.2
+// @description Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
+// @match https://www.leitstellenspiel.de/
+// @grant none
+// @license MIT
 // ==/UserScript==
 
 (async function () {
@@ -61,7 +61,6 @@
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 500;
     
-    // Globale Variable, um den Status der Einstellungen zu speichern
     let settingsAreValid = false;
 
     // --- State-Variablen ---
@@ -79,7 +78,6 @@
         return document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable);
     }
     
-    // Eigene Funktion, um die Zeitanzeige im UI zu aktualisieren
     function updateTimeDisplay() {
         const display = document.getElementById('bm-time-display');
         if (!display) return;
@@ -123,7 +121,6 @@
             }
             .bm-progress-indicator { background-color: #2ecc71; }
             .bm-completed-indicator { background-color: #3498db; }
-
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
             }
@@ -319,7 +316,6 @@
     }
     
     async function init() {
-        debugger;
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
         
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
