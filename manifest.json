@@ -8,8 +8,8 @@
   },
   {
     "name": "Automatisches Teilen von Einsätzen",
-    "version": "1.6.8",
-    "fileName": "Automatisches Teilen.v1.6.8.user.js",
+    "version": "1.7.0",
+    "fileName": "Automatisches Teilen.v1.7.0.user.js",
     "description": "Teilt auf Knopfdruck eine von dir festgelegte Anzahl an Einsätzen, wobei es nach einem einstellbaren Creditlimit filtert und bereits geteilte Einsätze ignoriert. Zusätzlich versieht es jeden geteilten Einsatz mit einer anpassbaren Notiz, wie z.B. einer Endzeit.",
     "changelog": ""
   },
