@@ -54,7 +54,7 @@
         });
     }
 
-    const SKRIPT_NAME = 'Auto-Teilen';
+    const SKRIPT_NAME = 'B&M Script-Manager: Auto-Teilen (Public)';
 
     // --- Konfiguration & Konstanten ---
     let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE;
