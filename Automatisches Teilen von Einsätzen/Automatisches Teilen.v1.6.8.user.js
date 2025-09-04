@@ -13,7 +13,7 @@
     "param": 4,
     "label": "Endzeit für geteilte Einsätze (in Minuten)",
     "type": "number",
-    "default": "180",
+    "default": "1",
     "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll."
   },
   {
@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.6.7
+// @version      1.6.8
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
