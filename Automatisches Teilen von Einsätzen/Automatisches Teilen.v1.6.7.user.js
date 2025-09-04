@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.6.6
+// @version      1.6.7
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -84,7 +84,7 @@
             .bm-indicators-container { display: flex; gap: 6px; }
             .bm-panel-control { display: flex; align-items: center; gap: 6px; }
             .bm-panel-control input[type="number"] {
-                width: 65px; /* ANGEPASST: Feld verbreitert */
+                width: 65px;
                 padding: 4px; border-radius: 4px; text-align: center;
                 background-color: #fff; color: #333; border: 1px solid #ddd;
             }
@@ -95,12 +95,12 @@
             }
             .bm-panel-control button:hover { background-color: #2980b9; }
             .bm-panel-control button:disabled { background-color: #95a5a6; cursor: not-allowed; }
-            .bm-progress-indicator, .bm-completed-indicator { /* GEMEINSAME STILE FÜR ANZEIGEN */
+            .bm-progress-indicator, .bm-completed-indicator {
                 color: #fff; padding: 4px 8px; border-radius: 5px;
                 font-weight: bold; min-width: 100px; text-align: center;
             }
             .bm-progress-indicator { background-color: #2ecc71; }
-            .bm-completed-indicator { background-color: #3498db; } /* NEU: Eigene Klasse für den Zähler der geteilten Einsätze */
+            .bm-completed-indicator { background-color: #3498db; }
 
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
@@ -136,7 +136,6 @@
 
         controls.append(numberInput, shareButton);
 
-        // ANGEPASST: Container für beide Anzeigen, um sie rechts zu gruppieren
         const indicatorsContainer = document.createElement('div');
         indicatorsContainer.className = 'bm-indicators-container';
 
@@ -171,7 +170,6 @@
         try {
             await $.get(`/missions/${missionId}/alliance`);
             const now = new Date();
-            console.log('AKTION - Genutzter Wert für Minuten:', NOTIZ_ZEIT_IN_MINUTEN);
             now.setMinutes(now.getMinutes() + NOTIZ_ZEIT_IN_MINUTEN);
             const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -245,7 +243,6 @@
         setTimeout(() => updateAvailableCount(), 3000);
     }
 
-    // ANGEPASST: Zählt jetzt auch die geteilten Einsätze
     function updateAvailableCount() {
         if (isProcessing || isTextFieldActive()) return;
         const missionContainer = document.querySelector('#mission_list');
@@ -260,7 +257,7 @@
 
             if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
                 completedCount++;
-                continue; // Gehe zum nächsten Einsatz, zähle nicht als "bereit"
+                continue;
             }
             
             if (processedMissions.has(missionId)) continue;
@@ -295,8 +292,7 @@
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
         NOTIZ_ZEIT_IN_MINUTEN = parseInt(settings.param4, 10) || 180;
-        console.log('INIT - Gelesener Wert für Minuten:', settings.param4, 'Ergebnis:', NOTIZ_ZEIT_IN_MINUTEN);
-        NOTIZ_VORLAGE = settings.param5 ?? "ELW/FüKw ab {stunden}:{minuten}";
+        NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
         createControlPanel();
         timedLoop();
