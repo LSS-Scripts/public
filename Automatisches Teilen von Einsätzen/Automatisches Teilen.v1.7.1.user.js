@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.7.0
+// @version      1.7.1
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -319,6 +319,7 @@
     }
     
     async function init() {
+        debugger;
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
         
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
