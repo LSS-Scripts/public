@@ -13,8 +13,8 @@
     "param": 4,
     "label": "Endzeit für geteilte Einsätze (in Minuten)",
     "type": "number",
-    "default": "180",
-    "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll."
+    "default": "",
+    "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll. MUSS gesetzt werden!"
   },
   {
     "param": 5,
@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.6.8
+// @version      1.7.0
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -60,6 +60,9 @@
     let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE;
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 500;
+    
+    // Globale Variable, um den Status der Einstellungen zu speichern
+    let settingsAreValid = false;
 
     // --- State-Variablen ---
     const processedMissions = new Set();
@@ -75,6 +78,24 @@
     function isTextFieldActive() {
         return document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable);
     }
+    
+    // Eigene Funktion, um die Zeitanzeige im UI zu aktualisieren
+    function updateTimeDisplay() {
+        const display = document.getElementById('bm-time-display');
+        if (!display) return;
+
+        if (settingsAreValid) {
+            display.textContent = `⏰ ${NOTIZ_ZEIT_IN_MINUTEN} min`;
+            display.style.backgroundColor = isDarkMode() ? '#27ae60' : '#2ecc71';
+            display.style.color = 'white';
+            display.title = `Notizen werden auf ${NOTIZ_ZEIT_IN_MINUTEN} Minute(n) in die Zukunft gesetzt.`;
+        } else {
+            display.textContent = '⚠️ Zeit fehlt!';
+            display.style.backgroundColor = '#e74c3c';
+            display.style.color = 'white';
+            display.title = 'Fehler: Keine gültige Endzeit in den Einstellungen festgelegt! Bitte im B&M Manager einstellen.';
+        }
+    }
 
     function createControlPanel() {
         const header = document.querySelector('#mission_list + .panel-body') || document.querySelector('#mission_list')?.parentElement;
@@ -83,6 +104,7 @@
         const styles = `
             .bm-indicators-container { display: flex; gap: 6px; }
             .bm-panel-control { display: flex; align-items: center; gap: 6px; }
+            #bm-time-display { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; transition: background-color 0.3s; }
             .bm-panel-control input[type="number"] {
                 width: 65px;
                 padding: 4px; border-radius: 4px; text-align: center;
@@ -123,6 +145,9 @@
 
         const controls = document.createElement('div');
         controls.className = 'bm-panel-control';
+        
+        const timeDisplay = document.createElement('div');
+        timeDisplay.id = 'bm-time-display';
 
         const numberInput = document.createElement('input');
         numberInput.type = 'number';
@@ -133,8 +158,8 @@
         const shareButton = document.createElement('button');
         shareButton.id = 'bm-share-button';
         shareButton.textContent = 'Teilen';
-
-        controls.append(numberInput, shareButton);
+        
+        controls.append(timeDisplay, numberInput, shareButton);
 
         const indicatorsContainer = document.createElement('div');
         indicatorsContainer.className = 'bm-indicators-container';
@@ -187,6 +212,11 @@
     }
 
     async function handleMissionProcessing(shareLimit) {
+        if (!settingsAreValid) {
+            alert("Fehler: Keine gültige Endzeit in den Einstellungen festgelegt!\n\nBitte öffne den B&M Manager, klicke auf das Zahnrad für dieses Skript und trage eine Zahl bei 'Endzeit für geteilte Einsätze' ein.");
+            return;
+        }
+        
         if (isProcessing) return;
         const shareButton = document.getElementById('bm-share-button');
         const numberInput = document.getElementById('bm-share-amount');
@@ -290,11 +320,23 @@
     
     async function init() {
         const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
+        
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
-        NOTIZ_ZEIT_IN_MINUTEN = parseInt(settings.param4, 10) || 180;
         NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
+        const rawMinutes = settings.param4;
+        const parsedMinutes = parseInt(rawMinutes, 10);
+
+        if (typeof rawMinutes !== 'undefined' && rawMinutes !== '' && !isNaN(parsedMinutes)) {
+            NOTIZ_ZEIT_IN_MINUTEN = parsedMinutes;
+            settingsAreValid = true;
+        } else {
+            settingsAreValid = false;
+        }
+
         createControlPanel();
+        updateTimeDisplay();
+        
         timedLoop();
         console.log(`[${SKRIPT_NAME}] Skript gestartet.`);
     }
