@@ -29,7 +29,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.7.4
+// @version      1.7.5
 // @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -54,7 +54,10 @@
         });
     }
 
-    const SKRIPT_NAME = 'B&M Script-Manager: Auto-Teilen (Public)';
+    // ========== KORREKTUR: Name an den Local Storage Key angepasst ==========
+    const SKRIPT_NAME = 'Automatisches Teilen von Einsätzen';
+    const ANZEIGE_NAME = 'B&M Script-Manager: Auto-Teilen (Public)'; // Für Konsolenausgaben etc.
+    // ========== ENDE DER KORREKTUR ==========
 
     // --- Konfiguration & Konstanten ---
     let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE;
@@ -201,7 +204,7 @@
             processedMissions.add(missionId);
             return 1;
         } catch (error) {
-            console.error(`[${SKRIPT_NAME}] Fehler bei Mission ${missionId}:`, error);
+            console.error(`[${ANZEIGE_NAME}] Fehler bei Mission ${missionId}:`, error);
             missionEntry.style.backgroundColor = '#f2dede';
             missionEntry.title = `Fehler beim Teilen oder Notiz setzen für Mission ${missionId}.`;
             return 0;
@@ -310,7 +313,7 @@
         try {
             updateAvailableCount();
         } catch (e) {
-            console.error(`[${SKRIPT_NAME}] Fehler im timedLoop:`, e);
+            console.error(`[${ANZEIGE_NAME}] Fehler im timedLoop:`, e);
         }
         setTimeout(timedLoop, 5000);
     }
@@ -321,30 +324,27 @@
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
         NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
-        // ========== KORRIGIERTE UND ROBUSTERE VALIDIERUNG ==========
         const timeValue = settings.param4;
-        // Wir prüfen, ob der Wert aus dem Speicher eine Zahl und größer als 0 ist.
         if (typeof timeValue === 'number' && timeValue > 0) {
             NOTIZ_ZEIT_IN_MINUTEN = timeValue;
             settingsAreValid = true;
         } else {
             settingsAreValid = false;
         }
-        // ========== ENDE DER KORREKTUR ==========
 
         createControlPanel();
         updateTimeDisplay();
         
         timedLoop();
-        console.log(`[${SKRIPT_NAME}] Skript gestartet.`);
+        console.log(`[${ANZEIGE_NAME}] Skript gestartet. Lese Einstellungen von Key: '${SKRIPT_NAME}'`);
     }
 
     try {
         await ensureBMScriptManager();
         init();
     } catch (error) {
-        console.error(`[${SKRIPT_NAME}] konnte nicht gestartet werden:`, error);
-        alert(`Das Skript "${SKRIPT_NAME}" konnte nicht gestartet werden, da der B&M ScriptManager nicht gefunden wurde.`);
+        console.error(`[${ANZEIGE_NAME}] konnte nicht gestartet werden:`, error);
+        alert(`Das Skript "${ANZEIGE_NAME}" konnte nicht gestartet werden, da der B&M ScriptManager nicht gefunden wurde.`);
     }
 
 })();
