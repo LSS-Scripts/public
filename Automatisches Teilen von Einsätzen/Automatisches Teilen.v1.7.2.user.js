@@ -13,7 +13,7 @@
     "param": 4,
     "label": "Endzeit für geteilte Einsätze (in Minuten)",
     "type": "number",
-    "default": "",
+    "default": "180",
     "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll. MUSS gesetzt werden!"
   },
   {
