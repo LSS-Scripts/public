@@ -80,7 +80,7 @@
     "name": "Lehrgangsabbrecher",
     "version": "1.4.1",
     "fileName": "Lehgangsabbrecher.v1.4.1.user.js",
-    "description": "Sammelt Links zu Lehrgängen mit 10 freien Plätzen auf Leitstellenspiel.de und ruft deren Abbruch-URLs im Hintergrund auf, mit Fortschrittsanzeige und Einzel-Abbrechfunktion.",
+    "description": "Sorgt in der Lehrgangsübersicht für gesammelte Abbruchmöglichkeiten für unbesetzte Lehrgänge (alle, pro Schule und auch einzelne Lehrgänge)",
     "changelog": ""
   },
   {
