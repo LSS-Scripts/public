@@ -1,3 +1,3 @@
 Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. 
 
-(Quasi ein Performance-Messeer.. je mehr fahrzeuge, desto langsamer das Spiel....)
+(Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)
