@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Einsätze einklappen
+// @name         Einsätze einklappen (Angepasste Version)
 // @namespace    http://tampermonkey.net/
-// @version      5.0.0
-// @description  Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen "Alle umschalten"-Knopf in der Hauptleiste.
-// @author       Masklin & Gemini
+// @version      5.1.0
+// @description  Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen "Alle umschalten"-Knopf in der Hauptleiste. Verhindert Zeilenumbrüche.
+// @author       Masklin & Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/
 // @grant        GM_addStyle
 // @run-at       document-start
@@ -12,9 +12,9 @@
 (function() {
     'use strict';
 
-    console.log('[LSS Collapse] Skript V5 wird geladen.');
+    console.log('[LSS Collapse] Skript V5.1 wird geladen.');
 
-    // 1. CSS-Stile anpassen
+    // 1. CSS-Stile anpassen (HIER SIND DIE ÄNDERUNGEN)
     GM_addStyle(`
         /* Versteckt den Einsatz-Inhalt */
         .mission-collapsed .panel-body {
@@ -27,6 +27,27 @@
         /* Abstand für den "Alle umschalten"-Knopf */
         #toggleAllMissionsBtn-tm {
             margin-right: 5px !important;
+        }
+
+        /* --- NEU: Verhindert den Zeilenumbruch im Header --- */
+        div[id^="mission_"] .panel-heading {
+            display: flex !important; /* Ordnet alle Elemente (Knöpfe, Text, Uhrzeit) in einer Reihe an */
+            align-items: center; /* Zentriert alles vertikal für eine saubere Optik */
+            gap: 4px; /* Kleiner Abstand zwischen den Elementen */
+        }
+
+        /* --- NEU: Kürzt zu langen Text mit "..." --- */
+        a[id^="mission_caption"] {
+            white-space: nowrap; /* Verhindert den Umbruch innerhalb des Links */
+            overflow: hidden; /* Versteckt überstehenden Text */
+            text-overflow: ellipsis; /* Fügt "..." am Ende hinzu */
+            flex-grow: 1; /* Der Link füllt den verfügbaren Platz */
+            min-width: 0; /* Wichtiger Trick, damit das Kürzen zuverlässig funktioniert */
+        }
+
+        /* --- NEU: Blendet die Adresse im eingeklappten Zustand aus --- */
+        .mission-collapsed a[id^="mission_caption"] small {
+            display: none;
         }
     `);
 
@@ -54,7 +75,6 @@
             collapseBtn.innerHTML = missionPanel.classList.contains('mission-collapsed') ? '📖' : '🤏';
         });
 
-        // *** DIE ÄNDERUNG: Fügt den Knopf VOR dem Alarm-Button ein ***
         heading.insertBefore(collapseBtn, alarmButton);
     };
 
@@ -62,9 +82,8 @@
     const addToggleAllButton = (mainPanel) => {
         if (document.getElementById('toggleAllMissionsBtn-tm')) return;
 
-        // Dein neuer Ankerpunkt: der ausklappbare Filter
         const filterControl = mainPanel.querySelector('.filters-display-control');
-        if (!filterControl) return; // Warten, falls der auch später geladen wird
+        if (!filterControl) return;
 
         console.log('[LSS Collapse] "Alle umschalten"-Knopf wird hinzugefügt.');
 
@@ -72,13 +91,12 @@
         toggleAllBtn.id = 'toggleAllMissionsBtn-tm';
         toggleAllBtn.innerHTML = 'Alle 🤏/📖';
         toggleAllBtn.title = 'Alle Einsätze umschalten';
-        toggleAllBtn.className = 'btn btn-default btn-xs'; // Passender Stil
+        toggleAllBtn.className = 'btn btn-default btn-xs';
 
         toggleAllBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const missions = document.querySelectorAll('#mission_list > .missionSideBarEntry');
-            // Prüft, ob mindestens ein Einsatz noch offen ist. Wenn ja, werden alle geschlossen.
             const shouldCollapse = Array.from(missions).some(m => !m.querySelector('.panel').classList.contains('mission-collapsed'));
 
             missions.forEach(missionNode => {
@@ -89,23 +107,20 @@
             });
         });
 
-        // *** DIE ÄNDERUNG: Fügt den Knopf VOR dem Filter-Control-Button ein ***
         filterControl.insertAdjacentElement('beforebegin', toggleAllBtn);
     };
 
     // 4. Der Observer, der alles steuert
     const observer = new MutationObserver(() => {
-        // Sucht nach der neuen Kopfleiste für den "Alle"-Knopf
         const mainPanel = document.getElementById('missions-panel-main');
         if (mainPanel) {
             addToggleAllButton(mainPanel);
         }
 
-        // Sucht nach neuen Einsätzen für die Einzel-Knöpfe (dieser Teil hat schon funktioniert)
         document.querySelectorAll('div[id^="mission_"]:not([data-collapse-processed])').forEach(node => {
             if (node.matches('div[id^="mission_"]:not([id*="panel"]):not([id*="caption"]):not([id*="address"])')) {
                 addCollapseButton(node);
-                node.setAttribute('data-collapse-processed', 'true'); // Markieren, um Doppelungen zu vermeiden
+                node.setAttribute('data-collapse-processed', 'true');
             }
         });
     });
