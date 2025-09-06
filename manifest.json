@@ -29,8 +29,8 @@
   },
   {
     "name": "Einsätze einklappen",
-    "version": "5.1.0",
-    "fileName": "Einsätze einklappe.v5.1.0.user.js",
+    "version": "5.2.0",
+    "fileName": "Einsätze einklappe.v5.2.0.user.js",
     "description": "Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen \"Alle umschalten\"-Knopf in der Hauptleiste.(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)",
     "changelog": ""
   },
