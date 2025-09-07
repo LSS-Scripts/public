@@ -15,7 +15,7 @@
 // ==UserScript==
 // @name         LSS - Summenleiste mit Warnfunktion
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.0.0
 // @description  Zählt Einsätze, Credits, Patienten etc. und hebt Einsätze hervor, die bald gelöscht werden. Inkl. Zähler für gefährdete Einsätze. Konfigurierbar via B&M Scriptmanager.
 // @author       Masklin, DeinName & Gemini
 // @match        https://www.leitstellenspiel.de/
