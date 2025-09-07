@@ -36,7 +36,7 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      2.0.0
+// @version      2.1.2
 // @description  Teilt Einsätze über Kreditlimit. Mit konfigurierbarem Schalter für Normal- und Chaos-Zeit.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
@@ -67,7 +67,7 @@
     // --- Konfiguration & Konstanten ---
     let CREDIT_THRESHOLD, NOTIZ_VORLAGE;
     let NOTIZ_ZEIT_IN_MINUTEN;
-    let NORMAL_TIME, CHAOS_TIME; // GEÄNDERT: Werden jetzt aus den Einstellungen geladen
+    let NORMAL_TIME, CHAOS_TIME;
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 500;
     
@@ -175,7 +175,8 @@
         shareButton.id = 'bm-share-button';
         shareButton.textContent = 'Teilen';
         
-        controls.append(timeDisplay, chaosToggleButton, numberInput, shareButton);
+        // HIER IST DIE GEÄNDERTE REIHENFOLGE:
+        controls.append(timeDisplay, numberInput, shareButton, chaosToggleButton);
 
         const indicatorsContainer = document.createElement('div');
         indicatorsContainer.className = 'bm-indicators-container';
@@ -307,7 +308,6 @@
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
         NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
-        // GEÄNDERT: Zeiten werden jetzt aus den Einstellungen gelesen
         NORMAL_TIME = parseInt(settings.param4, 10) || 180;
         CHAOS_TIME = parseInt(settings.param6, 10) || 90;
 
