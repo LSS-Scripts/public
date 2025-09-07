@@ -1,0 +1,1 @@
+Ein Statuszähler, oben in der Titelleiste.
