@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Leitstellenspiel FMS Zähler (V6.1 - Position korrigiert)
+// @name         Leitstellenspiel FMS Zähler (V6.5 - Start-Bugfix)
 // @namespace    http://tampermonkey.net/
-// @version      6.1
-// @description  Zählt FMS-Status zuverlässig per API-Polling. Performance-optimiert durch langes Intervall und manuellen Refresh.
-// @author       Masklin
+// @version      6.5
+// @description  Zählt FMS-Status zuverlässig. Startet korrekt und aktualisiert die Zahlen nahtlos im Hintergrund.
+// @author       Dein Name
 // @match        https://www.leitstellenspiel.de/
 // @grant        GM_xmlhttpRequest
 // @connect      leitstellenspiel.de
@@ -12,8 +12,6 @@
 (function() {
     'use strict';
 
-    // Konfiguration: Wie oft sollen die Daten automatisch aktualisiert werden (in Millisekunden)?
-    // 60000 = 60 Sekunden. Ein höherer Wert schont die Performance.
     const updateInterval = 60000;
 
     const fmsColors = {
@@ -27,17 +25,13 @@
     const targetElement = document.getElementById('map_adress_search_form');
     if (!targetElement) return;
 
-    // Erstelle das Haupt-Container-Element
     const fmsContainer = document.createElement('div');
     fmsContainer.id = 'fms-counter-container';
+    fmsContainer.className = 'navbar-text navbar-left';
     fmsContainer.style.display = 'flex';
     fmsContainer.style.alignItems = 'center';
     fmsContainer.style.marginRight = '15px';
-    fmsContainer.style.float = 'left'; // KORREKTUR: Richte dich links aus
-    fmsContainer.style.marginTop = '8px'; // KORREKTUR: Vertikaler Abstand wie die Suchleiste
-    fmsContainer.style.marginBottom = '8px'; // KORREKTUR: Vertikaler Abstand wie die Suchleiste
 
-    // Erstelle die Anzeige für die FMS-Zahlen
     const fmsDisplay = document.createElement('div');
     fmsDisplay.id = 'fms-counter-navbar';
     fmsDisplay.style.display = 'flex';
@@ -47,40 +41,33 @@
     fmsDisplay.innerHTML = '<span style="margin-right: 5px; color: #fff;">FMS:</span><span style="color: #ccc;">Initialisiere...</span>';
     fmsContainer.appendChild(fmsDisplay);
 
-    // Erstelle den Refresh-Button
     const refreshButton = document.createElement('a');
-    refreshButton.innerHTML = '&#x21bb;'; // Unicode für Refresh-Pfeil
+    refreshButton.innerHTML = '&#x21bb;';
     refreshButton.title = 'FMS-Zähler manuell aktualisieren';
     refreshButton.style.marginLeft = '8px';
     refreshButton.style.color = '#fff';
     refreshButton.style.cursor = 'pointer';
     refreshButton.style.fontSize = '16px';
     refreshButton.addEventListener('click', () => {
-        if (!isLoading) {
-            fetchAndCountFms();
-        }
+        // Ruft die Ladefunktion nur auf, wenn sie nicht schon läuft.
+        fetchAndCountFms();
     });
     fmsContainer.appendChild(refreshButton);
 
     targetElement.parentNode.insertBefore(fmsContainer, targetElement);
 
-    function updateDisplay(loading = false, error = null) {
-        isLoading = loading;
-        fmsContainer.style.opacity = loading ? '0.5' : '1';
-        refreshButton.style.cursor = loading ? 'wait' : 'pointer';
-
+    // Diese Funktion ist jetzt nur noch für das reine Anzeigen der Zahlen zuständig.
+    function updateDisplay(error = null) {
         let html = '<span style="margin-right: 5px; color: #fff;">FMS:</span>';
-        if (loading) {
-            html += '<span style="color: #ccc;">Lade Daten...</span>';
-        } else if (error) {
-            html += `<span style="color: #ff5555;">${error}</span>`;
+        if (error) {
+             html += `<span style="color: #ff5555;">${error}</span>`;
         } else {
             const sortedKeys = Object.keys(fmsCounts).sort((a, b) => a - b);
             let count = 0;
             for (const status of sortedKeys) {
                 if (fmsCounts[status] > 0) {
                     count++;
-                    html += `<span style="background-color: ${fmsColors[status] || '#ccc'}; color: white; padding: 2px 6px; margin-right: 3px; border-radius: 3px; white-space: nowrap;">${status}: ${fmsCounts[status]}</span>`;
+                    html += `<span style="background-color: ${fmsColors[status] || '#ccc'}; color: white; padding: 2px 6px; margin-right: 3px; border-radius: 3px; white-space: nowrap;">${status}: ${fmsCounts[status].toLocaleString('de-DE')}</span>`;
                 }
             }
             if(count === 0) html += '<span style="color: #ccc;">Keine Fahrzeuge gefunden.</span>';
@@ -88,9 +75,11 @@
         fmsDisplay.innerHTML = html;
     }
 
+    // KORRIGIERTE Ladefunktion
     function fetchAndCountFms() {
-        if (isLoading) return;
-        updateDisplay(true); // Ladezustand anzeigen
+        if (isLoading) return; // Verhindert überlappende Ausführungen
+        isLoading = true;
+        refreshButton.style.cursor = 'wait';
 
         GM_xmlhttpRequest({
             method: "GET",
@@ -105,22 +94,31 @@
                                 fmsCounts[vehicle.fms_real]++;
                             }
                         }
-                        updateDisplay(false); // Ladezustand beenden, Daten anzeigen
+                        updateDisplay(); // Anzeige mit neuen Zahlen aktualisieren
                     } catch (e) {
-                        updateDisplay(false, 'Parse-Fehler!');
+                        console.error("Fehler beim Verarbeiten der Fahrzeug-API:", e);
+                        updateDisplay('Parse-Fehler!'); // Optional: Fehler anzeigen
                     }
                 } else {
-                    updateDisplay(false, `API-Fehler: ${response.status}`);
+                    console.error(`API-Fehler: ${response.status}`);
+                    updateDisplay('API-Fehler!'); // Optional: Fehler anzeigen
                 }
+                // Wichtig: Ladezustand in jedem Fall zurücksetzen
+                isLoading = false;
+                refreshButton.style.cursor = 'pointer';
             },
             onerror: function(error) {
-                updateDisplay(false, 'Netzwerkfehler!');
+                console.error("Fehler bei der API-Anfrage:", error);
+                updateDisplay('Netzwerkfehler!'); // Optional: Fehler anzeigen
+                // Wichtig: Ladezustand in jedem Fall zurücksetzen
+                isLoading = false;
+                refreshButton.style.cursor = 'pointer';
             }
         });
     }
 
     // Starte den Prozess
-    fetchAndCountFms(); // Einmal direkt beim Start
+    fetchAndCountFms(); // Direkter erster Aufruf
     setInterval(fetchAndCountFms, updateInterval); // Und dann im Intervall
 
 })();
