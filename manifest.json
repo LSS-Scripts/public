@@ -113,7 +113,7 @@
   },
   {
     "name": "Summenleiste",
-    "version": "2.8.0",
+    "version": "3.0.0",
     "fileName": "Summenleiste.v2.8.0.user.js",
     "description": "Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt.",
     "changelog": "{2.6}Zusammenfassung, UI-Bugs, Dark-Mode-Festigung{2.4}Debugging{2.0}Patienten & Gefangene zählen"
