@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.3.6 (Reactivation Fix)
+// @version      13.3.7 (Reactivation Fix)
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
@@ -379,6 +379,7 @@
             });
         },
         loadAndDisplayScripts: async function(forceRefresh = false) {
+            await this.openDatabase();
             const scriptList = document.getElementById('script-list');
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
