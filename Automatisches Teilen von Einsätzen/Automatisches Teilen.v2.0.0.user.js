@@ -11,10 +11,17 @@
   },
   {
     "param": 4,
-    "label": "Endzeit für geteilte Einsätze (in Minuten)",
+    "label": "Normale Endzeit (in Minuten)",
     "type": "number",
-    "default": 60,
-    "info": "Wie viele Minuten nach dem Teilen der Einsatz offen bleiben soll. MUSS gesetzt werden!"
+    "default": 180,
+    "info": "Die Zeit, die bei 'Chaos: AUS' verwendet wird."
+  },
+  {
+    "param": 6,
+    "label": "Chaos-Endzeit (in Minuten)",
+    "type": "number",
+    "default": 90,
+    "info": "Die Zeit, die bei 'Chaos: AN' verwendet wird."
   },
   {
     "param": 5,
@@ -29,8 +36,8 @@
 // ==UserScript==
 // @name         B&M Script-Manager: Auto-Teilen (Public)
 // @namespace    B & M
-// @version      1.7.5
-// @description  Teilt Einsätze, die über einem Kreditlimit liegen und noch nicht abgeschlossen sind.
+// @version      2.0.0
+// @description  Teilt Einsätze über Kreditlimit. Mit konfigurierbarem Schalter für Normal- und Chaos-Zeit.
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // @license      MIT
@@ -54,22 +61,20 @@
         });
     }
 
-    // ========== KORREKTUR: Name an den Local Storage Key angepasst ==========
-    const SKRIPT_NAME = 'Automatisches Teilen von Einsätzen';
-    const ANZEIGE_NAME = 'B&M Script-Manager: Auto-Teilen (Public)'; // Für Konsolenausgaben etc.
-    // ========== ENDE DER KORREKTUR ==========
+    const SKRIpt_NAME = 'Automatisches Teilen von Einsätzen';
+    const ANZEIGE_NAME = 'B&M Script-Manager: Auto-Teilen (Public)';
 
     // --- Konfiguration & Konstanten ---
-    let CREDIT_THRESHOLD, NOTIZ_ZEIT_IN_MINUTEN, NOTIZ_VORLAGE;
+    let CREDIT_THRESHOLD, NOTIZ_VORLAGE;
+    let NOTIZ_ZEIT_IN_MINUTEN;
+    let NORMAL_TIME, CHAOS_TIME; // GEÄNDERT: Werden jetzt aus den Einstellungen geladen
     const BATCH_SIZE = 10;
     const DELAY_BETWEEN_BATCHES = 500;
     
-    let settingsAreValid = false;
-
     // --- State-Variablen ---
     const processedMissions = new Set();
     let isProcessing = false;
-    let availableToShareCount = 0;
+    let isInternalChaosMode = false;
 
     function isDarkMode() {
         return document.body.classList.contains('dark');
@@ -83,18 +88,21 @@
     
     function updateTimeDisplay() {
         const display = document.getElementById('bm-time-display');
-        if (!display) return;
+        if (display) display.textContent = `⏰ ${NOTIZ_ZEIT_IN_MINUTEN} min`;
+    }
 
-        if (settingsAreValid) {
-            display.textContent = `⏰ ${NOTIZ_ZEIT_IN_MINUTEN} min`;
-            display.style.backgroundColor = isDarkMode() ? '#27ae60' : '#2ecc71';
-            display.style.color = 'white';
-            display.title = `Notizen werden auf ${NOTIZ_ZEIT_IN_MINUTEN} Minute(n) in die Zukunft gesetzt.`;
+    function updateChaosButtonLook() {
+        const button = document.getElementById('bm-chaos-toggle');
+        if (!button) return;
+
+        if (isInternalChaosMode) {
+            button.textContent = 'Chaos: AN';
+            button.style.backgroundColor = '#e74c3c'; // Rot
+            button.style.boxShadow = '0 0 6px rgba(231,76,60,0.8)';
         } else {
-            display.textContent = '⚠️ Zeit fehlt!';
-            display.style.backgroundColor = '#e74c3c';
-            display.style.color = 'white';
-            display.title = 'Fehler: Keine gültige Endzeit in den Einstellungen festgelegt! Bitte im B&M Manager einstellen.';
+            button.textContent = 'Chaos: AUS';
+            button.style.backgroundColor = '#27ae60'; // Grün
+            button.style.boxShadow = '0 0 6px rgba(39,174,96,0.8)';
         }
     }
 
@@ -105,19 +113,19 @@
         const styles = `
             .bm-indicators-container { display: flex; gap: 6px; }
             .bm-panel-control { display: flex; align-items: center; gap: 6px; }
-            #bm-time-display { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; transition: background-color 0.3s; }
+            #bm-time-display { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; background-color: ${isDarkMode() ? '#2c3e50' : '#ecf0f1'}; }
             .bm-panel-control input[type="number"] {
-                width: 65px;
-                padding: 4px; border-radius: 4px; text-align: center;
+                width: 65px; padding: 4px; border-radius: 4px; text-align: center;
                 background-color: #fff; color: #333; border: 1px solid #ddd;
             }
             .bm-panel-control button {
                 padding: 4px 8px; border: none; border-radius: 5px; color: white;
-                font-weight: bold; cursor: pointer; transition: background-color 0.2s;
-                background-color: #3498db;
+                font-weight: bold; cursor: pointer; transition: background-color 0.2s, box-shadow 0.2s;
+                font-size: 11px;
             }
-            .bm-panel-control button:hover { background-color: #2980b9; }
-            .bm-panel-control button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+            #bm-share-button { background-color: #3498db; }
+            #bm-share-button:hover { background-color: #2980b9; }
+            #bm-share-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
             .bm-progress-indicator, .bm-completed-indicator {
                 color: #fff; padding: 4px 8px; border-radius: 5px;
                 font-weight: bold; min-width: 100px; text-align: center;
@@ -127,7 +135,6 @@
             [data-theme="dark"] .bm-panel-control input[type="number"] {
                 background-color: #34495e; color: #ecf0f1; border: 1px solid #2c3e50;
             }
-            [data-theme="dark"] .bm-panel-control button:disabled { background-color: #7f8c8d; }
         `;
         const styleSheet = document.createElement("style");
         styleSheet.innerText = styles;
@@ -135,7 +142,6 @@
 
         const panel = document.createElement('div');
         panel.id = 'bm-share-panel';
-
         Object.assign(panel.style, {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             fontSize: '12px', padding: '6px', borderRadius: '6px', marginBottom: '10px',
@@ -155,26 +161,34 @@
         numberInput.min = '1';
         numberInput.placeholder = 'Anzahl';
 
+        const chaosToggleButton = document.createElement('button');
+        chaosToggleButton.id = 'bm-chaos-toggle';
+        chaosToggleButton.title = 'Wechselt zwischen Normal- und Chaos-Zeit';
+        chaosToggleButton.addEventListener('click', () => {
+            isInternalChaosMode = !isInternalChaosMode;
+            NOTIZ_ZEIT_IN_MINUTEN = isInternalChaosMode ? CHAOS_TIME : NORMAL_TIME;
+            updateChaosButtonLook();
+            updateTimeDisplay();
+        });
+
         const shareButton = document.createElement('button');
         shareButton.id = 'bm-share-button';
         shareButton.textContent = 'Teilen';
         
-        controls.append(timeDisplay, numberInput, shareButton);
+        controls.append(timeDisplay, chaosToggleButton, numberInput, shareButton);
 
         const indicatorsContainer = document.createElement('div');
         indicatorsContainer.className = 'bm-indicators-container';
-
         const completedIndicator = document.createElement('div');
         completedIndicator.id = 'bm-completed-indicator';
         completedIndicator.className = 'bm-completed-indicator';
         completedIndicator.textContent = '✔ Geteilt: 0';
-
         const progressIndicator = document.createElement('div');
         progressIndicator.id = 'bm-progress-indicator';
         progressIndicator.className = 'bm-progress-indicator';
         progressIndicator.textContent = 'Bereit: 0';
-        
         indicatorsContainer.append(completedIndicator, progressIndicator);
+
         panel.append(controls, indicatorsContainer);
         header.prepend(panel);
 
@@ -182,6 +196,9 @@
             const limit = parseInt(numberInput.value, 10);
             handleMissionProcessing(isNaN(limit) || limit <= 0 ? Infinity : limit);
         });
+        
+        updateTimeDisplay();
+        updateChaosButtonLook();
     }
 
     function updateProgress(message) {
@@ -212,37 +229,27 @@
     }
 
     async function handleMissionProcessing(shareLimit) {
-        if (!settingsAreValid) {
-            alert("Fehler: Keine gültige Endzeit in den Einstellungen festgelegt!\n\nBitte öffne den B&M Manager, klicke auf das Zahnrad für dieses Skript und trage eine Zahl bei 'Endzeit für geteilte Einsätze' ein.");
+        if (!NOTIZ_ZEIT_IN_MINUTEN || NOTIZ_ZEIT_IN_MINUTEN <= 0) {
+            alert("Fehler: Keine gültige Endzeit festgelegt!");
             return;
         }
-        
         if (isProcessing) return;
         const shareButton = document.getElementById('bm-share-button');
         const numberInput = document.getElementById('bm-share-amount');
         const authToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const missionContainer = document.querySelector('#mission_list');
-        if (!authToken || !missionContainer) {
-            alert("Fehler: Authentifizierungs-Token oder Einsatzliste nicht gefunden.");
-            return;
-        }
+        if (!authToken) { alert("Fehler: Authentifizierungs-Token nicht gefunden."); return; }
 
-        const allEligibleMissions = [];
-        for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
-            const missionId = missionEntry.getAttribute('mission_id');
-            if (!missionId || processedMissions.has(missionId) || missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
-                continue;
-            }
+        const eligibleMissions = Array.from(document.querySelectorAll('#mission_list .missionSideBarEntry'))
+            .filter(entry => {
+                const missionId = entry.getAttribute('mission_id');
+                if (!missionId || processedMissions.has(missionId) || entry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) return false;
+                try {
+                    const rawData = entry.getAttribute('data-sortable-by');
+                    return JSON.parse(rawData.replace(/&quot;/g, '"')).average_credits > CREDIT_THRESHOLD;
+                } catch (e) { return false; }
+            });
 
-            const rawData = missionEntry.getAttribute('data-sortable-by');
-            if (!rawData) continue;
-            try {
-                const avgCredits = JSON.parse(rawData.replace(/&quot;/g, '"')).average_credits;
-                if (avgCredits > CREDIT_THRESHOLD) allEligibleMissions.push(missionEntry);
-            } catch (e) { /* Ignorieren */ }
-        }
-
-        const missionsToProcess = allEligibleMissions.slice(0, shareLimit);
+        const missionsToProcess = eligibleMissions.slice(0, shareLimit);
         if (missionsToProcess.length === 0) {
             updateProgress('Keine Einsätze zu teilen.');
             setTimeout(() => updateAvailableCount(), 2000);
@@ -253,17 +260,14 @@
         shareButton.disabled = true;
         numberInput.disabled = true;
         shareButton.textContent = 'Teile...';
-
         let sharedCount = 0;
         for (let i = 0; i < missionsToProcess.length; i += BATCH_SIZE) {
             const batch = missionsToProcess.slice(i, i + BATCH_SIZE);
-            const batchPromises = batch.map(entry => processSingleMission(entry, authToken));
-            const results = await Promise.all(batchPromises);
+            const results = await Promise.all(batch.map(entry => processSingleMission(entry, authToken)));
             sharedCount += results.reduce((a, b) => a + b, 0);
             updateProgress(`Geteilt: ${sharedCount} / ${missionsToProcess.length}`);
             if (i + BATCH_SIZE < missionsToProcess.length) await delay(DELAY_BETWEEN_BATCHES);
         }
-
         updateProgress(`✔ ${sharedCount} Einsätze geteilt.`);
         isProcessing = false;
         shareButton.disabled = false;
@@ -275,68 +279,43 @@
 
     function updateAvailableCount() {
         if (isProcessing || isTextFieldActive()) return;
-        const missionContainer = document.querySelector('#mission_list');
-        if (!missionContainer) return;
-        
-        let readyCount = 0;
-        let completedCount = 0;
-
-        for (const missionEntry of missionContainer.querySelectorAll('.missionSideBarEntry')) {
-            const missionId = missionEntry.getAttribute('mission_id');
-            if (!missionId) continue;
-
-            if (missionEntry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
-                completedCount++;
-                continue;
+        let readyCount = 0, completedCount = 0;
+        document.querySelectorAll('#mission_list .missionSideBarEntry').forEach(entry => {
+            const missionId = entry.getAttribute('mission_id');
+            if (!missionId) return;
+            if (entry.querySelector(`div[id="mission_panel_${missionId}"]`)?.classList.contains('panel-success')) {
+                completedCount++; return;
             }
-            
-            if (processedMissions.has(missionId)) continue;
-
-            const rawData = missionEntry.getAttribute('data-sortable-by');
-            if (!rawData) continue;
+            if (processedMissions.has(missionId)) return;
             try {
-                const avgCredits = JSON.parse(rawData.replace(/&quot;/g, '"')).average_credits;
-                if (avgCredits > CREDIT_THRESHOLD) readyCount++;
-            } catch (e) { /* Ignorieren */ }
-        }
-
-        availableToShareCount = readyCount;
-        updateProgress(`Bereit: ${availableToShareCount}`);
-
+                const rawData = entry.getAttribute('data-sortable-by');
+                if (JSON.parse(rawData.replace(/&quot;/g, '"')).average_credits > CREDIT_THRESHOLD) readyCount++;
+            } catch (e) {}
+        });
+        updateProgress(`Bereit: ${readyCount}`);
         const completedIndicator = document.getElementById('bm-completed-indicator');
-        if (completedIndicator) {
-            completedIndicator.textContent = `✔ Geteilt: ${completedCount}`;
-        }
+        if (completedIndicator) completedIndicator.textContent = `✔ Geteilt: ${completedCount}`;
     }
 
     function timedLoop() {
-        try {
-            updateAvailableCount();
-        } catch (e) {
-            console.error(`[${ANZEIGE_NAME}] Fehler im timedLoop:`, e);
-        }
+        try { updateAvailableCount(); } catch (e) { console.error(`[${ANZEIGE_NAME}] Fehler im timedLoop:`, e); }
         setTimeout(timedLoop, 5000);
     }
     
     async function init() {
-        const settings = window.BMScriptManager.getSettings(SKRIPT_NAME);
-        
+        const settings = window.BMScriptManager.getSettings(SKRIpt_NAME);
         CREDIT_THRESHOLD = parseInt(settings.param2, 10) || 4999;
         NOTIZ_VORLAGE = settings.param5 || "ELW/FüKw ab {stunden}:{minuten}";
 
-        const timeValue = settings.param4;
-        if (typeof timeValue === 'number' && timeValue > 0) {
-            NOTIZ_ZEIT_IN_MINUTEN = timeValue;
-            settingsAreValid = true;
-        } else {
-            settingsAreValid = false;
-        }
+        // GEÄNDERT: Zeiten werden jetzt aus den Einstellungen gelesen
+        NORMAL_TIME = parseInt(settings.param4, 10) || 180;
+        CHAOS_TIME = parseInt(settings.param6, 10) || 90;
+
+        NOTIZ_ZEIT_IN_MINUTEN = isInternalChaosMode ? CHAOS_TIME : NORMAL_TIME;
 
         createControlPanel();
-        updateTimeDisplay();
-        
         timedLoop();
-        console.log(`[${ANZEIGE_NAME}] Skript gestartet. Lese Einstellungen von Key: '${SKRIPT_NAME}'`);
+        console.log(`[${ANZEIGE_NAME}] Skript gestartet. Normal: ${NORMAL_TIME}min, Chaos: ${CHAOS_TIME}min.`);
     }
 
     try {
