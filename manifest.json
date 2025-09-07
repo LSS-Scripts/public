@@ -106,8 +106,8 @@
   },
   {
     "name": "Statuszähler",
-    "version": "6.1.0",
-    "fileName": "Statuszähler.v6.1.0.user.js",
+    "version": "6.5.0",
+    "fileName": "Statuszähler.v6.5.0.user.js",
     "description": "Ein Statuszähler, oben in der Titelleiste.",
     "changelog": ""
   },
