@@ -105,6 +105,13 @@
     "changelog": ""
   },
   {
+    "name": "Statuszähler",
+    "version": "6.1.0",
+    "fileName": "Statuszähler.v6.1.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Summenleiste",
     "version": "2.8.0",
     "fileName": "Summenleiste.v2.8.0.user.js",
