@@ -379,7 +379,6 @@
             });
         },
         loadAndDisplayScripts: async function(forceRefresh = false) {
-            await this.openDatabase();
             const scriptList = document.getElementById('script-list');
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
