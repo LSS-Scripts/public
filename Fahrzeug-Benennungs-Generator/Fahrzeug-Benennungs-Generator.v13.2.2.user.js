@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Fahrzeug-Benennungs-Generator
 // @namespace    http://tampermonkey.net/
-// @version      13.1.0
-// @description  siehe info
-// @author       Masklin
+// @version      13.2.2-Grid-Compact
+// @description  Grid-UI Höhe reduziert für eine kompaktere Ansicht.
+// @author       Masklin (Umbau von Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -14,17 +14,13 @@
     'use strict';
 
     // ========================================================================
-    // 1. STYLES
+    // 1. STYLES (Anpassung für kompaktere Kacheln)
     // ========================================================================
     GM_addStyle(`
         #ng-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); z-index: 9999; display: flex; justify-content: center; align-items: center; }
         #ng-modal-content { background-color: #282c34; color: #fff; padding: 20px; border-radius: 8px; width: 800px; max-width: 90%; max-height: 90vh; border: 1px solid #444; display: flex; flex-direction: column; }
         #ng-modal-content h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; }
         #ng-modal-body { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 10px; }
-        #ng-log-area { width: 100%; height: 200px; background-color: #1e1e1e; color: #d4d4d4; font-family: monospace; font-size: 12px; border: 1px solid #555; border-radius: 4px; padding: 5px; overflow-y: scroll; resize: vertical; margin-top: 10px; }
-        #ng-progress-bar-container { width: 100%; background-color: #555; border-radius: 5px; }
-        #ng-progress-bar { width: 0%; height: 20px; background-color: #007bff; border-radius: 5px; transition: width 0.2s ease-in-out; }
-        #ng-progress-text { text-align: center; margin-top: 5px; font-size: 12px; color: #d4d4d4; }
         #ng-modal-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; flex-wrap: wrap; border-top: 1px solid #555; padding-top: 20px;}
         .ng-modal-btn { padding: 10px 20px; border: none; color: white; border-radius: 5px; cursor: pointer; }
         .btn-start { background-color: #28a745; }
@@ -36,45 +32,50 @@
         .ng-select-all-line input { margin-right: 15px; width: 18px; height: 18px; }
 
         .ng-button-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-        .ng-module-btn {
-            background-color: #4f545c;
-            border: 1px solid #666;
-            color: #ddd;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.2s, border-color 0.2s;
-            text-align: left;
-            flex-basis: calc(33.333% - 10px);
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
+        .ng-module-btn { background-color: #4f545c; border: 1px solid #666; color: #ddd; padding: 8px 12px; border-radius: 5px; cursor: pointer; transition: background-color 0.2s, border-color 0.2s; text-align: left; flex-basis: calc(33.333% - 10px); box-sizing: border-box; display: flex; flex-direction: column; }
         .ng-module-btn:hover { background-color: #616770; border-color: #888; }
-        .ng-module-btn.selected {
-            background-color: #007bff;
-            border-color: #0056b3;
-            color: white;
-            font-weight: bold;
-        }
-        .ng-btn-content {
-            flex-grow: 1;
-        }
-        .ng-module-btn .count {
-            font-size: 0.85em;
-            font-style: italic;
-            color: #ccc;
-            display: block;
-            margin-top: 4px;
-        }
+        .ng-module-btn.selected { background-color: #007bff; border-color: #0056b3; color: white; font-weight: bold; }
+        .ng-btn-content { flex-grow: 1; }
+        .ng-module-btn .count { font-size: 0.85em; font-style: italic; color: #ccc; display: block; margin-top: 4px; }
         .ng-module-btn.selected .count { color: #e0e0e0; }
+
+        #ng-progress-status { text-align: center; margin-bottom: 10px; font-size: 1.1em; font-weight: bold; }
+        #ng-worker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 5px;
+            padding: 5px;
+            background-color: #1e1e1e;
+            border-radius: 4px;
+            max-height: 40vh;
+            overflow-y: auto;
+        }
+        .ng-vehicle-cell {
+            height: 20px; /* HÖHE REDUZIERT */
+            border-radius: 3px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: bold;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ng-vehicle-cell.status-pending { background-color: #ffffff; color: #111; }
+        .ng-vehicle-cell.status-working { background-color: #ffc107; color: #111; }
+        .ng-vehicle-cell.status-done { background-color: #28a745; color: #fff; }
+        .ng-vehicle-cell.status-error { background-color: #dc3545; color: #fff; }
     `);
 
     // ========================================================================
-    // 2. ZENTRALE KONFIGURATION & MODUL-DATENBANK
+    // 2. ZENTRALE KONFIGURATION & MODUL-DATENBANK (UNVERÄNDERT)
     // ========================================================================
     const BATCH_SIZE = 15;
     const MARKER = '\u200B';
+    const MAX_WORKERS = 10;
 
     Array.prototype.random = function() {
         return this[Math.floor(Math.random() * this.length)];
@@ -374,10 +375,13 @@
         }
     };
 
+
     // ========================================================================
     // 3. KERNFUNKTIONEN
     // ========================================================================
     let vehicleTypeToModuleMap = {};
+    let isProcessRunning = false;
+
     function formatTime(seconds) { if (isNaN(seconds) || seconds < 0) return "--:--"; seconds = Math.floor(seconds); const hours = Math.floor(seconds / 3600); const minutes = Math.floor((seconds % 3600) / 60); const remainingSeconds = seconds % 60; if (hours > 0) { return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`; } else { return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`; } }
 
     async function showBlockControlPanel() {
@@ -397,7 +401,6 @@
             }
 
             const bodyElement = document.createElement('div');
-
             const selectAllLine = document.createElement('div');
             selectAllLine.className = 'ng-select-all-line';
             selectAllLine.innerHTML = `<label for="check_all"><input type="checkbox" id="check_all"><strong>Alle Blöcke auswählen / abwählen</strong></label>`;
@@ -405,10 +408,7 @@
 
             const buttonGrid = document.createElement('div');
             buttonGrid.className = 'ng-button-grid';
-
-            const sortedModuleKeys = Object.keys(MODULE_CONFIG).sort((a, b) =>
-                MODULE_CONFIG[a].name.localeCompare(MODULE_CONFIG[b].name)
-            );
+            const sortedModuleKeys = Object.keys(MODULE_CONFIG).sort((a, b) => MODULE_CONFIG[a].name.localeCompare(MODULE_CONFIG[b].name));
 
             for (const moduleKey of sortedModuleKeys) {
                 const config = MODULE_CONFIG[moduleKey];
@@ -416,30 +416,18 @@
                 const vehiclesInModule = allVehicles.filter(v => allTypeIdsInModule.some(id => id == v.vehicle_type));
                 const count = vehiclesInModule.length;
                 if (count === 0) continue;
-
                 const needed = vehiclesInModule.filter(v => !v.caption.endsWith(MARKER)).length;
-
                 const button = document.createElement('button');
                 button.className = 'ng-module-btn';
                 button.dataset.modulekey = moduleKey;
-                button.innerHTML = `
-                    <div class="ng-btn-content">${config.emoji} ${config.name}</div>
-                    <span class="count">(Gesamt: ${count} / Nötig: ${needed})</span>
-                `;
+                button.innerHTML = `<div class="ng-btn-content">${config.emoji} ${config.name}</div><span class="count">(Gesamt: ${count} / Nötig: ${needed})</span>`;
                 button.addEventListener('click', () => button.classList.toggle('selected'));
                 buttonGrid.appendChild(button);
             }
             bodyElement.appendChild(buttonGrid);
-
             bodyElement.querySelector('#check_all').addEventListener('change', (e) => {
                 const isChecked = e.target.checked;
-                bodyElement.querySelectorAll('.ng-module-btn').forEach(btn => {
-                    if (isChecked) {
-                        btn.classList.add('selected');
-                    } else {
-                        btn.classList.remove('selected');
-                    }
-                });
+                bodyElement.querySelectorAll('.ng-module-btn').forEach(btn => isChecked ? btn.classList.add('selected') : btn.classList.remove('selected'));
             });
 
             const actions = [{
@@ -448,9 +436,8 @@
                 callback: () => {
                     const selectedModules = Array.from(bodyElement.querySelectorAll('.ng-module-btn.selected')).map(btn => btn.dataset.modulekey);
                     if (selectedModules.length === 0) { alert("Bitte wähle mindestens einen Block aus."); return; }
-                    let allSelectedTypeIds = [];
-                    selectedModules.forEach(key => allSelectedTypeIds.push(...Object.keys(MODULE_CONFIG[key].targetVehicleTypes)));
-                    const vehiclesToProcess = allVehicles.filter(v => allSelectedTypeIds.some(id => id == v.vehicle_type) && !v.caption.endsWith(MARKER));
+                    let allSelectedTypeIds = selectedModules.flatMap(key => Object.keys(MODULE_CONFIG[key].targetVehicleTypes));
+                    const vehiclesToProcess = allVehicles.filter(v => allSelectedTypeIds.includes(String(v.vehicle_type)) && !v.caption.endsWith(MARKER));
                     if (vehiclesToProcess.length > 0) startRenamingProcess(vehiclesToProcess, buildingCache);
                     else alert("Keine Fahrzeuge für diese Auswahl zur Umbenennung nötig.");
                 }
@@ -460,9 +447,8 @@
                 callback: () => {
                     const selectedModules = Array.from(bodyElement.querySelectorAll('.ng-module-btn.selected')).map(btn => btn.dataset.modulekey);
                     if (selectedModules.length === 0) { alert("Bitte wähle mindestens einen Block aus."); return; }
-                    let allSelectedTypeIds = [];
-                    selectedModules.forEach(key => allSelectedTypeIds.push(...Object.keys(MODULE_CONFIG[key].targetVehicleTypes)));
-                    const vehiclesToProcess = allVehicles.filter(v => allSelectedTypeIds.some(id => id == v.vehicle_type));
+                    let allSelectedTypeIds = selectedModules.flatMap(key => Object.keys(MODULE_CONFIG[key].targetVehicleTypes));
+                    const vehiclesToProcess = allVehicles.filter(v => allSelectedTypeIds.includes(String(v.vehicle_type)));
                     if (vehiclesToProcess.length > 0 && confirm(`ACHTUNG!\n\nMöchtest du wirklich ALLE ${vehiclesToProcess.length} Fahrzeuge der ausgewählten Blöcke neu benennen?`)) {
                         startRenamingProcess(vehiclesToProcess, buildingCache);
                     }
@@ -477,10 +463,214 @@
             showModal({ title: 'Fehler', body: `Ein Fehler ist aufgetreten:\n${error.message}` });
         }
     }
-    async function startRenamingProcess(vehicles, buildingCache) { const startTime = Date.now(); showModal({ title: `Benennung läuft...`, body: '', progress: true, actions: [{ label:'Abbrechen', className:'btn-close', callback:()=> { vehicles.length = 0; document.body.removeChild(document.getElementById('ng-modal-overlay')); } }] }); const progressBar = document.getElementById('ng-progress-bar'); const progressText = document.getElementById('ng-progress-text'); const logArea = document.getElementById('ng-log-area'); logArea.value = 'Initialisiere...\n'; try { const firstVehicleId = vehicles[0]?.id; if (!firstVehicleId) { throw new Error("Konnte keine gültige Fahrzeug-ID für den Token-Abruf finden."); } const authToken = await gmFetch(`/vehicles/${firstVehicleId}/edit`).then(r => r.text()).then(html => new DOMParser().parseFromString(html, "text/html").querySelector('meta[name="csrf-token"]').getAttribute('content')); logArea.value += 'Sicherheitstoken erfolgreich erhalten. Starte Batch-Verarbeitung...\n'; const usedNames = new Set(); const jobList = vehicles.map(v => { const moduleKey = vehicleTypeToModuleMap[v.vehicle_type]; if (!moduleKey) return null; const config = MODULE_CONFIG[moduleKey]; let spitzname; let attempts = 0; do { spitzname = config.nameGenerator(config.largeVehicleIds && config.largeVehicleIds.includes(v.vehicle_type)); attempts++; } while (usedNames.has(spitzname) && attempts < 20); usedNames.add(spitzname); const stationName = buildingCache[v.building_id] || "Unbekannte Wache"; const vehicleType = config.targetVehicleTypes[v.vehicle_type]; const newCaption = `${vehicleType} ${spitzname} [${stationName}]${MARKER}`; return { id: v.id, newCaption: newCaption, oldCaption: v.caption }; }).filter(Boolean); let processedCount = 0; let successCount = 0; let errorCount = 0; const performanceLog = []; for (let i = 0; i < jobList.length; i += BATCH_SIZE) { if (vehicles.length === 0) { logArea.value += `\n\nProzess vom Benutzer abgebrochen.`; break; } const batch = jobList.slice(i, i + BATCH_SIZE); logArea.value += `\nVerarbeite Paket ${Math.ceil((i + 1) / BATCH_SIZE)} / ${Math.ceil(jobList.length / BATCH_SIZE)}...\n`; await Promise.allSettled(batch.map(job => { const formData = new URLSearchParams(); formData.append('utf8', '✓'); formData.append('_method', 'patch'); formData.append('authenticity_token', authToken); formData.append('vehicle[caption]', job.newCaption); return gmFetch(`/vehicles/${job.id}`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData.toString() }).then(response => { if (response.ok) { successCount++; } else { errorCount++; } logArea.value += `${response.ok ? 'OK' : 'FEHLER'}: "${job.oldCaption}" -> "${job.newCaption.slice(0,-1)}"\n`; }).catch(e => { errorCount++; logArea.value += `FEHLER bei "${job.oldCaption}": ${e.message}\n`; }).finally(() => { logArea.scrollTop = logArea.scrollHeight; }); })); processedCount += batch.length; performanceLog.push({ time: Date.now(), count: processedCount }); if (performanceLog.length > 5) { performanceLog.shift(); } let etaString = '--:--'; if (performanceLog.length > 1) { const first = performanceLog[0]; const last = performanceLog[performanceLog.length - 1]; const processedInWindow = last.count - first.count; const timeInWindow = last.time - first.time; if (timeInWindow > 100) { const itemsPerSecond = processedInWindow / (timeInWindow / 1000); const remainingItems = jobList.length - processedCount; if (itemsPerSecond > 0) { const remainingTimeInSeconds = remainingItems / itemsPerSecond; etaString = formatTime(remainingTimeInSeconds); } } } const progress = (processedCount / jobList.length) * 100; progressBar.style.width = `${progress}%`; progressText.textContent = `${processedCount} / ${jobList.length} | ETA: ${etaString}`; } const totalTime = formatTime((Date.now() - startTime) / 1000); progressBar.style.backgroundColor = '#28a745'; progressText.textContent = `Verarbeitung abgeschlossen!`; logArea.value += `\nProzess beendet nach ${totalTime}. Erfolgreich: ${successCount}, Fehler: ${errorCount}.\n`; logArea.scrollTop = logArea.scrollHeight; } catch (error) { logArea.value += `\nEin schwerwiegender Fehler ist aufgetreten: ${error.message}\nProzess abgebrochen.`; if (document.getElementById('ng-progress-bar')) document.getElementById('ng-progress-bar').style.backgroundColor = '#dc3545'; } }
-    function showModal(config){const oldOverlay=document.getElementById('ng-modal-overlay');if(oldOverlay)document.body.removeChild(oldOverlay);const overlay=document.createElement('div');overlay.id='ng-modal-overlay';const modalContent=document.createElement('div');modalContent.id='ng-modal-content';modalContent.innerHTML=`<h3>${config.title}</h3>`;const modalBody=document.createElement('div');modalBody.id='ng-modal-body';if(config.bodyElement){modalBody.appendChild(config.bodyElement)}else if(config.body){modalBody.innerHTML=config.body}modalContent.appendChild(modalBody);if(config.progress){const progressArea=document.createElement('div');progressArea.innerHTML=`<div id="ng-progress-bar-container"><div id="ng-progress-bar"></div></div><div id="ng-progress-text">Initialisiere...</div><textarea id="ng-log-area" readonly></textarea>`;modalContent.appendChild(progressArea)}const buttonContainer=document.createElement('div');buttonContainer.id='ng-modal-buttons';if(config.actions){config.actions.forEach(action=>{const button=document.createElement('button');button.className=`ng-modal-btn ${action.className||''}`;button.textContent=action.label;button.addEventListener('click',action.callback);buttonContainer.appendChild(button)})}modalContent.appendChild(buttonContainer);overlay.appendChild(modalContent);document.body.appendChild(overlay);return{overlay,modalContent}}
-    function gmFetch(url,options={}){return new Promise((resolve,reject)=>{GM_xmlhttpRequest({method:options.method||'GET',url:`https://www.leitstellenspiel.de${url}`,headers:options.headers||{},data:options.body,timeout:15000,onload:(response)=>{if(response.status>=200&&response.status<300){response.ok=true;response.text=()=>Promise.resolve(response.responseText);resolve(response)}else{reject(new Error(`Server-Fehler: Status ${response.status}`))}},onerror:(error)=>reject(new Error('Netzwerk- oder Skript-Konflikt-Fehler.')),ontimeout:()=>reject(new Error('Zeitüberschreitung der Anfrage.'))})})}
-    const addGeneratorButton=()=>{const settingsLink=document.querySelector('a.lightbox-open[href="/settings/index"]');if(!settingsLink)return;const settingsListItem=settingsLink.closest('li');if(!settingsListItem)return;const mainMenu=settingsListItem.parentElement;if(!mainMenu||document.getElementById('main-naming-button')){if(mainMenu){observer.disconnect()}return}const newListItem=document.createElement('li');newListItem.setAttribute('role','presentation');const mainButton=document.createElement('a');mainButton.href="#";mainButton.id='main-naming-button';mainButton.innerHTML=`<span style="font-size: 20px; vertical-align: -3px; margin-right: 5px; display: inline-block;">🏷️</span> Fahrzeug-Namen-Generator`;mainButton.style.cursor="pointer";mainButton.addEventListener('click',(e)=>{e.preventDefault();showBlockControlPanel()});settingsListItem.insertAdjacentElement('afterend',newListItem);newListItem.appendChild(mainButton);observer.disconnect()};
+
+    async function startRenamingProcess(vehicles, buildingCache) {
+        if (isProcessRunning) return;
+        isProcessRunning = true;
+
+        showModal({
+            title: `Benennung läuft...`,
+            progressGrid: true,
+            actions: [{
+                label: 'Abbrechen',
+                className: 'btn-close',
+                callback: () => {
+                    isProcessRunning = false;
+                    document.body.removeChild(document.getElementById('ng-modal-overlay'));
+                }
+            }]
+        });
+
+        const statusText = document.getElementById('ng-progress-status');
+        const gridContainer = document.getElementById('ng-worker-grid');
+        const startTime = Date.now();
+
+        try {
+            const firstVehicleId = vehicles[0]?.id;
+            if (!firstVehicleId) throw new Error("Konnte keine Fahrzeug-ID finden, um den Token abzurufen.");
+
+            const authToken = await gmFetch(`/vehicles/${firstVehicleId}/edit`).then(r => r.text()).then(html => new DOMParser().parseFromString(html, "text/html").querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+            const usedNames = new Set();
+            const jobList = vehicles.map(v => {
+                const moduleKey = vehicleTypeToModuleMap[v.vehicle_type];
+                if (!moduleKey) return null;
+                const config = MODULE_CONFIG[moduleKey];
+                let spitzname;
+                let attempts = 0;
+                do {
+                    spitzname = config.nameGenerator(config.largeVehicleIds && config.largeVehicleIds.includes(v.vehicle_type));
+                    attempts++;
+                } while (usedNames.has(spitzname) && attempts < 50);
+                usedNames.add(spitzname);
+                const stationName = buildingCache[v.building_id] || "Unbekannte Wache";
+                const vehicleType = config.targetVehicleTypes[v.vehicle_type];
+                const newCaption = `${vehicleType} ${spitzname} [${stationName}]${MARKER}`;
+                return { id: v.id, newCaption: newCaption, oldCaption: v.caption };
+            }).filter(Boolean);
+
+            jobList.forEach(job => {
+                const cell = document.createElement('div');
+                cell.id = `vehicle-cell-${job.id}`;
+                cell.className = 'ng-vehicle-cell status-pending';
+                cell.title = `Wartet: "${job.oldCaption}" -> "${job.newCaption.slice(0, -1)}"`;
+                cell.textContent = job.id;
+                gridContainer.appendChild(cell);
+            });
+
+            const jobQueue = [...jobList];
+            let processedCount = 0;
+            let successCount = 0;
+            let errorCount = 0;
+            const totalJobs = jobList.length;
+
+            const updateStatus = () => {
+                const timeElapsed = (Date.now() - startTime) / 1000;
+                statusText.textContent = `Bearbeitet: ${processedCount}/${totalJobs} | Erfolgreich: ${successCount} | Fehler: ${errorCount} | Zeit: ${formatTime(timeElapsed)}`;
+                if (processedCount === totalJobs) {
+                    statusText.textContent += " - FERTIG!";
+                    isProcessRunning = false;
+                }
+            };
+            updateStatus();
+
+            const worker = async () => {
+                while (jobQueue.length > 0 && isProcessRunning) {
+                    const job = jobQueue.shift();
+                    if (!job) continue;
+
+                    const cell = document.getElementById(`vehicle-cell-${job.id}`);
+                    cell.className = 'ng-vehicle-cell status-working';
+                    cell.title = `In Arbeit: "${job.oldCaption}" -> "${job.newCaption.slice(0, -1)}"`;
+
+                    try {
+                        const formData = new URLSearchParams();
+                        formData.append('utf8', '✓');
+                        formData.append('_method', 'patch');
+                        formData.append('authenticity_token', authToken);
+                        formData.append('vehicle[caption]', job.newCaption);
+
+                        const response = await gmFetch(`/vehicles/${job.id}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: formData.toString()
+                        });
+
+                        if (response.ok) {
+                            successCount++;
+                            cell.className = 'ng-vehicle-cell status-done';
+                            cell.title = `Erfolgreich: "${job.oldCaption}" -> "${job.newCaption.slice(0, -1)}"`;
+                        } else {
+                            throw new Error(`Status ${response.status}`);
+                        }
+                    } catch (error) {
+                        errorCount++;
+                        cell.className = 'ng-vehicle-cell status-error';
+                        cell.title = `Fehler bei "${job.oldCaption}": ${error.message}`;
+                    } finally {
+                        processedCount++;
+                        updateStatus();
+                    }
+                }
+            };
+
+            const workers = Array(MAX_WORKERS).fill(null).map(() => worker());
+            await Promise.all(workers);
+
+        } catch (error) {
+            statusText.textContent = `Ein schwerwiegender Fehler ist aufgetreten: ${error.message}`;
+            isProcessRunning = false;
+        }
+    }
+
+
+    function showModal(config) {
+        const oldOverlay = document.getElementById('ng-modal-overlay');
+        if (oldOverlay) document.body.removeChild(oldOverlay);
+        const overlay = document.createElement('div');
+        overlay.id = 'ng-modal-overlay';
+        const modalContent = document.createElement('div');
+        modalContent.id = 'ng-modal-content';
+        modalContent.innerHTML = `<h3>${config.title}</h3>`;
+        const modalBody = document.createElement('div');
+        modalBody.id = 'ng-modal-body';
+        if (config.bodyElement) {
+            modalBody.appendChild(config.bodyElement)
+        } else if (config.body) {
+            modalBody.innerHTML = config.body
+        }
+        modalContent.appendChild(modalBody);
+        if (config.progressGrid) {
+            const progressArea = document.createElement('div');
+            progressArea.innerHTML = `<div id="ng-progress-status">Initialisiere...</div><div id="ng-worker-grid"></div>`;
+            modalContent.appendChild(progressArea)
+        }
+        const buttonContainer = document.createElement('div');
+        buttonContainer.id = 'ng-modal-buttons';
+        if (config.actions) {
+            config.actions.forEach(action => {
+                const button = document.createElement('button');
+                button.className = `ng-modal-btn ${action.className||''}`;
+                button.textContent = action.label;
+                button.addEventListener('click', action.callback);
+                buttonContainer.appendChild(button)
+            })
+        }
+        modalContent.appendChild(buttonContainer);
+        overlay.appendChild(modalContent);
+        document.body.appendChild(overlay);
+        return { overlay, modalContent }
+    }
+
+    function gmFetch(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: options.method || 'GET',
+                url: `https://www.leitstellenspiel.de${url}`,
+                headers: options.headers || {},
+                data: options.body,
+                timeout: 15000,
+                onload: (response) => {
+                    if (response.status >= 200 && response.status < 400) {
+                        response.ok = true;
+                        response.text = () => Promise.resolve(response.responseText);
+                        resolve(response);
+                    } else {
+                        reject(new Error(`Server-Fehler: Status ${response.status}`));
+                    }
+                },
+                onerror: (error) => reject(new Error('Netzwerk- oder Skript-Konflikt-Fehler.')),
+                ontimeout: () => reject(new Error('Zeitüberschreitung der Anfrage.'))
+            });
+        });
+    }
+
+    const addGeneratorButton = () => {
+        const settingsLink = document.querySelector('a.lightbox-open[href="/settings/index"]');
+        if (!settingsLink) return;
+        const settingsListItem = settingsLink.closest('li');
+        if (!settingsListItem) return;
+        const mainMenu = settingsListItem.parentElement;
+        if (!mainMenu || document.getElementById('main-naming-button')) {
+            if (mainMenu) { observer.disconnect(); }
+            return;
+        }
+        const newListItem = document.createElement('li');
+        newListItem.setAttribute('role', 'presentation');
+        const mainButton = document.createElement('a');
+        mainButton.href = "#";
+        mainButton.id = 'main-naming-button';
+        mainButton.innerHTML = `<span style="font-size: 20px; vertical-align: -3px; margin-right: 5px; display: inline-block;">🏷️</span> Fahrzeug-Namen-Generator`;
+        mainButton.style.cursor = "pointer";
+        mainButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            showBlockControlPanel();
+        });
+        settingsListItem.insertAdjacentElement('afterend', newListItem);
+        newListItem.appendChild(mainButton);
+        observer.disconnect();
+    };
+
     const observer = new MutationObserver(addGeneratorButton);
     observer.observe(document.body, { childList: true, subtree: true });
     addGeneratorButton();
