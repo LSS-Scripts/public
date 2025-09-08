@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Summenleiste (Version 6.0 - Stabil)
 // @namespace    http://tampermonkey.net/
-// @version      6.0
+// @version      6.1
 // @description  Stabile, eigenständige Version der Summenleiste mit Warnfunktion. Nutzt einen Timer statt Observer.
 // @author       Masklin, DeinName & Gemini
 // @match        https://www.leitstellenspiel.de/
@@ -38,7 +38,7 @@
                 <span id="credit-sum-display" title="Durchschnittliche Credits"></span>
                 <span id="patient-sum-display" title="Patienten"></span>
                 <span id="prisoner-sum-display" title="Gefangene"></span>
-                <span id="endangered-mission-count-display" title="Gefährdete Einsätze (älter als 24h)"></span>
+                <span id="endangered-mission-count-display" title="Einsätze, die in der nächsten Nacht gelöscht werden"></span>
             `;
             mainMissionList.parentNode.insertBefore(sumDisplayContainer, mainMissionList);
         }
