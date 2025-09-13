@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME
-// @version      2.5
+// @version      2.6
 // @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
 // @author       Dein Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/*
@@ -10,7 +10,6 @@
 (async function() {
     'use strict';
 
-    // Warten, bis der B&M Script-Manager bereit ist (aus deinem funktionierenden Skript übernommen)
     try {
         await new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -18,15 +17,14 @@
                 if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
                     clearInterval(interval);
                     resolve();
-                } else if (Date.now() - startTime > 15000) { // 15s Timeout
+                } else if (Date.now() - startTime > 15000) {
                     clearInterval(interval);
-                    reject(new Error("B&M Scriptmanager wurde nicht gefunden."));
+                    reject(new Error("B&M Scriptmanager wurde nach 15s nicht gefunden."));
                 }
             }, 100);
         });
     } catch (e) {
         console.error(`[Scoreboard] ${e.message}`);
-        alert(`[Scoreboard] Skript konnte nicht starten, da der B&M Script-Manager nicht gefunden wurde.`);
         return;
     }
 
@@ -44,7 +42,7 @@
     let modalCreated = false;
     let currentMissions = [];
 
-    // --- Funktionsdefinitionen (alle hier, vor der Ausführung) ---
+    // --- Funktionsdefinitionen ---
 
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
@@ -164,7 +162,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    function updateButtonDisplay() {
+    async function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
@@ -204,10 +202,9 @@
             container.style.display = 'none';
         }
     }
-
+    
     function toggleModal(show) {
         const modalOverlay = document.getElementById('scoreboard-modal-overlay');
-        if (!modalOverlay) return;
         if (show) {
             modalOverlay.classList.add('visible');
             displayDataFromStorage();
@@ -297,5 +294,4 @@
             }
         }, 500);
     })();
-
 })();
