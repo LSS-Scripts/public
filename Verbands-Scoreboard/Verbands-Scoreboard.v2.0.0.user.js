@@ -1,49 +1,47 @@
 // ==UserScript==
-// @name         Leitstellenspiel - Modernes Verbands-Scoreboard (B&M Manager)
+// @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME
-// @version      1.8
+// @version      2.0
 // @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
-// @author       Dein Gemini & Hendrik
+// @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
 
-(async function() {
+(function() {
     'use strict';
 
-    try {
-        await new Promise((resolve, reject) => {
-            const startTime = Date.now();
-            const interval = setInterval(() => {
-                if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
-                    clearInterval(interval);
-                    resolve();
-                } else if (Date.now() - startTime > 15000) {
-                    clearInterval(interval);
-                    reject(new Error("B&M Scriptmanager wurde nach 15s nicht gefunden."));
-                }
-            }, 100);
-        });
-    } catch (e) {
-        console.error(`[Scoreboard] ${e.message}`);
-        return;
-    }
+    // Warten, bis der B&M Script-Manager bereit ist
+    const bmManagerPromise = new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const interval = setInterval(() => {
+            if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
+                clearInterval(interval);
+                resolve();
+            } else if (Date.now() - startTime > 15000) { // 15s Timeout
+                clearInterval(interval);
+                reject(new Error("B&M Scriptmanager wurde nicht gefunden."));
+            }
+        }, 100);
+    });
 
+    // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
     const SCRIPT_NAME = 'Verbands-Scoreboard';
     const OWN_MISSIONS_URL = "/map/mission_markers_own.js.erb";
     const ALLIANCE_MISSIONS_URL = "/map/mission_markers_alliance.js.erb";
     const ALLIANCE_INFO_URL = "/api/allianceinfo";
-    const REFRESH_INTERVAL = 5 * 60 * 1000;
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 Minuten
 
-    const STATS_STORAGE_KEY = 'bm_scoreboard_stats';
-    const IDS_STORAGE_KEY = 'bm_scoreboard_ids';
-    const SYNC_INFO_KEY = 'bm_scoreboard_sync';
+    const STATS_STORAGE_KEY = 'bm_scoreboard_stats_v3';
+    const IDS_STORAGE_KEY = 'bm_scoreboard_ids_v3';
+    const SYNC_INFO_KEY = 'bm_scoreboard_sync_v3';
 
     let MY_USER_ID;
     let modalCreated = false;
     let currentMissions = [];
 
-    // --- Funktionsdefinitionen ---
+    // --- 2. DEKLARATION ALLER FUNKTIONEN ---
 
+    // HILFSFUNKTIONEN
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
         const style = document.createElement('style');
@@ -90,6 +88,7 @@
         });
     }
 
+    // DATENVERARBEITUNG
     function analyzeAndMergeMissions(liveMissions, existingStats, processedMissionIds) {
         const stats = JSON.parse(JSON.stringify(existingStats));
         liveMissions.forEach(mission => {
@@ -136,7 +135,72 @@
         });
         return displayStats;
     }
+
+    // KERNLOGIK
+    async function syncDataInBackground() {
+        try {
+            const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
+            const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || [];
+            const processedMissionIds = new Set(savedIdsArray);
+            const [ownResponseText, allianceResponseText] = await Promise.all([
+                fetch(OWN_MISSIONS_URL).then(res => res.text()),
+                fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
+            ]);
+            const [ownMissions, allianceMissions] = await Promise.all([
+                extractMissions(ownResponseText),
+                extractMissions(allianceResponseText)
+            ]);
+            const liveMissions = [...ownMissions, ...allianceMissions];
+            const { updatedStats, newIdsSet } = analyzeAndMergeMissions(liveMissions, savedStats, processedMissionIds);
+            localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
+            localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
+            const newMissionsFound = newIdsSet.size > savedIdsArray.length;
+            localStorage.setItem(SYNC_INFO_KEY, JSON.stringify({ timestamp: Date.now(), newMissionsFound }));
+            updateButtonDisplay();
+        } catch (error) {
+            console.error('[Scoreboard] Fehler bei der Hintergrund-Aktualisierung:', error);
+        }
+    }
+
+    async function displayDataFromStorage() {
+        const contentDiv = document.getElementById('scoreboard-content');
+        contentDiv.innerHTML = '<div class="scoreboard-loader"><div class="loader"></div></div>';
+        try {
+            MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
+            const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
+            const [userMapResponse, ownText, allianceText] = await Promise.all([
+                fetch(ALLIANCE_INFO_URL).then(res => res.json()),
+                fetch(OWN_MISSIONS_URL).then(res => res.text()),
+                fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
+            ]);
+            const [ownMissions, allianceMissions] = await Promise.all([
+                extractMissions(ownText),
+                extractMissions(allianceText)
+            ]);
+            currentMissions = [...ownMissions, ...allianceMissions].filter(m => m.alliance_shared_at);
+            const userMap = userMapResponse.users.reduce((acc, user) => { acc[user.id] = user.name; return acc; }, {});
+            const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || [];
+            const tempProcessedIds = new Set(savedIdsArray);
+            const { updatedStats: tempTotalStats } = analyzeAndMergeMissions(currentMissions, stats, tempProcessedIds);
+            const finalDisplayStats = calculateLiveStats(tempTotalStats, currentMissions);
+            renderScoreboard(finalDisplayStats, userMap);
+        } catch (error) {
+            console.error('Fehler beim Anzeigen der Daten:', error);
+            contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
+        }
+    }
     
+    // UI-FUNKTIONEN
+    async function resetStats() {
+        if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
+            localStorage.removeItem(STATS_STORAGE_KEY);
+            localStorage.removeItem(IDS_STORAGE_KEY);
+            localStorage.removeItem(SYNC_INFO_KEY);
+            alert('Statistiken zurückgesetzt.');
+            toggleModal(true);
+        }
+    }
+
     function createCardHtml(userId, data, isOwn, userMap, rank) {
         const f = (num) => (num || 0).toLocaleString('de-DE');
         const displayName = userMap[userId] || `User-ID: ${userId}`;
@@ -162,7 +226,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    function updateButtonDisplay() {
+    async function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
@@ -202,16 +266,6 @@
             container.style.display = 'none';
         }
     }
-    
-    function toggleModal(show) {
-        const modalOverlay = document.getElementById('scoreboard-modal-overlay');
-        if (show) {
-            modalOverlay.classList.add('visible');
-            displayDataFromStorage();
-        } else {
-            modalOverlay.classList.remove('visible');
-        }
-    }
 
     function createModal() {
         const modalOverlay = document.createElement('div');
@@ -229,6 +283,16 @@
         });
     }
 
+    function toggleModal(show) {
+        const modalOverlay = document.getElementById('scoreboard-modal-overlay');
+        if (show) {
+            modalOverlay.classList.add('visible');
+            displayDataFromStorage();
+        } else {
+            modalOverlay.classList.remove('visible');
+        }
+    }
+    
     function createButtonAndAttachListener(anchorElement) {
         if (document.getElementById('scoreboard-trigger')) return;
         const scoreboardBtn = document.createElement('button');
@@ -292,4 +356,5 @@
             }
         }, 500);
     })();
+
 })();
