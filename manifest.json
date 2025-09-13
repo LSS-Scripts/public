@@ -140,6 +140,13 @@
     "changelog": ""
   },
   {
+    "name": "Verbands-Scoreboard",
+    "version": "1.0.0",
+    "fileName": "Verbands-Scoreboard.v1.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Verbandsrückmeldung schreiben und weiterspringen",
     "version": "0.8.4",
     "fileName": "Verbandsrückmeldung schreiben und weiterspringen.v0.8.4.user.js",
