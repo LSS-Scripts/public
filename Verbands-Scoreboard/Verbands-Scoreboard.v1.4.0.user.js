@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  Die definitive, B&M-Manager-kompatible Version mit allen Features, basierend auf dem funktionierenden Omega-Parser.
+// @version      1.4.0
+// @description  Die definitive, vollständige und B&M-Manager-kompatible Version mit allen Features.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
@@ -158,7 +158,7 @@
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
             const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
-
+            
             const [userMapResponse, ownText, allianceText] = await Promise.all([
                 fetch(ALLIANCE_INFO_URL).then(res => res.json()),
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
@@ -180,7 +180,7 @@
             contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
         }
     }
-
+    
     // --- 4. UI-FUNKTIONEN ---
 
     async function resetStats() {
