@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Benennungs-Generator
 // @namespace    http://tampermonkey.net/
-// @version      13.2.3-Grammar-Fix
-// @description  Grammatik-Logik für korrekte Adjektiv-Endungen implementiert.
+// @version      13.3.0-FINAL
+// @description  Finale Version mit allen Modulen, Grammatik-Fix, Worker-Pool, Grid-UI und ETA.
 // @author       Masklin (Umbau von Gemini)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_addStyle
@@ -71,9 +71,8 @@
     `);
 
     // ========================================================================
-    // 2. ZENTRALE KONFIGURATION & MODUL-DATENBANK (MIT GRAMMATIK-FIX)
+    // 2. ZENTRALE KONFIGURATION & MODUL-DATENBANK
     // ========================================================================
-    const BATCH_SIZE = 15;
     const MARKER = '\u200B';
     const MAX_WORKERS = 10;
 
@@ -164,6 +163,40 @@
                 }
             }
         },
+        drohnen: {
+            name: "Himmels-Augen", emoji: "👁️",
+            targetVehicleTypes: { 125: 'MTW-Tr UL', 126: 'MTF Drohne', 127: 'GW UAS' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Späh-", "Luft-", "Sky-", "Cyber-", "Aero-", "Aufklärungs-", "Sensor-", "Daten-", "Überwachungs-", "Adler-", "Falken-", "Geister-", "Leise-", "Rotor-", "Kamera-", "Zoom-", "Pixel-", "GPS-"];
+                const adjektive_base = ["Schwebend", "Leise", "Digital", "Allsehend", "Gestochen-Scharf", "Taktisch", "Unbemerkt", "Summend", "Neugierig", "Pixelig", "Versteckt", "Autonom", "Schwirrend", "Kühl", "Windig"];
+                const namen = [
+                    {n: "Auge", g:"n"}, {n: "Spion", g:"m"}, {n: "Libelle", g:"f"}, {n: "Kolibri", g:"m"}, {n: "Moskito", g:"m"}, {n: "Wespe", g:"f"}, {n: "Hornisse", g:"f"},
+                    {n: "Biene", g:"f"}, {n: "Falke", g:"m"}, {n: "Adler", g:"m"}, {n: "Bussard", g:"m"}, {n: "Habicht", g:"m"}, {n: "Geier", g:"m"}, {n: "Uhu", g:"m"}, {n: "Eule", g:"f"},
+                    {n: "Geist", g:"m"}, {n: "Schatten", g:"m"}, {n: "Phantom", g:"n"}, {n: "Späher", g:"m"}, {n: "Beobachter", g:"m"}, {n: "Wächter", g:"m"}, {n: "Vogel", g:"m"},
+                    {n: "Kamera", g:"f"}, {n: "Objektiv", g:"n"}, {n: "Sensor", g:"m"}, {n: "Pixel", g:"n"}, {n: "Zoom", g:"m"}, {n: "Gimbal", g:"m"}, {n: "Rotor", g:"m"}, {n: "Propeller", g:"m"},
+                    {n: "Akku", g:"m"}, {n: "Satellit", g:"m"}, {n: "GPS", g:"n"}, {n: "Big Brother", g:"m"}, {n: "Auge des Horus", g:"n"}, {n: "Auge Saurons", g:"n"}, {n: "Skynet", g:"n"},
+                    {n: "Wanze", g:"f"}, {n: "Lauschangriff", g:"m"}, {n: "UFO", g:"n"}, {n: "Reaper", g:"m"}, {n: "Predator", g:"m"}, {n: "Global Hawk", g:"m"}, {n: "Heron", g:"m"},
+                    {n: "Valkyrie", g:"f"}, {n: "Heimdall", g:"m"}, {n: "Argus", g:"m"}, {n: "Cyclops", g:"m"}, {n: "Spy-Copter", g:"m"}, {n: "Nerd-Spielzeug", g:"n"}, {n: "Summ-Summ", g:"n"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
         feuerwehr: {
             name: "Löschfahrzeuge", emoji: "🔥",
             targetVehicleTypes: { 0: 'LF 20', 1: 'LF 10', 6: 'LF 8/6', 7: 'LF 20/16', 8: 'LF 10/6', 9: 'LF 16-TS', 17: 'TLF 2000', 18: 'TLF 3000', 19: 'TLF 8/8', 20: 'TLF 8/18', 21: 'TLF 16/24-Tr', 22: 'TLF 16/25', 23: 'TLF 16/45', 24: 'TLF 20/40', 25: 'TLF 20/40-SL', 26: 'TLF 16', 30: 'HLF 20', 37: 'TSF-W', 84: 'ULF mit Löscharm', 86: 'Turbolöscher', 87: 'TLF 4000', 88: 'KLF', 89: 'MLF', 90: 'HLF 10', 107: 'LF-L', 121: 'GTLF', 166: 'PTLF 4000', 167: 'SLF' },
@@ -208,6 +241,41 @@
                 return baseName;
             }
         },
+        flughafen: {
+            name: "Kerosin-Kutscher", emoji: "✈️",
+            targetVehicleTypes: { 75: 'FLF', 76: 'Rettungstreppe' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Flugfeld-", "Airport-", "Crash-", "Turbinen-", "Gate-", "Tower-", "Kerosin-", "Runway-", "Vorfeld-", "Terminal-", "Hangar-", "Landebahn-", "Startbahn-", "Follow-Me-", "Pushback-"];
+                const adjektive_base = ["Breit", "Schnell", "Schwer", "Schaumig", "Gigantisch", "Donnernd", "International", "Interkontinental", "Regional", "Leuchtend", "Blinkend", "Rollend", "Startklar"];
+                const namen = [
+                    {n: "Panther", g:"m"}, {n: "Dragon", g:"m"}, {n: "Striker", g:"m"}, {n: "Tiger", g:"m"}, {n: "Simba", g:"m"}, {n: "Ziegler", g:"m"}, {n: "Rosenbauer", g:"m"}, {n: "Oshkosh", g:"m"},
+                    {n: "Buffalo", g:"m"}, {n: "Cobra", g:"f"}, {n: "Falcon", g:"m"}, {n: "Viper", g:"f"}, {n: "Puma", g:"m"}, {n: "Leopard", g:"m"}, {n: "Gate-Goliath", g:"m"}, {n: "Runway-Retter", g:"m"},
+                    {n: "Turbinen-Tornado", g:"m"}, {n: "Flügel-Flüsterer", g:"m"}, {n: "Boeing-Bezwinger", g:"m"}, {n: "Airbus-Albtraum", g:"m"}, {n: "Concorde-Cop", g:"m"}, {n: "Tower-Titan", g:"m"},
+                    {n: "Pushback-Panzer", g:"m"}, {n: "Vorfeld-Vulkan", g:"m"}, {n: "Terminal-Terminator", g:"m"}, {n: "Hangar-Held", g:"m"}, {n: "Landebahn-Legende", g:"f"}, {n: "Startbahn-Stratege", g:"m"},
+                    {n: "Kerosin-König", g:"m"}, {n: "Schaum-Schläger", g:"m"}, {n: "Pulver-Prinz", g:"m"}, {n: "Wasser-Werfer", g:"m"}, {n: "Cockpit-Cleaner", g:"m"}, {n: "Triebwerks-Tester", g:"m"},
+                    {n: "Reifen-Rächer", g:"m"}, {n: "Winglet-Wächter", g:"m"}, {n: "Fahrwerks-Fighter", g:"m"}, {n: "Leitwerks-Lord", g:"m"}, {n: "Rumpf-Ritter", g:"m"}, {n: "Frachtraum-Freund", g:"m"},
+                    {n: "Gepäck-Gott", g:"m"}, {n: "Passagier-Papst", g:"m"}, {n: "Pilot-Pate", g:"m"}, {n: "Fluglotsen-Freund", g:"m"}, {n: "Boden-Crew-Boss", g:"m"}, {n: "Vogel-Schreck", g:"m"},
+                    {n: "Roter-Baron", g:"m"}, {n: "Fliegende-Festung", g:"f"}, {n: "Stahl-Adler", g:"m"}, {n: "Schaum-Teppich", g:"m"}, {n: "Pulver-Puster", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
         fuehrung: {
             name: "Chef-Kutschen", emoji: "👑",
             targetVehicleTypes: { 3: 'ELW 1', 34: 'ELW 2', 55: 'KdoW-LNA', 56: 'KdoW-OrgL', 35: 'leBefKw', 128: 'ELW Drohne', 129: 'ELW2 Drohne', 144: 'FüKW (THW)', 145: 'FüKomKW', 146: 'Anh FüLa', 147: 'FmKW', 148: 'MTW-FGr K', 51: 'FüKW (Polizei)', 103: 'FuStW (DGL)', 78: 'AB-Einsatzleitung', 59: 'ELW 1 (SEG)' },
@@ -224,6 +292,74 @@
                     {n: "Organigramm", g:"n"}, {n: "Mastermind-Mobil", g:"n"}, {n: "Schachzug", g:"m"}, {n: "Befehlskette", g:"f"}, {n: "Meldekopf", g:"m"}, {n: "Task-Force", g:"f"}, {n: "Synergy", g:"f"},
                     {n: "Kaffee-Beauftragter", g:"m"}, {n: "Plan-Macher", g:"m"}, {n: "Entscheider", g:"m"}, {n: "Taktikfuchs", g:"m"}, {n: "Meeting-Meister", g:"m"}, {n: "Presse-Sprecher", g:"m"},
                     {n: "Westentaschen-General", g:"m"}, {n: "Excel-Tabellen-Fürst", g:"m"}, {n: "PowerPoint-Pirat", g:"m"}, {n: "Dienstwagen-Don", g:"m"}, {n: "Koryphäe", g:"f"}, {n: "Eminenz", g:"f"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        gefahrgut: {
+            name: "Giftmischer", emoji: "☣️",
+            targetVehicleTypes: { 53: 'Dekon-P', 27: 'GW-Gefahrgut', 12: 'GW-Messtechnik', 5: 'GW-A', 77: 'AB-Gefahrgut', 54: 'AB-Dekon-P', 48: 'AB-Atemschutz' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Chemie-", "Gift-", "Säure-", "Strahlen-", "Deko-", "ABC-", "Atom-", "Bio-", "Gas-", "Mess-", "Spür-", "Analyse-", "Labor-", "Isotopen-", "Molekül-", "Proben-", "Filter-", "Schutz-"];
+                const adjektive_base = ["Ätzend", "Giftig", "Radioaktiv", "Dicht", "Sicher", "Hermetisch", "Analytisch", "Gefährlich", "Flüchtig", "Instabil", "Reaktiv", "Gekapselt", "Gemessen", "Gefiltert"];
+                const namen = [
+                    {n: "Walter White", g:"m"}, {n: "Heisenberg", g:"m"}, {n: "Marie Curie", g:"f"}, {n: "Fritz Haber", g:"m"}, {n: "Paracelsus", g:"m"}, {n: "Dr. No", g:"m"}, {n: "Dr. Poison", g:"f"},
+                    {n: "Joker", g:"m"}, {n: "Scarecrow", g:"m"}, {n: "Poison Ivy", g:"f"}, {n: "Pinguin", g:"m"}, {n: "Lex Luthor", g:"m"}, {n: "Green Goblin", g:"m"}, {n: "Pandora's Büchse", g:"f"},
+                    {n: "Tschernobyl-Express", g:"m"}, {n: "Fukushima-Taxi", g:"n"}, {n: "Säurefass", g:"n"}, {n: "Atommüll-Transporter", g:"m"}, {n: "Gift-Küche", g:"f"}, {n: "Hexen-Küche", g:"f"},
+                    {n: "Drogen-Labor", g:"n"}, {n: "Mobile-Dusche", g:"f"}, {n: "ABC-Schütze", g:"m"}, {n: "Mess-Fuchs", g:"m"}, {n: "Spür-Hund", g:"m"}, {n: "Analyse-Einheit", g:"f"},
+                    {n: "Labor-Ratte", g:"f"}, {n: "Isotopen-Jäger", g:"m"}, {n: "Molekül-Magier", g:"m"}, {n: "Proben-Sammler", g:"m"}, {n: "Filter-Freak", g:"m"}, {n: "Geigerzähler", g:"m"},
+                    {n: "Dosimeter", g:"n"}, {n: "Prüfröhrchen", g:"n"}, {n: "Lackmus-Papier", g:"n"}, {n: "Explosimeter", g:"n"}, {n: "Spektrometer", g:"n"}, {n: "Chromatograph", g:"m"},
+                    {n: "CSA", g:"m"}, {n: "Pressluftatmer", g:"m"}, {n: "Filtermaske", g:"f"}, {n: "Dosis", g:"f"}, {n: "Becquerel", g:"n"}, {n: "Sievert", g:"n"}, {n: "Auffangwanne", g:"f"},
+                    {n: "Bindemittel", g:"n"}, {n: "Neutralisationsmittel", g:"n"}, {n: "Erdungs-Stange", g:"f"}, {n: "Dekontamination", g:"f"}, {n: "Uran", g:"n"}, {n: "Plutonium", g:"n"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        hubrettung: {
+            name: "Himmelsleitern", emoji: "🪜",
+            targetVehicleTypes: { 57: 'FwK', 2: 'DLK 23', 85: 'TM 50' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Leiter-", "Rettungs-", "Gelenk-", "Teleskop-", "Höhen-", "Himmels-", "Turm-", "Wolken-", "Gipfel-", "Dach-", "Balkon-", "Fenster-", "Fassaden-", "Hydraulik-", "Stahl-"];
+                const adjektive_base = ["Lang", "Hoch", "Stählern", "Ausgefahren", "Hydraulisch", "Standfest", "Schwindelfrei", "Rettend", "Steil", "Senkrecht", "Gelenkig", "Massiv", "Eisern", "Unbeugsam"];
+                const namen = [
+                    {n: "Jakobsleiter", g:"f"}, {n: "Turm", g:"m"}, {n: "Giraffe", g:"f"}, {n: "Kranich", g:"m"}, {n: "Langer-Gustav", g:"m"}, {n: "Ikarus", g:"m"}, {n: "Daedalus", g:"m"},
+                    {n: "Adlerhorst", g:"m"}, {n: "Falkennest", g:"n"}, {n: "Aussichtsplattform", g:"f"}, {n: "Sprungturm", g:"m"}, {n: "Leuchtturm", g:"m"}, {n: "Gipfelkreuz", g:"n"},
+                    {n: "Wolkenkratzer", g:"m"}, {n: "Babylon", g:"n"}, {n: "Eiffelturm", g:"m"}, {n: "Rapunzel", g:"f"}, {n: "Himmelsstürmer", g:"m"}, {n: "Senkrechtstarter", g:"m"},
+                    {n: "Hochstapler", g:"m"}, {n: "Aufzug", g:"m"}, {n: "Fahrstuhl", g:"m"}, {n: "Korb", g:"m"}, {n: "Gondel", g:"f"}, {n: "Sessellift", g:"m"}, {n: "Mast", g:"m"},
+                    {n: "Pfeiler", g:"m"}, {n: "Träger", g:"m"}, {n: "Ausleger", g:"m"}, {n: "Gelenk", g:"n"}, {n: "Teleskop", g:"n"}, {n: "Hydraulik", g:"f"}, {n: "Stempel", g:"m"},
+                    {n: "Stütze", g:"f"}, {n: "Katzen-Retter", g:"m"}, {n: "Feuer-Fahrstuhl", g:"m"}, {n: "Balkon-Taxi", g:"n"}, {n: "Fenster-Gucker", g:"m"}, {n: "Stockwerk-Shuttle", g:"n"}
                 ];
                 const patterns = [
                     () => namen.random().n,
@@ -268,7 +404,7 @@
                 if (isLarge) {
                     const alpin_praefixe = ["Alpen-", "Gletscher-", "Lawinen-", "Gipfel-", "Firn-", "Geröll-", "Schnee-"];
                     const alpin_adjektive_base = ["Trittsicher", "Schneefest", "Alpin", "Kälte-resistent"];
-                    const alpin_namen = [ {n:"Lawinen-Wuff", g:"m"}, {n:"Alpen-Bello", g:"m"}, {n:"Gipfel-Kläffer", g:"m"}, {n:"Schnee-Schnauze", g:"f"}, {n:"Geröll-Retriever", g:"m"}, {n:"Yeti-Jäger", g:"m"}, {n:"Murmeltier-Melder", g:"m"}, {n:"Firn-Finder", g:"m"}, {n:"Barry der Held", g:"m"}, {n:"Heidi's Held", g:"m"}, {n:"Alm-Apportierer", g:"m"} ];
+                    const alpin_namen = [ {n:"Lawinen-Wuff", g:"m"}, {n:"Alpen-Bello", g:"m"}, {n:"Gipfel-Kläffer", g:"m"}, {n:"Schnee-Schnauze", g:"f"}, {n:"Geröll-Retriever", g:"m"}, {n:"Yeti-Jäger", g:"m"}, {n:"Murmeltier-Melder", g:"m"}, {n:"Firn-Finder", g:"m"}, {n:"Barry der Held", g:"m"}, {n:"Heidi's Held", g:"m"}, {n: "Alm-Apportierer", g:"m"} ];
                     const hybrid_patterns = [
                         () => alpin_namen.random().n,
                         () => {
@@ -299,6 +435,95 @@
                     ];
                     return patterns.random()();
                 }
+            }
+        },
+        luftrettung: {
+            name: "Luftrettung", emoji: "🚁",
+            targetVehicleTypes: { 31: 'RTH', 61: 'Polizeihubschrauber', 156: 'Polizeihubschrauber mit verbauter Winde', 157: 'RTH Winde', 161: 'Hubschrauber (Seenotrettung)', 96: 'Außenlastbehälter (allgemein)' },
+            largeVehicleIds: [96],
+            nameGenerator: function(isLarge = false) {
+                if (isLarge) {
+                    const praefixe = ["Lösch-", "Wasser-", "Waldbrand-", "Flächenbrand-", "Feuer-", "Regen-", "Wolken-", "Sturz-", "Bomben-"];
+                    const adjektive_base = ["Nass", "Schwer", "Plötzlich", "Kühlend", "Entscheidend", "Punktgenau", "Großflächig"];
+                    const namen = [
+                        {n:"Bomber", g:"m"}, {n:"Regenmacher", g:"m"}, {n:"Wolkenbruch", g:"m"}, {n:"Monsun", g:"m"}, {n:"Sintflut", g:"f"}, {n:"Tsunami", g:"m"}, {n:"Wasserfall", g:"m"},
+                        {n:"Katarakt", g:"m"}, {n:"Sturzbach", g:"m"}, {n:"Guss", g:"m"}, {n:"Schauer", g:"m"}, {n:"Niederschlag", g:"m"}, {n:"Fontäne", g:"f"}, {n:"Geysir", g:"m"},
+                        {n:"Cloudbuster", g:"m"}, {n:"Fire-Bomber", g:"m"}, {n:"Water-Bomber", g:"m"}, {n:"Lösch-Ei", g:"n"}, {n:"Regen-Tanz", g:"m"}
+                    ];
+                    const patterns = [
+                        () => namen.random().n,
+                        () => {
+                            const adj = adjektive_base.random();
+                            const nounObj = namen.random();
+                            return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                        },
+                        () => `${praefixe.random()}${namen.random().n}`
+                    ];
+                    return patterns.random()();
+                } else {
+                    const praefixe = ["Himmels-", "Luft-", "Wolken-", "Rotor-", "Turbinen-", "Götter-", "Engels-", "Sturm-", "Alpen-", "Aero-", "Gipfel-", "Senkrecht-"];
+                    const adjektive_base = ["Fliegend", "Schwebend", "Schnell", "Göttlich", "Himmlisch", "Stählern", "Allsehend", "Donnernd", "Windig", "Kreisend", "Steigend", "Majestätisch"];
+                    const namen = [
+                        {n: "Adler", g:"m"}, {n: "Falke", g:"m"}, {n: "Bussard", g:"m"}, {n: "Kondor", g:"m"}, {n: "Greif", g:"m"}, {n: "Albatros", g:"m"}, {n: "Ikarus", g:"m"},
+                        {n: "Pegasus", g:"m"}, {n: "Valkyrie", g:"f"}, {n: "Garuda", g:"m"}, {n: "Erzengel", g:"m"}, {n: "Schutzengel", g:"m"}, {n: "Himmelsbote", g:"m"}, {n: "Retter", g:"m"},
+                        {n: "Horus", g:"m"}, {n: "Hermes", g:"m"}, {n: "Milan", g:"m"}, {n: "Sturmvogel", g:"m"}, {n: "Zeus", g:"m"}, {n: "Thor", g:"m"}, {n: "Auge", g:"n"},
+                        {n: "Winde", g:"f"}, {n: "Klinge", g:"f"}, {n: "Wirbelsturm", g:"m"}, {n: "Himmels-Auge", g:"n"}, {n: "Rotorblatt", g:"n"}, {n: "Thermik", g:"f"}, {n: "Gipfelstürmer", g:"m"},
+                        {n: "Senkrechtstarter", g:"m"}, {n: "Aufwind", g:"m"}, {n: "Föhn", g:"m"}, {n: "Pilot", g:"m"}, {n: "Windenoperator", g:"m"}, {n: "Luft-Taxi", g:"n"}, {n: "Propeller-Prinz", g:"m"},
+                        {n: "Knatter-Kiste", g:"f"}, {n: "Himmels-Fahrstuhl", g:"m"}, {n: "Thermik-Tester", g:"m"}, {n: "Ventilator-Deluxe", g:"m"}, {n: "Teuerstes-Taxi", g:"n"}
+                    ];
+                    const patterns = [
+                        () => namen.random().n,
+                        () => {
+                            const adj = adjektive_base.random();
+                            let nounObj;
+                            do {
+                                nounObj = namen.random();
+                            } while (nounObj.n.includes(' '));
+                            return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                        },
+                        () => {
+                            const nounObj = namen.random();
+                            if (nounObj.n.includes(' ')) return nounObj.n;
+                            return `${praefixe.random()}${nounObj.n}`;
+                        }
+                    ];
+                    return patterns.random()();
+                }
+            }
+        },
+        pferde: {
+            name: "Hü-Hott-Express", emoji: "🐎",
+            targetVehicleTypes: { 134: 'Pferdetransporter klein', 135: 'Pferdetransporter groß', 136: 'Anh Pferdetransport', 137: 'Zugfahrzeug Pferdetransport' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Huf-", "Galopp-", "Reiter-", "Kavallerie-", "Stall-", "Koppel-", "Heu-", "Hafer-", "Sattel-", "Striegel-", "Pferdestärken-"];
+                const adjektive_base = ["Stolz", "Edel", "Wild", "Schnaubend", "Trotzig", "Sanft", "Anmutig", "Ungezähmt", "Königlich", "Schwer", "Galoppierend", "Wiehernd"];
+                const namen = [
+                    {n: "Fury", g:"m"}, {n: "Black Beauty", g:"f"}, {n: "Jolly Jumper", g:"m"}, {n: "Sleipnir", g:"m"}, {n: "Bucephalus", g:"m"}, {n: "Schattenfell", g:"n"}, {n: "Pegasus", g:"m"},
+                    {n: "Kleiner Onkel", g:"m"}, {n: "Amigo", g:"m"}, {n: "Tornado", g:"m"}, {n: "Zorro", g:"m"}, {n: "Silver", g:"m"}, {n: "Trigger", g:"m"}, {n: "Champion", g:"m"}, {n: "Maximus", g:"m"},
+                    {n: "Spirit", g:"m"}, {n: "Haflinger", g:"m"}, {n: "Friese", g:"m"}, {n: "Andalusier", g:"m"}, {n: "Shire Horse", g:"n"}, {n: "Mustang", g:"m"}, {n: "Araber", g:"m"},
+                    {n: "Lipizzaner", g:"m"}, {n: "Kaltblut", g:"n"}, {n: "Warmblut", g:"n"}, {n: "Vollblut", g:"n"}, {n: "Hufschlag", g:"m"}, {n: "Galopp", g:"m"}, {n: "Trab", g:"m"},
+                    {n: "Sattel", g:"m"}, {n: "Zaumzeug", g:"n"}, {n: "Pferdestärke", g:"f"}, {n: "Kutsche", g:"f"}, {n: "Kavallerie", g:"f"}, {n: "Hafer-Moped", g:"n"}, {n: "Laser-Pony", g:"n"},
+                    {n: "Einsatz-Einhorn", g:"n"}, {n: "Möhren-Mafia", g:"f"}, {n: "Trab-Titan", g:"m"}, {n: "Sattel-Sheriff", g:"m"}, {n: "Amtsschimmel", g:"m"}, {n: "Hengst", g:"m"},
+                    {n: "Rappe", g:"m"}, {n: "Schimmel", g:"m"}, {n: "Fuchs", g:"m"}, {n: "Wallach", g:"m"}, {n: "Streitross", g:"n"}, {n: "Husar", g:"m"}, {n: "Ulan", g:"m"}, {n: "Dragoner", g:"m"},
+                    {n: "Kürassier", g:"m"}, {n: "Zentaur", g:"m"}, {n: "Gaul", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
             }
         },
         polizei: {
@@ -382,6 +607,248 @@
                 return baseName;
             }
         },
+        schienenfahrzeuge: {
+            name: "Lokomotuffen", emoji: "🚂",
+            targetVehicleTypes: { 162: 'RW-Schiene', 163: 'HLF Schiene' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Schienen-", "Gleis-", "Zug-", "Bahn-", "Tunnel-", "Weichen-", "Stellwerks-", "ICE-", "Express-", "Güter-", "Regional-", "Signal-", "Waggon-", "Schwellen-", "Oberleitungs-"];
+                const adjektive_base = ["Eisern", "Ratternd", "Schwer", "Unaufhaltsam", "Pünktlich", "Verspätet", "Entgleist", "Rostig", "Quietschend", "Dampfend", "Elektrisch", "Dieselnd"];
+                const namen = [
+                    {n: "Emma", g:"f"}, {n: "Thomas", g:"m"}, {n: "Adler", g:"m"}, {n: "Rocket", g:"f"}, {n: "Big Boy", g:"m"}, {n: "Mallard", g:"f"}, {n: "Flying Scotsman", g:"m"},
+                    {n: "Rheingold", g:"n"}, {n: "Orient-Express", g:"m"}, {n: "Hogwarts-Express", g:"m"}, {n: "Polar-Express", g:"m"}, {n: "Geister-Zug", g:"m"}, {n: "Bummel-Zug", g:"m"},
+                    {n: "Rasender-Roland", g:"m"}, {n: "Molly", g:"f"}, {n: "Lokführer-Lukas", g:"m"}, {n: "Jim Knopf", g:"m"}, {n: "Schaffner", g:"m"}, {n: "Heizer", g:"m"}, {n: "Rangierer", g:"m"},
+                    {n: "Fahrdienstleiter", g:"m"}, {n: "Schienen-Sheriff", g:"m"}, {n: "Gleis-Goliath", g:"m"}, {n: "Tunnel-Terror", g:"m"}, {n: "Weichen-Willi", g:"m"}, {n: "ICE", g:"m"},
+                    {n: "TGV", g:"m"}, {n: "Shinkansen", g:"m"}, {n: "Dampflok", g:"f"}, {n: "Diesellok", g:"f"}, {n: "E-Lok", g:"f"}, {n: "Triebwagen", g:"m"}, {n: "Waggon", g:"m"}, {n: "Bahnhof", g:"m"},
+                    {n: "Stellwerk", g:"n"}, {n: "Weiche", g:"f"}, {n: "Signal", g:"n"}, {n: "Gleis", g:"n"}, {n: "Schiene", g:"f"}, {n: "Schwelle", g:"f"}, {n: "Stromabnehmer", g:"m"},
+                    {n: "Puffer", g:"m"}, {n: "Kupplung", g:"f"}, {n: "Bremse", g:"f"}, {n: "Rad", g:"n"}, {n: "Tender", g:"m"}, {n: "Kessel", g:"m"}, {n: "Schornstein", g:"m"}, {n: "Zylinder", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        schlauchwagen: {
+            name: "Wasser-Autobahn", emoji: "💧",
+            targetVehicleTypes: { 13: 'SW 1000', 14: 'SW 2000', 15: 'SW 2000-Tr', 16: 'SW Kats', 11: 'GW-L2-Wasser', 143: 'Anh Schlauch', 62: 'AB-Schlauch' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Schlauch-", "Wasser-", "Leitungs-", "Hydranten-", "Pumpen-", "Druck-", "Förder-", "Nudel-", "Spaghetti-", "Makkaroni-", "Endlos-", "Meter-", "Kilometer-", "Verlege-"];
+                const adjektive_base = ["Nass", "Lang", "Rollend", "Durstig", "Prall", "Gefüllt", "Undicht", "Gekuppelt", "Verknotet", "Schwer", "Flexibel", "Unendlich", "Blau", "Rot", "Gelb"];
+                const namen = [
+                    {n: "Pipeline", g:"f"}, {n: "Aquädukt", g:"n"}, {n: "Wasser-Ader", g:"f"}, {n: "Lebens-Ader", g:"f"}, {n: "Nudel-Express", g:"m"}, {n: "Spaghetti-Monster", g:"n"},
+                    {n: "Durst-Löscher", g:"m"}, {n: "Hydranten-Freund", g:"m"}, {n: "Feld-Bewässerer", g:"m"}, {n: "Pool-Füller", g:"m"}, {n: "Schlauch-Salat", g:"m"},
+                    {n: "Knoten-König", g:"m"}, {n: "Kupplungs-Künstler", g:"m"}, {n: "Verleger-Veteran", g:"m"}, {n: "Aufroller-Ass", g:"n"}, {n: "Meter-Macher", g:"m"},
+                    {n: "Kilometer-Kavalier", g:"m"}, {n: "Wasser-Spender", g:"m"}, {n: "Flut-Fighter", g:"m"}, {n: "Anaconda", g:"f"}, {n: "Python", g:"m"}, {n: "Boa", g:"f"},
+                    {n: "Nessie", g:"f"}, {n: "Leviathan", g:"m"}, {n: "Wasserschlange", g:"f"}, {n: "Schlauch-Paket", g:"n"}, {n: "Schlauch-Haspel", g:"f"}, {n: "Standrohr", g:"n"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        seenotrettung: {
+            name: "Seenotrettung", emoji: "🚢",
+            targetVehicleTypes: { 159: 'Seenotrettungskreuzer', 160: 'Seenotrettungsboot' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Küsten-", "Hochsee-", "Sturm-", "Wellen-", "See-", "Meeres-", "Orkan-", "Hafen-", "Tiden-", "Brandungs-", "Salzwasser-", "Gischt-"];
+                const adjektive_base = ["Salzig", "Stürmisch", "Unsinkbar", "Verwegen", "Rostig", "Heldenhaft", "Wellenbrechend", "Seetüchtig", "Tapfer", "Standhaft"];
+                const namen = [
+                    {n: "Seebär", g:"m"}, {n: "Kapitän", g:"m"}, {n: "Pirat", g:"m"}, {n: "Freibeuter", g:"m"}, {n: "Klabautermann", g:"m"}, {n: "Neptun", g:"m"}, {n: "Poseidon", g:"m"},
+                    {n: "Hafenmeister", g:"m"}, {n: "Leuchtturmwärter", g:"m"}, {n: "Triton", g:"m"}, {n: "Störtebeker", g:"m"}, {n: "Nautilus", g:"f"}, {n: "Kolumbus", g:"m"},
+                    {n: "Kraken", g:"m"}, {n: "Leviathan", g:"m"}, {n: "Moby Dick", g:"m"}, {n: "Fliegender Holländer", g:"m"}, {n: "Sextant", g:"m"}, {n: "Kompass", g:"m"},
+                    {n: "Brandung", g:"f"}, {n: "Gischt", g:"f"}, {n: "Tide", g:"f"}, {n: "Welle", g:"f"}, {n: "Düne", g:"f"}, {n: "Boje", g:"f"}, {n: "Fender", g:"m"}, {n: "Poller", g:"m"},
+                    {n: "Kiel", g:"m"}, {n: "Sturmflut", g:"f"}, {n: "Orkanböe", g:"f"}, {n: "Kreuzsee", g:"f"}, {n: "Titanic", g:"f"}, {n: "Bismarck", g:"f"}, {n: "Calypso", g:"f"},
+                    {n: "Gorck Fock", g:"f"}, {n: "Passat", g:"m"}, {n: "Pamir", g:"f"}, {n: "Rost-Ritter", g:"m"}, {n: "Wellen-Bezwinger", g:"m"}, {n: "Möwen-Schreck", g:"m"},
+                    {n: "Fischkutter-Freund", g:"m"}, {n: "Eiserner-Wal", g:"m"}, {n: "Nasser-Held", g:"m"}, {n: "Hafen-Hirte", g:"m"}, {n: "Deich-Defender", g:"m"}, {n: "Albatros", g:"m"}, {n: "Kormoran", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        sonstige: {
+            name: "Mädchen für Alles", emoji: "⚙️",
+            targetVehicleTypes: { 4: 'RW', 10: 'GW-Öl', 83: 'GW-Werkfeuerwehr', 36: 'MTW', 104: 'GW-L1', 105: 'GW-L2', 106: 'MTF-L', 46: 'WLF', 47: 'AB-Rüst', 49: 'AB-Öl', 117: 'AB-Tank', 119: 'AB-Lösch', 164: 'AB-Schiene', 169: 'AB-Sonderlöschmittel', 170: 'AB-Wasser/Schaum', 108: 'AB-L', 165: 'LauKw' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Universal-", "Logistik-", "Allzweck-", "Sonder-", "Basis-", "Reserve-", "Transport-", "Material-", "Geräte-", "Stab-", "Unterstützungs-", "Service-", "Pionier-", "Joker-"];
+                const adjektive_base = ["Zuverlässig", "Stabil", "Beladen", "Praktisch", "Unverzichtbar", "Flexibel", "Robust", "Solid", "Eisern", "Müde", "Fleißig", "Stoisch", "Unauffällig", "Essentiell"];
+                const namen = [
+                    {n: "Arbeitstier", g:"n"}, {n: "Lastenesel", g:"m"}, {n: "Packpferd", g:"n"}, {n: "Sherpa", g:"m"}, {n: "Kuli", g:"m"}, {n: "Faktotum", g:"n"}, {n: "Gerät", g:"n"},
+                    {n: "Platzhalter", g:"m"}, {n: "Eiserne-Reserve", g:"f"}, {n: "Schweizer-Taschenmesser", g:"n"}, {n: "Alleskönner", g:"m"}, {n: "Kümmerer", g:"m"},
+                    {n: "Rechte-Hand", g:"f"}, {n: "Hans-Dampf", g:"m"}, {n: "Material-Magier", g:"m"}, {n: "Chaos-Bändiger", g:"m"}, {n: "Problemlöser", g:"m"}, {n: "Backup", g:"n"},
+                    {n: "Plan B", g:"m"}, {n: "Ass im Ärmel", g:"n"}, {n: "Stiller-Held", g:"m"}, {n: "Heinzelmännchen", g:"n"}, {n: "Wasserträger", g:"m"}, {n: "Adjutant", g:"m"},
+                    {n: "Gehilfe", g:"m"}, {n: "Azubi", g:"m"}, {n: "Praktikant", g:"m"}, {n: "Mädchen-für-Alles", g:"n"}, {n: "Hausmeister", g:"m"}, {n: "Macher", g:"m"}, {n: "Zupacker", g:"m"},
+                    {n: "Organisator", g:"m"}, {n: "Stratege", g:"m"}, {n: "Versorger", g:"m"}, {n: "Stütze", g:"f"}, {n: "Rückgrat", g:"n"}, {n: "Fels", g:"m"}, {n: "Anker", g:"m"}, {n: "Joker", g:"m"},
+                    {n: "Werkzeugkiste", g:"f"}, {n: "Lagerhalle", g:"f"}, {n: "Werkstatt", g:"f"}, {n: "Brummi", g:"m"}, {n: "Koloss", g:"m"}, {n: "Gigant", g:"m"}, {n: "Titan", g:"m"}, {n: "Moloch", g:"m"},
+                    {n: "Dino", g:"m"}, {n: "Elefant", g:"m"}, {n: "Bulle", g:"m"}, {n: "Bär", g:"m"}, {n: "Büffel", g:"m"}, {n: "Eber", g:"m"}, {n: "Brocken", g:"m"}, {n: "Klotz", g:"m"}, {n: "Monolith", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        spezialeinheiten: {
+            name: "SEK / MEK", emoji: "💀",
+            targetVehicleTypes: { 79: 'SEK - ZF', 80: 'SEK - MTF', 81: 'MEK - ZF', 82: 'MEK - MTF', 72: 'WaWe 10' },
+            largeVehicleIds: [72],
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Zugriffs-", "Taktik-", "Schatten-", "Sturm-", "Alpha-", "Omega-", "Nacht-", "Kobra-", "Phantom-", "Kommando-", "Delta-", "Zero-", "Stahl-", "Titan-", "Wolfs-"];
+                const adjektive_base = ["Still", "Präzis", "Eisern", "Scharf", "Chirurgisch", "Unerbittlich", "Kompromisslos", "Getarnt", "Gepanzert", "Lautlos", "Skrupellos", "Final", "Letzt"];
+                const namen = [
+                    {n: "Jäger", g:"m"}, {n: "Greifer", g:"m"}, {n: "Vollstrecker", g:"m"}, {n: "Brecher", g:"m"}, {n: "Phantom", g:"n"}, {n: "Schatten", g:"m"}, {n: "Operator", g:"m"},
+                    {n: "Kommando", g:"n"}, {n: "Scharfschütze", g:"m"}, {n: "Geist", g:"m"}, {n: "Henker", g:"m"}, {n: "Wächter", g:"m"}, {n: "Wolf", g:"m"}, {n: "Hyäne", g:"f"},
+                    {n: "Schakal", g:"m"}, {n: "Viper", g:"f"}, {n: "Kobra", g:"f"}, {n: "Cerberus", g:"m"}, {n: "Nighthawk", g:"m"}, {n: "Valkyrie", g:"f"}, {n: "Chimäre", g:"f"},
+                    {n: "Mantikor", g:"m"}, {n: "Gorgone", g:"f"}, {n: "Hydra", g:"f"}, {n: "Spectre", g:"m"}, {n: "Reaper", g:"m"}, {n: "Nemesis", g:"f"}, {n: "Thanatos", g:"m"},
+                    {n: "Ares", g:"m"}, {n: "Charon", g:"m"}, {n: "Zugriff", g:"m"}, {n: "Observation", g:"f"}, {n: "Belagerung", g:"f"}, {n: "Sturm", g:"m"}, {n: "Sicherung", g:"f"},
+                    {n: "Eskorte", g:"f"}, {n: "Vergeltung", g:"f"}, {n: "Furcht", g:"f"}, {n: "Böser Onkel", g:"m"}, {n: "Tür-Eintreter", g:"m"}, {n: "Party-Crasher", g:"m"},
+                    {n: "Überraschungsgast", g:"m"}, {n: "Spaß-Bremse", g:"f"}, {n: "Adrenalin-Junkie", g:"m"}, {n: "Schwarze-Witwe", g:"f"}, {n: "Höllen-Hund", g:"m"}, {n: "Stahl-Faust", g:"f"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        technik: {
+            name: "Strom-Junkies", emoji: "⚡",
+            targetVehicleTypes: { 110: 'NEA50', 111: 'NEA50', 112: 'NEA200', 113: 'NEA200', 122: 'LKW 7 Lbw (FGr E)', 171: 'GW TeSi', 172: 'LKW Technik (Notstrom)', 173: 'MTW TeSi', 174: 'Anh TeSi', 175: 'NEA50' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Strom-", "Spannungs-", "Kabel-", "Notstrom-", "Technik-", "Sicherungs-", "Elektronik-", "Werkstatt-", "Licht-", "Phasen-"];
+                const adjektive_base = ["Elektrisch", "Spannungsgeladen", "Funktionierend", "Provisorisch", "Zertifiziert", "Verkabelt", "Leuchtend", "Summend", "Brummend", "Funkenschlagend"];
+                const namen = [
+                    {n: "Nikola Tesla", g:"m"}, {n: "Thomas Edison", g:"m"}, {n: "MacGyver", g:"m"}, {n: "Daniel Düsentrieb", g:"m"}, {n: "Doc Brown", g:"m"}, {n: "Volt", g:"n"}, {n: "Ampere", g:"n"},
+                    {n: "Watt", g:"n"}, {n: "Kilowatt", g:"n"}, {n: "Megawatt", g:"n"}, {n: "Widerstand", g:"m"}, {n: "Kondensator", g:"m"}, {n: "Transformator", g:"m"}, {n: "Kurzschluss", g:"m"},
+                    {n: "Spannungsspitze", g:"f"}, {n: "Lichtbogen", g:"m"}, {n: "Phase", g:"f"}, {n: "Nullleiter", g:"m"}, {n: "Frequenz", g:"f"}, {n: "Gleichstrom", g:"m"}, {n: "Wechselstrom", g:"m"},
+                    {n: "Starkstrom", g:"m"}, {n: "Schraubenschlüssel", g:"m"}, {n: "Lötkolben", g:"m"}, {n: "Multimeter", g:"n"}, {n: "Oszilloskop", g:"n"}, {n: "Werkbank", g:"f"},
+                    {n: "Schraubstock", g:"m"}, {n: "Kabeltrommel", g:"f"}, {n: "Kabelbinder", g:"m"}, {n: "Lüsterklemme", g:"f"}, {n: "Phasenprüfer", g:"m"}, {n: "Steckdose", g:"f"},
+                    {n: "Schaltplan", g:"m"}, {n: "Generator", g:"m"}, {n: "Aggregat", g:"n"}, {n: "Diesel", g:"m"}, {n: "Admin", g:"m"}, {n: "IT-Support", g:"m"}, {n: "Helpdesk", g:"m"},
+                    {n: "Sicherungs-Finder", g:"m"}, {n: "Kabel-Chaos-Kommando", g:"n"}, {n: "Spannungs-Abfall", g:"m"}, {n: "Lötkolben-Cowboy", g:"m"}, {n: "Admin-Mobil", g:"n"},
+                    {n: "Strom-Dealer", g:"m"}, {n: "Licht-Macher", g:"m"}, {n: "Phasen-Phantomas", g:"m"}, {n: "Funke Hoffnung", g:"m"}, {n: "Blackout-Buddy", g:"m"}, {n: "Saft-Spender", g:"m"},
+                    {n: "Brumm-Bär", g:"m"}, {n: "Trafo-Häuschen", g:"n"}, {n: "Lichtbogen-Larry", g:"m"}, {n: "Multimeter-Magier", g:"m"}, {n: "Werkbank-Wüterich", g:"m"},
+                    {n: "Kabeltrommel-König", g:"m"}, {n: "Blackout-Bezwinger", g:"m"}, {n: "Generator-Genie", g:"n"}, {n: "Aggregat-Admiral", g:"m"}, {n: "Diesel-Don", g:"m"},
+                    {n: "Server-Sanitäter", g:"m"}, {n: "Firewall-Fighter", g:"m"}, {n: "Router-Rambo", g:"m"}, {n: "Helpdesk-Held", g:"m"}, {n: "Ticket-Terminator", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
+        thw: {
+            name: "Blaue Wichtel", emoji: "🛠️",
+            targetVehicleTypes: { 40: 'MTW-TZ', 41: 'MzGW (FGr N)', 42: 'LKW K 9', 43: 'BRmG R', 44: 'Anh DLE', 45: 'MLW 5', 93: 'MTW-O', 100: 'MLW 4', 101: 'Anh SwPu', 102: 'Anh 7', 109: 'MzGW SB', 123: 'LKW 7 Lbw (FGr WP)', 124: 'MTW-OV', 39: 'GKW', 65: 'LKW 7 Lkr 19 tm' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Technik-", "Hilfs-", "Bau-", "Logistik-", "Räum-", "Stütz-", "Pumpen-", "Generator-", "Blau-", "Wichtel-", "Chaos-", "Paletten-", "Kabel-", "Schlumpf-", "Trümmer-", "Beton-", "Holz-", "Stahl-"];
+                const adjektive_base = ["Blau", "Technisch", "Hilfsbereit", "Verplant", "Chaotisch", "Stabil", "Schwer", "Tragend", "Leuchtend", "Unermüdlich", "Kreativ", "Solid", "Standfest", "Robust"];
+                const namen = [
+                    {n: "Wichtel", g:"m"}, {n: "Schlumpf", g:"m"}, {n: "Helfer", g:"m"}, {n: "Pionier", g:"m"}, {n: "Logistiker", g:"m"}, {n: "Ingenieur", g:"m"}, {n: "Baumeister", g:"m"},
+                    {n: "Maschinist", g:"m"}, {n: "Anpacker", g:"m"}, {n: "Fachberater", g:"m"}, {n: "Ortsbeauftragter", g:"m"}, {n: "Bastler", g:"m"}, {n: "Tüftler", g:"m"},
+                    {n: "Konstrukteur", g:"m"}, {n: "Statiker", g:"m"}, {n: "Truppführer", g:"m"}, {n: "Kraftfahrer", g:"m"}, {n: "Baukasten", g:"m"}, {n: "Stütze", g:"f"}, {n: "Fundament", g:"n"},
+                    {n: "Generator", g:"m"}, {n: "Pumpe", g:"f"}, {n: "Hebel", g:"m"}, {n: "Getriebe", g:"n"}, {n: "Werkzeugkiste", g:"f"}, {n: "Palette", g:"f"}, {n: "Gitterbox", g:"f"},
+                    {n: "Einsatzbefehl", g:"m"}, {n: "Lichtmast", g:"m"}, {n: "Presslufthammer", g:"m"}, {n: "Trennschleifer", g:"m"}, {n: "Stahlträger", g:"m"}, {n: "Sandsack", g:"m"},
+                    {n: "Tauchpumpe", g:"f"}, {n: "Hebekissen", g:"n"}, {n: "Chaos-Kommando", g:"n"}, {n: "Wichtel-Express", g:"m"}, {n: "Paletten-Polo", g:"n"}, {n: "Schlumpf-Transporter", g:"m"},
+                    {n: "THW-Taxi", g:"n"}, {n: "Blauer Engel", g:"m"}, {n: "Blauer Riese", g:"m"}, {n: "Macher", g:"m"}, {n: "Kümmerer", g:"m"}, {n: "Hoffnung", g:"f"}, {n: "Fels in der Brandung", g:"m"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        },
         wasserrettung: {
             name: "Wasserrettung", emoji: "🚤",
             targetVehicleTypes: { 63: 'GW-Taucher', 64: 'GW-Wasserrettung', 70: 'MZB', 66: 'Anh MzB', 67: 'Anh SchlB', 68: 'Anh MzAB', 69: 'Tauchkraftwagen', 71: 'AB-MZB' },
@@ -420,8 +887,39 @@
                 return patterns.random()();
             }
         },
-        // ... (viele andere Module wurden ebenfalls angepasst, aber zur besseren Lesbarkeit gekürzt)
-        // Der Rest der Module folgt dem gleichen Prinzip der grammatikalischen Anpassung.
+        windmaschinen: {
+            name: "Sturm-Macher", emoji: "💨",
+            targetVehicleTypes: { 114: 'GW-Lüfter', 115: 'Anh Lüfter', 116: 'AB-Lüfter' },
+            nameGenerator: function(isLarge = false) {
+                const praefixe = ["Wind-", "Sturm-", "Luft-", "Orkan-", "Puste-", "Gebläse-", "Rauch-", "Druck-", "Wirbel-", "Tornado-", "Hurrikan-", "Taifun-", "Zyklon-", "Ventilator-", "Turbinen-"];
+                const adjektive_base = ["Windig", "Stürmisch", "Laut", "Dröhnend", "Kräftig", "Rotierend", "Brüllend", "Frisch", "Eisig", "Heiß", "Trocken", "Feucht", "Stark", "Gewaltig", "Donnernd"];
+                const namen = [
+                    {n: "Äolus", g:"m"}, {n: "Boreas", g:"m"}, {n: "Zephyrus", g:"m"}, {n: "Eurus", g:"m"}, {n: "Notus", g:"m"}, {n: "Tornado", g:"m"}, {n: "Hurrikan", g:"m"},
+                    {n: "Taifun", g:"m"}, {n: "Zyklon", g:"m"}, {n: "Orkan", g:"m"}, {n: "Sturm", g:"m"}, {n: "Böe", g:"f"}, {n: "Brise", g:"f"}, {n: "Passat", g:"m"}, {n: "Monsun", g:"m"},
+                    {n: "Föhn", g:"m"}, {n: "Scirocco", g:"m"}, {n: "Mistral", g:"m"}, {n: "Pustefix", g:"m"}, {n: "Trocken-Föhn", g:"m"}, {n: "Propeller", g:"m"}, {n: "Turbine", g:"f"},
+                    {n: "Ventilator", g:"m"}, {n: "Gebläse", g:"n"}, {n: "Kompressor", g:"m"}, {n: "Verdichter", g:"m"}, {n: "Düse", g:"f"}, {n: "Strahltriebwerk", g:"n"}, {n: "Rotor", g:"m"},
+                    {n: "Impeller", g:"m"}, {n: "Luftschraube", g:"f"}, {n: "Windrad", g:"n"}, {n: "Windmühle", g:"f"}, {n: "Blasebalg", g:"m"}, {n: "Böser-Wolf", g:"m"},
+                    {n: "Frisuren-Zerstörer", g:"m"}, {n: "Hut-Dieb", g:"m"}, {n: "Rauch-Vertreiber", g:"m"}, {n: "Wind-Gott", g:"m"}, {n: "Sturm-Dämon", g:"m"}, {n: "Luft-Elementar", g:"n"}
+                ];
+                const patterns = [
+                    () => namen.random().n,
+                    () => {
+                        const adj = adjektive_base.random();
+                        let nounObj;
+                        do {
+                            nounObj = namen.random();
+                        } while (nounObj.n.includes(' '));
+                        return `${declineAdjective(adj, nounObj.g)} ${nounObj.n}`;
+                    },
+                    () => {
+                        const nounObj = namen.random();
+                        if (nounObj.n.includes(' ')) return nounObj.n;
+                        return `${praefixe.random()}${nounObj.n}`;
+                    }
+                ];
+                return patterns.random()();
+            }
+        }
     };
 
 
@@ -533,6 +1031,7 @@
         const statusText = document.getElementById('ng-progress-status');
         const gridContainer = document.getElementById('ng-worker-grid');
         const startTime = Date.now();
+        const performanceLog = [];
 
         try {
             const firstVehicleId = vehicles[0]?.id;
@@ -575,10 +1074,33 @@
 
             const updateStatus = () => {
                 const timeElapsed = (Date.now() - startTime) / 1000;
-                statusText.textContent = `Bearbeitet: ${processedCount}/${totalJobs} | Erfolgreich: ${successCount} | Fehler: ${errorCount} | Zeit: ${formatTime(timeElapsed)}`;
+                performanceLog.push({ time: Date.now(), count: processedCount });
+                if (performanceLog.length > 20) {
+                    performanceLog.shift();
+                }
+
+                let etaString = '--:--';
+                if (performanceLog.length > 5 && processedCount > 0 && processedCount < totalJobs) {
+                    const first = performanceLog[0];
+                    const last = performanceLog[performanceLog.length - 1];
+                    const processedInWindow = last.count - first.count;
+                    const timeInWindow = (last.time - first.time) / 1000;
+
+                    if (timeInWindow > 0.5) {
+                        const itemsPerSecond = processedInWindow / timeInWindow;
+                        const remainingItems = totalJobs - processedCount;
+                        if (itemsPerSecond > 0) {
+                            const remainingTimeInSeconds = remainingItems / itemsPerSecond;
+                            etaString = formatTime(remainingTimeInSeconds);
+                        }
+                    }
+                }
+
                 if (processedCount === totalJobs) {
-                    statusText.textContent += " - FERTIG!";
+                    statusText.textContent = `Bearbeitet: ${processedCount}/${totalJobs} | FERTIG! | Zeit: ${formatTime(timeElapsed)}`;
                     isProcessRunning = false;
+                } else {
+                    statusText.textContent = `Bearbeitet: ${processedCount}/${totalJobs} | ETA: ${etaString} | Zeit: ${formatTime(timeElapsed)}`;
                 }
             };
             updateStatus();
