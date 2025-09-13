@@ -1,11 +1,10 @@
 // ==UserScript==
-// @name         Leitstellenspiel - Modernes Verbands-Scoreboard (für B&M Manager)
+// @name         Leitstellenspiel - Modernes Verbands-Scoreboard (B&M Manager)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
-// @description  Vollständige Version, kompatibel mit dem B&M Script-Manager (nutzt localStorage).
+// @version      1.1.0
+// @description  Vollständige, B&M-Manager-kompatible Version mit allen Features.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
-// @license      MIT
 // ==/UserScript==
 
 (function() {
@@ -17,15 +16,15 @@
     const ALLIANCE_INFO_URL = "/api/allianceinfo";
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 Minuten
 
-    const STATS_STORAGE_KEY = 'scoreboard_stats_data_v2';
-    const IDS_STORAGE_KEY = 'scoreboard_processed_ids_v2';
-    const SYNC_INFO_KEY = 'scoreboard_sync_info';
+    const STATS_STORAGE_KEY = 'scoreboard_stats_data_v3'; // v3 für einen sauberen Neustart des Speichers
+    const IDS_STORAGE_KEY = 'scoreboard_processed_ids_v3';
+    const SYNC_INFO_KEY = 'scoreboard_sync_info_v3';
 
     let MY_USER_ID;
     let modalCreated = false;
     let currentMissions = [];
 
-    // --- 2. HILFSFUNKTIONEN (inkl. Ersatz für GM_addStyle) ---
+    // --- 2. HILFSFUNKTIONEN ---
 
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
@@ -52,6 +51,8 @@
         return date.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'medium' });
     }
 
+    // --- 3. KERNLOGIK ---
+
     async function extractMissions(responseText) {
         const modifiedScriptText = responseText.replace('const mList =', 'window.tempMissionList =');
         return new Promise((resolve, reject) => {
@@ -62,9 +63,8 @@
                 document.body.removeChild(script);
             };
             script.onload = () => {
-                const missions = window.tempMissionList || [];
+                resolve(window.tempMissionList || []);
                 cleanup();
-                resolve(missions);
             };
             script.onerror = (e) => {
                 cleanup();
@@ -73,8 +73,6 @@
             document.body.appendChild(script);
         });
     }
-
-    // --- 3. DATENVERARBEITUNG ---
 
     function analyzeAndMergeMissions(liveMissions, existingStats, processedMissionIds) {
         const stats = JSON.parse(JSON.stringify(existingStats));
@@ -93,7 +91,7 @@
         return { updatedStats: stats, newIdsSet: processedMissionIds };
     }
 
-    function calculateTodayYesterday(stats, liveMissions) {
+    function calculateLiveStats(stats, liveMissions) {
         const now = new Date();
         const today_start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const yesterday_start = new Date(today_start);
@@ -123,8 +121,6 @@
         return displayStats;
     }
 
-    // --- 4. KERNLOGIK ---
-
     async function syncDataInBackground() {
         try {
             const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
@@ -145,7 +141,6 @@
 
             localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
             localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
-
             const newMissionsFound = newIdsSet.size > savedIdsArray.length;
             localStorage.setItem(SYNC_INFO_KEY, JSON.stringify({ timestamp: Date.now(), newMissionsFound }));
 
@@ -160,7 +155,6 @@
         contentDiv.innerHTML = '<div class="scoreboard-loader"><div class="loader"></div></div>';
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
-
             const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
             
             const [userMapResponse, ownText, allianceText] = await Promise.all([
@@ -174,17 +168,29 @@
             ]);
             currentMissions = [...ownMissions, ...allianceMissions].filter(m => m.alliance_shared_at);
             const userMap = userMapResponse.users.reduce((acc, user) => { acc[user.id] = user.name; return acc; }, {});
-            const finalDisplayStats = calculateLiveStats(stats, currentMissions);
-            renderScoreboard(finalDisplayStats, userMap);
+            
+            const liveStatsForDisplay = calculateLiveStats(stats, currentMissions);
+            
+            // Für die Sortierung, kombiniere gespeicherte und neue Live-Daten temporär
+            const tempProcessedIds = new Set(JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || []);
+            const { updatedStats: tempTotalStats } = analyzeAndMergeMissions(currentMissions, stats, tempProcessedIds);
+            
+            // Füge die heute/gestern Werte zu den temporären Gesamt-Stats hinzu
+            Object.keys(tempTotalStats).forEach(userId => {
+                tempTotalStats[userId].today = liveStatsForDisplay[userId]?.today || { count: 0, credits: 0 };
+                tempTotalStats[userId].yesterday = liveStatsForDisplay[userId]?.yesterday || { count: 0, credits: 0 };
+            });
+
+            renderScoreboard(tempTotalStats, userMap);
         } catch (error) {
             console.error('Fehler beim Anzeigen der Daten:', error);
             contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
         }
     }
     
-    // --- 5. UI FUNKTIONEN ---
+    // --- 4. UI-FUNKTIONEN ---
 
-    function resetStats() {
+    async function resetStats() {
         if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
             localStorage.removeItem(STATS_STORAGE_KEY);
             localStorage.removeItem(IDS_STORAGE_KEY);
@@ -210,8 +216,7 @@
 
     function renderScoreboard(stats, userMap) {
         const contentDiv = document.getElementById('scoreboard-content');
-        const finalDisplayStats = calculateLiveStats(stats, currentMissions);
-        const sortedUsers = Object.entries(finalDisplayStats).sort((a, b) => (b[1].total?.count || 0) - (a[1].total?.count || 0));
+        const sortedUsers = Object.entries(stats).sort((a, b) => (b[1].total?.count || 0) - (a[1].total?.count || 0));
         let html = '';
         sortedUsers.forEach(([userId, userStats], index) => {
             const isOwn = (userId == MY_USER_ID);
@@ -220,7 +225,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    function updateButtonDisplay() {
+    async function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
@@ -306,7 +311,6 @@
             toggleModal(true);
         });
         anchorElement.after(scoreboardBtn);
-        // Da GM_addStyle nicht mehr da ist, müssen wir unsere eigene Funktion nutzen
         addStyle(`
             #scoreboard-trigger #scoreboard-status-indicator { margin-left: 8px; font-size: 14px; }
             .status-new::before { content: '●'; color: #43b581; } .status-synced::before { content: '●'; color: #747f8d; }
@@ -340,7 +344,7 @@
         updateButtonDisplay();
     }
 
-    // --- 6. SKRIPT STARTEN ---
+    // --- 5. SKRIPT STARTEN ---
     const initInterval = setInterval(() => {
         if (document.querySelector('a.navbar-brand') && document.getElementById('navbar_profile_link')) {
             clearInterval(initInterval);
