@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME
-// @version      2.3.0
+// @version      2.5
 // @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
 // @author       Dein Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/*
@@ -10,7 +10,7 @@
 (async function() {
     'use strict';
 
-    // Warten, bis der B&M Script-Manager bereit ist
+    // Warten, bis der B&M Script-Manager bereit ist (aus deinem funktionierenden Skript übernommen)
     try {
         await new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -44,7 +44,7 @@
     let modalCreated = false;
     let currentMissions = [];
 
-    // --- Funktionsdefinitionen ---
+    // --- Funktionsdefinitionen (alle hier, vor der Ausführung) ---
 
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
@@ -164,7 +164,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    async function updateButtonDisplay() {
+    function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
@@ -204,14 +204,15 @@
             container.style.display = 'none';
         }
     }
-    
-    async function resetStats() {
-        if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
-            localStorage.removeItem(STATS_STORAGE_KEY);
-            localStorage.removeItem(IDS_STORAGE_KEY);
-            localStorage.removeItem(SYNC_INFO_KEY);
-            alert('Statistiken zurückgesetzt.');
-            toggleModal(true);
+
+    function toggleModal(show) {
+        const modalOverlay = document.getElementById('scoreboard-modal-overlay');
+        if (!modalOverlay) return;
+        if (show) {
+            modalOverlay.classList.add('visible');
+            displayDataFromStorage();
+        } else {
+            modalOverlay.classList.remove('visible');
         }
     }
 
@@ -231,44 +232,6 @@
         });
     }
 
-    async function displayDataFromStorage() {
-        const contentDiv = document.getElementById('scoreboard-content');
-        contentDiv.innerHTML = '<div class="scoreboard-loader"><div class="loader"></div></div>';
-        try {
-            MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
-            const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
-            const [userMapResponse, ownText, allianceText] = await Promise.all([
-                fetch(ALLIANCE_INFO_URL).then(res => res.json()),
-                fetch(OWN_MISSIONS_URL).then(res => res.text()),
-                fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
-            ]);
-            const [ownMissions, allianceMissions] = await Promise.all([
-                extractMissions(ownText),
-                extractMissions(allianceText)
-            ]);
-            currentMissions = [...ownMissions, ...allianceMissions].filter(m => m.alliance_shared_at);
-            const userMap = userMapResponse.users.reduce((acc, user) => { acc[user.id] = user.name; return acc; }, {});
-            const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || [];
-            const tempProcessedIds = new Set(savedIdsArray);
-            const { updatedStats: tempTotalStats } = analyzeAndMergeMissions(currentMissions, stats, tempProcessedIds);
-            const finalDisplayStats = calculateLiveStats(tempTotalStats, currentMissions);
-            renderScoreboard(finalDisplayStats, userMap);
-        } catch (error) {
-            console.error('Fehler beim Anzeigen der Daten:', error);
-            contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
-        }
-    }
-
-    function toggleModal(show) {
-        const modalOverlay = document.getElementById('scoreboard-modal-overlay');
-        if (show) {
-            modalOverlay.classList.add('visible');
-            displayDataFromStorage();
-        } else {
-            modalOverlay.classList.remove('visible');
-        }
-    }
-    
     function createButtonAndAttachListener(anchorElement) {
         if (document.getElementById('scoreboard-trigger')) return;
         const scoreboardBtn = document.createElement('button');
@@ -329,7 +292,7 @@
                 clearInterval(initInterval);
                 createButtonAndAttachListener(anchorElement);
                 syncDataInBackground(); // Erster Sync
-                setInterval(syncDataInBackground, REFRESH_INTERVAL); // Wiederholter Sync
+                setInterval(syncDataInBackground, REFRESH_INTERVAL);
                 console.log(`[${SCRIPT_NAME}] Skript erfolgreich initialisiert.`);
             }
         }, 500);
