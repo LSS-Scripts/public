@@ -1,24 +1,32 @@
 // ==UserScript==
-// @name         Leitstellenspiel - Modernes Verbands-Scoreboard (B&M Manager)
-// @namespace    https://github.com/your-repo/
-// @version      1.5
+// @name         Leitstellenspiel - Modernes Verbands-Scoreboard
+// @namespace    https://github.com/
+// @version      1.6.0
 // @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
-// @author       B&M
+// @author       Dein Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
 
 (async function() {
     'use strict';
 
-    // Warten, bis der B&M Script-Manager bereit ist
-    await new Promise(resolve => {
+    // Warten, bis der B&M Script-Manager bereit ist (aus deinem funktionierenden Skript übernommen)
+    await new Promise((resolve, reject) => {
+        const startTime = Date.now();
         const interval = setInterval(() => {
             if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
                 clearInterval(interval);
                 resolve();
+            } else if (Date.now() - startTime > 15000) { // 15s Timeout
+                clearInterval(interval);
+                reject(new Error("B&M Scriptmanager wurde nicht gefunden."));
             }
         }, 100);
+    }).catch(e => {
+        console.error("[Scoreboard] " + e.message);
+        return; // Skript beenden, wenn der Manager nicht da ist.
     });
+
 
     // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
     const OWN_MISSIONS_URL = "/map/mission_markers_own.js.erb";
@@ -35,6 +43,7 @@
     let currentMissions = [];
 
     // --- 2. HILFSFUNKTIONEN ---
+
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
         const style = document.createElement('style');
@@ -61,6 +70,7 @@
     }
 
     // --- 3. KERNLOGIK ---
+
     async function extractMissions(responseText) {
         const modifiedScriptText = responseText.replace('const mList =', 'window.tempMissionList =');
         return new Promise((resolve, reject) => {
@@ -134,20 +144,24 @@
             const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
             const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || [];
             const processedMissionIds = new Set(savedIdsArray);
+
             const [ownResponseText, allianceResponseText] = await Promise.all([
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
                 fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
             ]);
+
             const [ownMissions, allianceMissions] = await Promise.all([
                 extractMissions(ownResponseText),
                 extractMissions(allianceResponseText)
             ]);
             const liveMissions = [...ownMissions, ...allianceMissions];
             const { updatedStats, newIdsSet } = analyzeAndMergeMissions(liveMissions, savedStats, processedMissionIds);
+
             localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
             localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
             const newMissionsFound = newIdsSet.size > savedIdsArray.length;
             localStorage.setItem(SYNC_INFO_KEY, JSON.stringify({ timestamp: Date.now(), newMissionsFound }));
+
             updateButtonDisplay();
         } catch (error) {
             console.error('[Scoreboard] Fehler bei der Hintergrund-Aktualisierung:', error);
@@ -160,6 +174,7 @@
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
             const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
+            
             const [userMapResponse, ownText, allianceText] = await Promise.all([
                 fetch(ALLIANCE_INFO_URL).then(res => res.json()),
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
@@ -184,7 +199,7 @@
     
     // --- 4. UI-FUNKTIONEN ---
 
-    async function resetStats() {
+    function resetStats() {
         if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
             localStorage.removeItem(STATS_STORAGE_KEY);
             localStorage.removeItem(IDS_STORAGE_KEY);
@@ -219,7 +234,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    async function updateButtonDisplay() {
+    function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
