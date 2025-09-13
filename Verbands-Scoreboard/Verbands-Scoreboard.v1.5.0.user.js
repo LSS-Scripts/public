@@ -1,14 +1,24 @@
 // ==UserScript==
-// @name         Leitstellenspiel - Modernes Verbands-Scoreboard
-// @namespace    http://tampermonkey.net/
-// @version      1.4.0
-// @description  Die definitive, vollständige und B&M-Manager-kompatible Version mit allen Features.
+// @name         Leitstellenspiel - Modernes Verbands-Scoreboard (B&M Manager)
+// @namespace    https://github.com/your-repo/
+// @version      1.5
+// @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
 
-(function() {
+(async function() {
     'use strict';
+
+    // Warten, bis der B&M Script-Manager bereit ist
+    await new Promise(resolve => {
+        const interval = setInterval(() => {
+            if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 100);
+    });
 
     // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
     const OWN_MISSIONS_URL = "/map/mission_markers_own.js.erb";
@@ -25,7 +35,6 @@
     let currentMissions = [];
 
     // --- 2. HILFSFUNKTIONEN ---
-
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
         const style = document.createElement('style');
@@ -52,7 +61,6 @@
     }
 
     // --- 3. KERNLOGIK ---
-
     async function extractMissions(responseText) {
         const modifiedScriptText = responseText.replace('const mList =', 'window.tempMissionList =');
         return new Promise((resolve, reject) => {
@@ -60,9 +68,7 @@
             script.textContent = modifiedScriptText;
             const cleanup = () => {
                 if (window.tempMissionList) delete window.tempMissionList;
-                if (document.body.contains(script)) {
-                    document.body.removeChild(script);
-                }
+                if (document.body.contains(script)) document.body.removeChild(script);
             };
             script.onload = () => {
                 resolve(window.tempMissionList || []);
@@ -128,24 +134,20 @@
             const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
             const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY)) || [];
             const processedMissionIds = new Set(savedIdsArray);
-
             const [ownResponseText, allianceResponseText] = await Promise.all([
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
                 fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
             ]);
-
             const [ownMissions, allianceMissions] = await Promise.all([
                 extractMissions(ownResponseText),
                 extractMissions(allianceResponseText)
             ]);
             const liveMissions = [...ownMissions, ...allianceMissions];
             const { updatedStats, newIdsSet } = analyzeAndMergeMissions(liveMissions, savedStats, processedMissionIds);
-
             localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
             localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
             const newMissionsFound = newIdsSet.size > savedIdsArray.length;
             localStorage.setItem(SYNC_INFO_KEY, JSON.stringify({ timestamp: Date.now(), newMissionsFound }));
-
             updateButtonDisplay();
         } catch (error) {
             console.error('[Scoreboard] Fehler bei der Hintergrund-Aktualisierung:', error);
@@ -158,7 +160,6 @@
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
             const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY)) || {};
-            
             const [userMapResponse, ownText, allianceText] = await Promise.all([
                 fetch(ALLIANCE_INFO_URL).then(res => res.json()),
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
