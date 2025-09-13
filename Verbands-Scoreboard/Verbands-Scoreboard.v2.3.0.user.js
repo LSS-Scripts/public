@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    https://github.com/DEIN_GITHUB_NAME/DEIN_REPO_NAME
-// @version      2.1.0
+// @version      2.3.0
 // @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
 // @author       Dein Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/*
@@ -10,7 +10,7 @@
 (async function() {
     'use strict';
 
-    // Wartet, bis der B&M Script-Manager garantiert geladen ist
+    // Warten, bis der B&M Script-Manager bereit ist
     try {
         await new Promise((resolve, reject) => {
             const startTime = Date.now();
@@ -36,9 +36,9 @@
     const ALLIANCE_INFO_URL = "/api/allianceinfo";
     const REFRESH_INTERVAL = 5 * 60 * 1000;
 
-    const STATS_STORAGE_KEY = 'bm_scoreboard_stats';
-    const IDS_STORAGE_KEY = 'bm_scoreboard_ids';
-    const SYNC_INFO_KEY = 'bm_scoreboard_sync';
+    const STATS_STORAGE_KEY = 'bm_scoreboard_stats_v3';
+    const IDS_STORAGE_KEY = 'bm_scoreboard_ids_v3';
+    const SYNC_INFO_KEY = 'bm_scoreboard_sync_v3';
 
     let MY_USER_ID;
     let modalCreated = false;
@@ -204,6 +204,32 @@
             container.style.display = 'none';
         }
     }
+    
+    async function resetStats() {
+        if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
+            localStorage.removeItem(STATS_STORAGE_KEY);
+            localStorage.removeItem(IDS_STORAGE_KEY);
+            localStorage.removeItem(SYNC_INFO_KEY);
+            alert('Statistiken zurückgesetzt.');
+            toggleModal(true);
+        }
+    }
+
+    function createModal() {
+        const modalOverlay = document.createElement('div');
+        modalOverlay.id = 'scoreboard-modal-overlay';
+        modalOverlay.innerHTML = `<div id="scoreboard-modal"><div id="scoreboard-modal-header"><h2>📊 Verbands-Scoreboard</h2><div><button id="scoreboard-modal-reset" title="Statistik zurücksetzen">🗑️</button><button id="scoreboard-modal-refresh" title="Neu laden">&#x21bb;</button><button id="scoreboard-modal-close" title="Schließen">&times;</button></div></div><div id="scoreboard-content"></div></div>`;
+        document.body.appendChild(modalOverlay);
+        modalOverlay.addEventListener('click', (e) => (e.target.id === 'scoreboard-modal-overlay') && toggleModal(false));
+        document.getElementById('scoreboard-modal-close').addEventListener('click', () => toggleModal(false));
+        document.getElementById('scoreboard-modal-refresh').addEventListener('click', () => toggleModal(true));
+        document.getElementById('scoreboard-modal-reset').addEventListener('click', resetStats);
+        document.getElementById('scoreboard-content').addEventListener('click', (e) => {
+            if (e.target.matches('.details-btn')) {
+                toggleDetailsView(e.target.dataset.userId);
+            }
+        });
+    }
 
     async function displayDataFromStorage() {
         const contentDiv = document.getElementById('scoreboard-content');
@@ -232,7 +258,7 @@
             contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
         }
     }
-    
+
     function toggleModal(show) {
         const modalOverlay = document.getElementById('scoreboard-modal-overlay');
         if (show) {
@@ -242,23 +268,7 @@
             modalOverlay.classList.remove('visible');
         }
     }
-
-    function createModal() {
-        const modalOverlay = document.createElement('div');
-        modalOverlay.id = 'scoreboard-modal-overlay';
-        modalOverlay.innerHTML = `<div id="scoreboard-modal"><div id="scoreboard-modal-header"><h2>📊 Verbands-Scoreboard</h2><div><button id="scoreboard-modal-reset" title="Statistik zurücksetzen">🗑️</button><button id="scoreboard-modal-refresh" title="Neu laden">&#x21bb;</button><button id="scoreboard-modal-close" title="Schließen">&times;</button></div></div><div id="scoreboard-content"></div></div>`;
-        document.body.appendChild(modalOverlay);
-        modalOverlay.addEventListener('click', (e) => (e.target.id === 'scoreboard-modal-overlay') && toggleModal(false));
-        document.getElementById('scoreboard-modal-close').addEventListener('click', () => toggleModal(false));
-        document.getElementById('scoreboard-modal-refresh').addEventListener('click', () => toggleModal(true));
-        document.getElementById('scoreboard-modal-reset').addEventListener('click', resetStats);
-        document.getElementById('scoreboard-content').addEventListener('click', (e) => {
-            if (e.target.matches('.details-btn')) {
-                toggleDetailsView(e.target.dataset.userId);
-            }
-        });
-    }
-
+    
     function createButtonAndAttachListener(anchorElement) {
         if (document.getElementById('scoreboard-trigger')) return;
         const scoreboardBtn = document.createElement('button');
