@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    https://github.com/
-// @version      1.6.0
-// @description  Die definitive, B&M-Manager-kompatible Version mit allen Features.
+// @version      1.7
+// @description  Die definitive, vollständige und B&M-Manager-kompatible Version mit allen Features.
 // @author       Dein Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/*
 // ==/UserScript==
@@ -10,23 +10,23 @@
 (async function() {
     'use strict';
 
-    // Warten, bis der B&M Script-Manager bereit ist (aus deinem funktionierenden Skript übernommen)
+    // Warten, bis der B&M Script-Manager bereit ist
     await new Promise((resolve, reject) => {
         const startTime = Date.now();
         const interval = setInterval(() => {
             if (window.BMScriptManager && typeof window.BMScriptManager.getSettings === 'function') {
                 clearInterval(interval);
                 resolve();
-            } else if (Date.now() - startTime > 15000) { // 15s Timeout
+            } else if (Date.now() - startTime > 15000) {
                 clearInterval(interval);
                 reject(new Error("B&M Scriptmanager wurde nicht gefunden."));
             }
         }, 100);
     }).catch(e => {
         console.error("[Scoreboard] " + e.message);
-        return; // Skript beenden, wenn der Manager nicht da ist.
+        alert("[Scoreboard] Skript konnte nicht starten, da der B&M Script-Manager nicht gefunden wurde.");
+        return;
     });
-
 
     // --- 1. KONFIGURATION & GLOBALE VARIABLEN ---
     const OWN_MISSIONS_URL = "/map/mission_markers_own.js.erb";
@@ -43,7 +43,6 @@
     let currentMissions = [];
 
     // --- 2. HILFSFUNKTIONEN ---
-
     function addStyle(css) {
         if (document.getElementById('scoreboard-styles')) return;
         const style = document.createElement('style');
@@ -70,7 +69,6 @@
     }
 
     // --- 3. KERNLOGIK ---
-
     async function extractMissions(responseText) {
         const modifiedScriptText = responseText.replace('const mList =', 'window.tempMissionList =');
         return new Promise((resolve, reject) => {
@@ -199,7 +197,7 @@
     
     // --- 4. UI-FUNKTIONEN ---
 
-    function resetStats() {
+    async function resetStats() {
         if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
             localStorage.removeItem(STATS_STORAGE_KEY);
             localStorage.removeItem(IDS_STORAGE_KEY);
@@ -234,7 +232,7 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    function updateButtonDisplay() {
+    async function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
