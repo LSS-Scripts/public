@@ -91,6 +91,13 @@
     "changelog": ""
   },
   {
+    "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
+    "version": "1.2.1",
+    "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.2.1.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Massenkategorierer",
     "version": "19.0.0",
     "fileName": "Massenkategorierer.v19.0.0.user.js",
