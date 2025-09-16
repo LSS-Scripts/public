@@ -294,7 +294,8 @@
                 if (missionData && missionData.alliance_shared_at !== null) {
                     const baseTimestamp = missionData.alliance_shared_at; // Der präzise Start-Zeitstempel von der API
                     const creditsForCalculation = missionData.average_credits || 0;
-                    const missionTypeId = (missionData.mission_type_id || '').toString();
+                    // const missionTypeId = (missionData.mission_type_id || '').toString();
+                    const missionTypeId = (missionData.mtid || '').toString();
                     const missionTypeString = missionData.mission_type || ''; // Hole den Missionstyp als Text
 
                     let endTimestamp;
