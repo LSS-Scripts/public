@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Einsatz Endzeit-Anzeige
 // @namespace    HendrikStaufenbiel
-// @version      3.5.2
+// @version      3.5.3
 // @description  
 // @inspiration  Die Funktion zur Fahrzeughervorhebung basiert auf einem Script von Jan (jxn_30).
 // @author       Hendrik, Masklin (Modifiziert durch KI & Community-Feedback)
