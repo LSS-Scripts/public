@@ -164,6 +164,59 @@
         return null;
     }
 
+    // ====================== NEUE AUFRÄUMFUNKTION ======================
+function bereinigeAlteEinsaetze() {
+    // Nur alle 15 Minuten ausführen, um die Performance nicht zu belasten
+    const AUFRAEUM_INTERVALL = 15 * 60 * 1000;
+    // Einsätze, die 12 Stunden nicht mehr in der Liste gesehen wurden, werden als veraltet eingestuft
+    const ABLAUFZEIT = 12 * 60 * 60 * 1000;
+    const jetzt = Date.now();
+
+    const letztesAufraeumen = parseInt(localStorage.getItem('eza_last_cleanup') || '0');
+    if (jetzt - letztesAufraeumen < AUFRAEUM_INTERVALL) {
+        return; // Noch nicht an der Zeit für die Reinigung
+    }
+
+    logDebug("Führe geplante Bereinigung alter Einsatzdaten durch...");
+    let anzahlGeloescht = 0;
+    let aenderungenAnAllianceData = false;
+    let aenderungenAnOwnData = false;
+
+    // 1. Verbandseinsätze (`allianceMissionData`) bereinigen
+    const allianceKeys = Object.keys(allianceMissionData);
+    for (const missionId of allianceKeys) {
+        const mission = allianceMissionData[missionId];
+        // Löschen, wenn 'lastSeen' fehlt (um alte Daten ohne Zeitstempel zu erfassen) oder der Zeitstempel zu alt ist
+        if (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT)) {
+            delete allianceMissionData[missionId];
+            anzahlGeloescht++;
+            aenderungenAnAllianceData = true;
+        }
+    }
+
+    // 2. Eigene Einsätze (`ownMissionFixedEndTimes`) bereinigen
+    const ownKeys = Object.keys(ownMissionFixedEndTimes);
+    for (const missionId of ownKeys) {
+        const mission = ownMissionFixedEndTimes[missionId];
+        // Prüfen ob es ein Objekt ist und ob 'lastSeen' fehlt oder zu alt ist
+        if (typeof mission === 'object' && mission !== null && (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT))) {
+            delete ownMissionFixedEndTimes[missionId];
+            anzahlGeloescht++;
+            aenderungenAnOwnData = true;
+        }
+    }
+
+    if (anzahlGeloescht > 0) {
+        logDebug(`${anzahlGeloescht} veraltete Einsätze entfernt.`);
+        // Nur speichern, wenn sich auch etwas geändert hat
+        if (aenderungenAnAllianceData) saveAllianceMissionData();
+        if (aenderungenAnOwnData) saveOwnMissionFixedEndTimes();
+    }
+
+    // Zeitstempel für die letzte durchgeführte Bereinigung aktualisieren
+    localStorage.setItem('eza_last_cleanup', jetzt.toString());
+}
+
     function formatTime(timestamp) {
         if (timestamp === null || timestamp === undefined) return "";
         const date = new Date(timestamp * 1000);
@@ -622,7 +675,7 @@
                     gap: '4px'
                 });
             }
-
+            
             if (isExcludedType) {
                 if (panelHeading) {
                     let zeitAnzeige = panelHeading.querySelector('.endzeit-anzeige');
@@ -770,6 +823,22 @@
                     zeitAnzeige.style.display = 'none';
                 }
             }
+            const jetzt = Date.now();
+            if (isOwn) {
+                if (ownMissionFixedEndTimes[missionId]) {
+                    if (typeof ownMissionFixedEndTimes[missionId] !== 'object' || ownMissionFixedEndTimes[missionId] === null) {
+                        ownMissionFixedEndTimes[missionId] = {
+                            endTime: ownMissionFixedEndTimes[missionId]
+                        }; // Konvertiere altes Format in Objekt
+                    }
+                    ownMissionFixedEndTimes[missionId].lastSeen = jetzt;
+                }
+            } else {
+                if (allianceMissionData[missionId]) {
+                    allianceMissionData[missionId].lastSeen = jetzt;
+                    needsSaveAllianceData = true; // Sicherstellen, dass gespeichert wird
+                }
+            }
         });
         if (needsSaveAllianceData && !isOwn && window.location.pathname === '/') {
             saveAllianceMissionData();
@@ -783,6 +852,7 @@
     // Ab hier ist der Rest des Skripts wieder die originale 3.3.4 Version ohne Änderungen
     function addEndTimes() {
         if (window.location.pathname !== '/') return;
+        bereinigeAlteEinsaetze();
         const allianceResult = verarbeiteEinsatzliste(document.querySelector('#mission_list_alliance'), false);
         const ownResult = verarbeiteEinsatzliste(document.querySelector('#mission_list'), true);
         let nextEndTimeToShow = Infinity, creditsForPanelDisplay = allianceResult.gesamtCredits;
