@@ -1,13 +1,11 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    http://tampermonkey.net/
-// @version      0.5
-// @description  The Final Edition. Letzte Fehlerkorrektur für das JSON-Parsing.
-// @author       Dein Gemini & Hendrik
+// @version      0.6
+// @description  The Final Edition. Umbau auf localStorage und Korrektur der Gestern-Anzeige.
+// @author       B&M
 // @match        https://www.leitstellenspiel.de/*
-// @grant        GM_setValue
-// @grant        GM_getValue
-// @grant        GM_deleteValue
+// @grant        none
 // ==/UserScript==
 
 (function() {
@@ -19,6 +17,7 @@
     const ALLIANCE_INFO_URL = "/api/allianceinfo";
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 Minuten
 
+    // GEÄNDERT: Storage Keys bleiben gleich, aber die Logik dahinter ändert sich.
     const STATS_STORAGE_KEY = 'scoreboard_stats_data_v2';
     const IDS_STORAGE_KEY = 'scoreboard_processed_ids_v2';
     const SYNC_INFO_KEY = 'scoreboard_sync_info';
@@ -46,22 +45,14 @@
         return date.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'medium' });
     }
 
-    /**
-     * Extrahiert die Missionsliste und entfernt das problematische letzte Komma.
-     */
     function extractMissions(responseText, sourceName) {
         const startStr = "const mList = ";
         const startIndex = responseText.indexOf(startStr);
         if (startIndex === -1) { return []; }
-
         const endIndex = responseText.indexOf('];', startIndex);
         if (endIndex === -1) { return []; }
-
         let jsonStr = responseText.substring(startIndex + startStr.length, endIndex + 1);
-
-        // *** DER ENTSCHEIDENDE FIX: Entfernt ein mögliches Komma vor der letzten Klammer ***
         jsonStr = jsonStr.replace(/,\s*\]$/, ']');
-
         try {
             return JSON.parse(jsonStr);
         } catch (e) {
@@ -93,82 +84,86 @@
         return { updatedStats: stats, newIdsSet: processedMissionIds };
     }
 
-    function calculateTodayYesterday(stats, liveMissions) {
+    // GEÄNDERT: Funktion zur Berechnung der Tagesstatistik (ohne "Gestern")
+    function calculateTodayStats(stats, liveMissions) {
         const now = new Date();
         const today_start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const yesterday_start = new Date(today_start);
-        yesterday_start.setDate(yesterday_start.getDate() - 1);
+
         Object.values(stats).forEach(userStat => {
             userStat.today = { count: 0, credits: 0 };
-            userStat.yesterday = { count: 0, credits: 0 };
         });
+
         liveMissions.forEach(mission => {
              const userId = mission.user_id;
              const credits = mission.average_credits || 0;
              const sharedAt = mission.alliance_shared_at;
              if (!userId || !sharedAt || !stats[userId]) return;
              const sharedDate = new Date(sharedAt * 1000);
+
              if (sharedDate >= today_start) {
                 stats[userId].today.count++;
                 stats[userId].today.credits += credits;
-             } else if (sharedDate >= yesterday_start) {
-                stats[userId].yesterday.count++;
-                stats[userId].yesterday.credits += credits;
              }
         });
         return stats;
     }
 
     // KERNLOGIK
-    async function syncDataInBackground() {
+    // GEÄNDERT: syncDataInBackground ist nicht mehr async, da localStorage synchron ist.
+    function syncDataInBackground() {
         try {
-            const savedStats = await GM_getValue(STATS_STORAGE_KEY, {});
-            const savedIdsArray = await GM_getValue(IDS_STORAGE_KEY, []);
+            // GEÄNDERT: Lese Daten aus localStorage
+            const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY) || '{}');
+            const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY) || '[]');
             const processedMissionIds = new Set(savedIdsArray);
 
-            const [ownResponseText, allianceResponseText] = await Promise.all([
+            Promise.all([
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
                 fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
-            ]);
+            ]).then(([ownResponseText, allianceResponseText]) => {
+                const ownMissions = extractMissions(ownResponseText, 'EIGENEN');
+                const allianceMissions = extractMissions(allianceResponseText, 'VERBANDS');
 
-            const ownMissions = extractMissions(ownResponseText, 'EIGENEN');
-            const allianceMissions = extractMissions(allianceResponseText, 'VERBANDS');
+                const { updatedStats, newIdsSet } = analyzeAndMergeMissions(ownMissions, allianceMissions, savedStats, processedMissionIds);
 
-            const { updatedStats, newIdsSet } = analyzeAndMergeMissions(ownMissions, allianceMissions, savedStats, processedMissionIds);
+                // GEÄNDERT: Speichere Daten in localStorage
+                localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
+                localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
 
-            await GM_setValue(STATS_STORAGE_KEY, updatedStats);
-            await GM_setValue(IDS_STORAGE_KEY, Array.from(newIdsSet));
+                const newMissionsFound = newIdsSet.size > savedIdsArray.length;
+                localStorage.setItem(SYNC_INFO_KEY, JSON.stringify({ timestamp: Date.now(), newMissionsFound }));
 
-            const newMissionsFound = newIdsSet.size > savedIdsArray.length;
-            await GM_setValue(SYNC_INFO_KEY, { timestamp: Date.now(), newMissionsFound });
-
-            updateButtonDisplay();
+                updateButtonDisplay();
+            });
         } catch (error) {
             console.error('[Scoreboard] Fehler bei der Hintergrund-Aktualisierung:', error);
         }
     }
 
-    async function displayDataFromStorage() {
+    // GEÄNDERT: displayDataFromStorage ist nicht mehr async
+    function displayDataFromStorage() {
         const contentDiv = document.getElementById('scoreboard-content');
         contentDiv.innerHTML = '<div class="scoreboard-loader"><div class="loader"></div></div>';
 
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
 
-            const [stats, userMapResponse, ownText, allianceText] = await Promise.all([
-                GM_getValue(STATS_STORAGE_KEY, {}),
+            // GEÄNDERT: Lese Stats direkt aus localStorage
+            const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY) || '{}');
+
+            Promise.all([
                 fetch(ALLIANCE_INFO_URL).then(res => res.json()),
                 fetch(OWN_MISSIONS_URL).then(res => res.text()),
                 fetch(ALLIANCE_MISSIONS_URL).then(res => res.text())
-            ]);
+            ]).then(([userMapResponse, ownText, allianceText]) => {
+                const ownMissions = extractMissions(ownText, 'EIGENEN');
+                const allianceMissions = extractMissions(allianceText, 'VERBANDS');
+                currentMissions = [...ownMissions, ...allianceMissions].filter(m => m.alliance_shared_at);
 
-            const ownMissions = extractMissions(ownText, 'EIGENEN');
-            const allianceMissions = extractMissions(allianceText, 'VERBANDS');
-            currentMissions = [...ownMissions, ...allianceMissions].filter(m => m.alliance_shared_at);
+                const userMap = userMapResponse.users.reduce((acc, user) => { acc[user.id] = user.name; return acc; }, {});
 
-            const userMap = userMapResponse.users.reduce((acc, user) => { acc[user.id] = user.name; return acc; }, {});
-
-            renderScoreboard(stats, userMap);
+                renderScoreboard(stats, userMap);
+            });
         } catch (error) {
             console.error('Fehler beim Anzeigen der Daten:', error);
             contentDiv.innerHTML = `<p style="color: #f04747;">Fehler beim Anzeigen der Daten: ${error.message}</p>`;
@@ -176,16 +171,19 @@
     }
 
     // UI-FUNKTIONEN
-    async function resetStats() {
+    // GEÄNDERT: resetStats ist nicht mehr async
+    function resetStats() {
         if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
-            await GM_deleteValue(STATS_STORAGE_KEY);
-            await GM_deleteValue(IDS_STORAGE_KEY);
-            await GM_deleteValue(SYNC_INFO_KEY);
+            // GEÄNDERT: Lösche Daten aus localStorage
+            localStorage.removeItem(STATS_STORAGE_KEY);
+            localStorage.removeItem(IDS_STORAGE_KEY);
+            localStorage.removeItem(SYNC_INFO_KEY);
             alert('Statistiken zurückgesetzt.');
             toggleModal(true);
         }
     }
-
+    
+    // GEÄNDERT: HTML-Card ohne "Gestern" erstellt
     function createCardHtml(userId, data, isOwn, userMap, rank) {
         const f = (num) => (num || 0).toLocaleString('de-DE');
         const displayName = userMap[userId] || `User-ID: ${userId}`;
@@ -196,13 +194,13 @@
         let header = isOwn ? `${rank < 3 ? rankIcon : '⭐'} ${displayName} (Deine Statistik)` : `${rankIcon} ${displayName}`.trim();
         const total = data.total || { count: 0, credits: 0 };
         const today = data.today || { count: 0, credits: 0 };
-        const yesterday = data.yesterday || { count: 0, credits: 0 };
-        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)', 'Gestern (live)'].map((label, i) => { const period = ['total', 'today', 'yesterday'][i]; const periodData = data[period] || { count: 0, credits: 0 }; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
+        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)'].map((label, i) => { const period = ['total', 'today'][i]; const periodData = data[period] || { count: 0, credits: 0 }; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
     }
 
     function renderScoreboard(stats, userMap) {
         const contentDiv = document.getElementById('scoreboard-content');
-        const displayStats = calculateTodayYesterday(JSON.parse(JSON.stringify(stats)), currentMissions);
+        // GEÄNDERT: Ruft die neue Funktion auf
+        const displayStats = calculateTodayStats(JSON.parse(JSON.stringify(stats)), currentMissions);
         const sortedUsers = Object.entries(displayStats).sort((a, b) => (b[1].total?.count || 0) - (a[1].total?.count || 0));
         let html = '';
         sortedUsers.forEach(([userId, userStats], index) => {
@@ -212,11 +210,13 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    async function updateButtonDisplay() {
+    // GEÄNDERT: updateButtonDisplay ist nicht mehr async
+    function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
-        const syncInfo = await GM_getValue(SYNC_INFO_KEY, null);
+        // GEÄNDERT: Lese Daten aus localStorage
+        const syncInfo = JSON.parse(localStorage.getItem(SYNC_INFO_KEY) || 'null');
         if (!syncInfo) {
             scoreboardBtn.title = 'Noch keine Daten synchronisiert.';
             return;
@@ -257,7 +257,7 @@
             .details-container td { padding: 8px; border-bottom: 1px solid #4a4e54; }
             .details-container tr:last-child td { border-bottom: none; }
             .details-no-missions { color: #b9bbbe; font-style: italic; }
-            .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+            .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
             .stat-item { background: #40444b; padding: 10px; border-radius: 5px; } .stat-item-label { font-size: 12px; color: #b9bbbe; text-transform: uppercase; }
             .stat-item-value { font-size: 16px; font-weight: bold; } .stat-item-subvalue { font-size: 13px; color: #b9bbbe; }
         `;
