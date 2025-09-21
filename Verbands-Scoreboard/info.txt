@@ -1,1 +1,1 @@
-Noch nicht funktionsfähig
+Dieses Skript fügt dem Spiel einen "Scoreboard"-Button hinzu, der eine Rangliste der Verbandsmitglieder basierend auf der Anzahl ihrer geteilten Einsätze anzeigt.
