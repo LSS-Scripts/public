@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    http://tampermonkey.net/
-// @version      0.7
+// @version      0.7.1
 // @description  The Final Edition. Zählt geplante Einsätze (SW) und hebt diese hervor.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
@@ -190,7 +190,7 @@
         let header = isOwn ? `${rank < 3 ? rankIcon : '⭐'} ${displayName} (Deine Statistik)` : `${rankIcon} ${displayName}`.trim();
         const total = data.total || { count: 0, credits: 0 };
         const today = data.today || { count: 0, credits: 0, planned_count: 0 };
-        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)'].map((label, i) => { const period = ['total', 'today'][i]; const periodData = data[period] || { count: 0, credits: 0 }; const plannedText = period === 'today' && periodData.planned_count > 0 ? ` (davon ${f(periodData.planned_count)} geplant)` : ''; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze${plannedText}</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
+        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)'].map((label, i) => { const period = ['total', 'today'][i]; const periodData = data[period] || { count: 0, credits: 0 }; const plannedText = period === 'today' && periodData.planned_count > 0 ? ` (davon ${f(periodData.planned_count)} Sicherheitswachen)` : ''; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze${plannedText}</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
     }
 
     function renderScoreboard(stats, userMap) {
