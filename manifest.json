@@ -148,8 +148,8 @@
   },
   {
     "name": "Verbands-Scoreboard",
-    "version": "0.7.0",
-    "fileName": "Verbands-Scoreboard.v0.7.0.user.js",
+    "version": "0.7.1",
+    "fileName": "Verbands-Scoreboard.v0.7.1.user.js",
     "description": "Dieses Skript fügt dem Spiel einen \"Scoreboard\"-Button hinzu, der eine Rangliste der Verbandsmitglieder basierend auf der Anzahl ihrer geteilten Einsätze anzeigt.",
     "changelog": ""
   },
