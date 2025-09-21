@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Modernes Verbands-Scoreboard
 // @namespace    http://tampermonkey.net/
-// @version      0.6
-// @description  The Final Edition. Umbau auf localStorage und Korrektur der Gestern-Anzeige.
+// @version      0.7
+// @description  The Final Edition. Zählt geplante Einsätze (SW) und hebt diese hervor.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
@@ -17,7 +17,6 @@
     const ALLIANCE_INFO_URL = "/api/allianceinfo";
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 Minuten
 
-    // GEÄNDERT: Storage Keys bleiben gleich, aber die Logik dahinter ändert sich.
     const STATS_STORAGE_KEY = 'scoreboard_stats_data_v2';
     const IDS_STORAGE_KEY = 'scoreboard_processed_ids_v2';
     const SYNC_INFO_KEY = 'scoreboard_sync_info';
@@ -84,13 +83,13 @@
         return { updatedStats: stats, newIdsSet: processedMissionIds };
     }
 
-    // GEÄNDERT: Funktion zur Berechnung der Tagesstatistik (ohne "Gestern")
+    // GEÄNDERT: Zählt jetzt auch geplante Einsätze (sw: true)
     function calculateTodayStats(stats, liveMissions) {
         const now = new Date();
         const today_start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
         Object.values(stats).forEach(userStat => {
-            userStat.today = { count: 0, credits: 0 };
+            userStat.today = { count: 0, credits: 0, planned_count: 0 }; // NEU: planned_count hinzugefügt
         });
 
         liveMissions.forEach(mission => {
@@ -103,16 +102,19 @@
              if (sharedDate >= today_start) {
                 stats[userId].today.count++;
                 stats[userId].today.credits += credits;
+                // NEU: Prüfe, ob es ein geplanter Einsatz ist
+                if (mission.sw === true) {
+                    stats[userId].today.planned_count++;
+                }
              }
         });
         return stats;
     }
 
+
     // KERNLOGIK
-    // GEÄNDERT: syncDataInBackground ist nicht mehr async, da localStorage synchron ist.
     function syncDataInBackground() {
         try {
-            // GEÄNDERT: Lese Daten aus localStorage
             const savedStats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY) || '{}');
             const savedIdsArray = JSON.parse(localStorage.getItem(IDS_STORAGE_KEY) || '[]');
             const processedMissionIds = new Set(savedIdsArray);
@@ -126,7 +128,6 @@
 
                 const { updatedStats, newIdsSet } = analyzeAndMergeMissions(ownMissions, allianceMissions, savedStats, processedMissionIds);
 
-                // GEÄNDERT: Speichere Daten in localStorage
                 localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(updatedStats));
                 localStorage.setItem(IDS_STORAGE_KEY, JSON.stringify(Array.from(newIdsSet)));
 
@@ -140,15 +141,12 @@
         }
     }
 
-    // GEÄNDERT: displayDataFromStorage ist nicht mehr async
     function displayDataFromStorage() {
         const contentDiv = document.getElementById('scoreboard-content');
         contentDiv.innerHTML = '<div class="scoreboard-loader"><div class="loader"></div></div>';
 
         try {
             MY_USER_ID = parseInt(document.getElementById('navbar_profile_link').getAttribute('href').split('/').pop(), 10);
-
-            // GEÄNDERT: Lese Stats direkt aus localStorage
             const stats = JSON.parse(localStorage.getItem(STATS_STORAGE_KEY) || '{}');
 
             Promise.all([
@@ -171,10 +169,8 @@
     }
 
     // UI-FUNKTIONEN
-    // GEÄNDERT: resetStats ist nicht mehr async
     function resetStats() {
         if (confirm('Bist du sicher, dass du alle gespeicherten Scoreboard-Statistiken unwiderruflich löschen möchtest?')) {
-            // GEÄNDERT: Lösche Daten aus localStorage
             localStorage.removeItem(STATS_STORAGE_KEY);
             localStorage.removeItem(IDS_STORAGE_KEY);
             localStorage.removeItem(SYNC_INFO_KEY);
@@ -182,8 +178,8 @@
             toggleModal(true);
         }
     }
-    
-    // GEÄNDERT: HTML-Card ohne "Gestern" erstellt
+
+    // GEÄNDERT: Fügt den Text für geplante Einsätze hinzu
     function createCardHtml(userId, data, isOwn, userMap, rank) {
         const f = (num) => (num || 0).toLocaleString('de-DE');
         const displayName = userMap[userId] || `User-ID: ${userId}`;
@@ -193,13 +189,12 @@
         else if (rank === 2) rankIcon = '🥉';
         let header = isOwn ? `${rank < 3 ? rankIcon : '⭐'} ${displayName} (Deine Statistik)` : `${rankIcon} ${displayName}`.trim();
         const total = data.total || { count: 0, credits: 0 };
-        const today = data.today || { count: 0, credits: 0 };
-        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)'].map((label, i) => { const period = ['total', 'today'][i]; const periodData = data[period] || { count: 0, credits: 0 }; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
+        const today = data.today || { count: 0, credits: 0, planned_count: 0 };
+        return `<div class="stat-card ${isOwn ? 'is-own' : ''} rank-${rank + 1}"><div class="stat-card-header">${header}<button class="details-btn" title="Live-Einsätze anzeigen" data-user-id="${userId}">📄</button></div><div class="stat-grid">${['Insgesamt (gespeichert)', 'Heute (live)'].map((label, i) => { const period = ['total', 'today'][i]; const periodData = data[period] || { count: 0, credits: 0 }; const plannedText = period === 'today' && periodData.planned_count > 0 ? ` (davon ${f(periodData.planned_count)} geplant)` : ''; return `<div class="stat-item"><div class="stat-item-label">${label}</div><div class="stat-item-value">${f(periodData.count)} Einsätze${plannedText}</div><div class="stat-item-subvalue">${f(periodData.credits)} Credits</div></div>`; }).join('')}</div><div class="details-container" id="details-for-${userId}" style="display: none;"></div></div>`;
     }
 
     function renderScoreboard(stats, userMap) {
         const contentDiv = document.getElementById('scoreboard-content');
-        // GEÄNDERT: Ruft die neue Funktion auf
         const displayStats = calculateTodayStats(JSON.parse(JSON.stringify(stats)), currentMissions);
         const sortedUsers = Object.entries(displayStats).sort((a, b) => (b[1].total?.count || 0) - (a[1].total?.count || 0));
         let html = '';
@@ -210,12 +205,10 @@
         contentDiv.innerHTML = html || '<p>Noch keine Daten gesammelt. Spiele weiter, um die Statistik aufzubauen!</p>';
     }
 
-    // GEÄNDERT: updateButtonDisplay ist nicht mehr async
     function updateButtonDisplay() {
         const scoreboardBtn = document.getElementById('scoreboard-trigger');
         const indicator = document.getElementById('scoreboard-status-indicator');
         if (!scoreboardBtn || !indicator) return;
-        // GEÄNDERT: Lese Daten aus localStorage
         const syncInfo = JSON.parse(localStorage.getItem(SYNC_INFO_KEY) || 'null');
         if (!syncInfo) {
             scoreboardBtn.title = 'Noch keine Daten synchronisiert.';
@@ -227,6 +220,7 @@
         indicator.className = syncInfo.newMissionsFound ? 'status-new' : 'status-synced';
     }
 
+    // GEÄNDERT: Neuer CSS-Stil für geplante Einsätze
     function addStyles() {
         if (document.getElementById('scoreboard-styles')) return;
         const style = document.createElement('style');
@@ -255,6 +249,7 @@
             .details-container table { width: 100%; border-collapse: collapse; }
             .details-container th { text-align: left; padding: 8px; border-bottom: 2px solid #7289da; }
             .details-container td { padding: 8px; border-bottom: 1px solid #4a4e54; }
+            .details-container tr.is-planned-mission td { background-color: rgba(255, 255, 255, 0.05); font-style: italic; } /* NEUER STIL */
             .details-container tr:last-child td { border-bottom: none; }
             .details-no-missions { color: #b9bbbe; font-style: italic; }
             .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
@@ -264,6 +259,7 @@
         document.head.appendChild(style);
     }
 
+    // GEÄNDERT: Fügt eine CSS-Klasse für geplante Einsätze hinzu
     function generateDetailsTableHTML(userId) {
         const userMissions = currentMissions.filter(m => m.user_id == userId).sort((a,b) => b.alliance_shared_at - a.alliance_shared_at);
         if (userMissions.length === 0) {
@@ -271,7 +267,8 @@
         }
         let tableHTML = '<div class="details-table-wrapper"><table><thead><tr><th>Einsatz</th><th>Geteilt am</th><th>Credits</th></tr></thead><tbody>';
         userMissions.forEach(m => {
-            tableHTML += `<tr><td>${m.caption}</td><td>${formatTimestamp(m.alliance_shared_at)}</td><td>${(m.average_credits || 0).toLocaleString('de-DE')}</td></tr>`;
+            const rowClass = m.sw === true ? 'class="is-planned-mission"' : ''; // NEU
+            tableHTML += `<tr ${rowClass}><td>${m.caption}</td><td>${formatTimestamp(m.alliance_shared_at)}</td><td>${(m.average_credits || 0).toLocaleString('de-DE')}</td></tr>`;
         });
         tableHTML += '</tbody></table></div>';
         return tableHTML;
