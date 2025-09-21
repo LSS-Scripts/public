@@ -1,1 +1,1 @@
-Dieses Skript fügt dem Spiel einen "Scoreboard"-Button hinzu, der eine Rangliste der Verbandsmitglieder basierend auf der Anzahl ihrer geteilten Einsätze anzeigt.
+Dieses Skript fügt dem Spiel einen "Scoreboard"-Button hinzu, der eine Rangliste der Verbandsmitglieder basierend auf der Anzahl ihrer geteilten Einsätze anzeigt. Die Zählung erfolgt clientseitig und erfasst nur Einsätze, die erscheinen, während das Spiel in einem Browser-Tab aktiv ist.
