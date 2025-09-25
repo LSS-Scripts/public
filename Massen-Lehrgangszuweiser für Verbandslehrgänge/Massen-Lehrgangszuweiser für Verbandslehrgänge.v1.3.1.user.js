@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.3.0
+// @version      1.3.1
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -22,12 +22,14 @@
     style.textContent = `
         #multiSchoolingContainer {
             border-radius: 6px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            border: 1px solid #2c3e50; /* Dunkelblau als Akzent */
-            overflow: hidden; /* Stellt sicher, dass die Ecken rund bleiben */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            /* NEU: Randfarbe, die auf beiden Themes gut aussieht */
+            border: 1px solid #5a6268; 
+            overflow: hidden;
+            /* WICHTIG: Es wird kein eigener Hintergrund gesetzt, um den des Spiels zu übernehmen */
         }
         .msc-header {
-            background: linear-gradient(to right, #34495e, #2c3e50); /* Eleganter Verlauf */
+            background: linear-gradient(to right, #34495e, #2c3e50);
             color: white;
             padding: 12px 18px;
             font-size: 1.2em;
@@ -35,27 +37,33 @@
         }
         .msc-body {
             padding: 18px;
-            background-color: #f8f9fa; /* Sehr helles Grau für den Inhalt */
+            /* KORREKTUR: Die feste Hintergrundfarbe wurde entfernt. Das war die Hauptursache! */
         }
         .msc-course-item, .msc-select-all-container {
             padding: 12px;
             border-radius: 4px;
             transition: background-color 0.2s ease-in-out;
             cursor: pointer;
-            display: flex; /* Für bessere Ausrichtung */
-            align-items: center; /* Zentriert Checkbox und Text vertikal */
+            display: flex;
+            align-items: center;
         }
         .msc-course-item:hover, .msc-select-all-container:hover {
-            background-color: #e9ecef; /* Heller Hover-Effekt */
+            /* KORREKTUR: Ein semi-transparenter Hintergrund, der auf hell & dunkel funktioniert */
+            background-color: rgba(120, 120, 120, 0.15);
         }
         .msc-course-item input[type="checkbox"], .msc-select-all-container input[type="checkbox"] {
             margin-right: 12px;
-            transform: scale(1.2); /* Macht die Checkbox etwas größer */
+            transform: scale(1.2);
         }
         .msc-select-all-container {
-            border-bottom: 2px solid #dee2e6;
+            /* KORREKTUR: Eine semi-transparente Trennlinie, die auf beiden Themes passt */
+            border-bottom: 2px solid rgba(140, 140, 140, 0.3);
             margin-bottom: 10px;
             font-weight: bold;
+        }
+        /* Stellt sicher, dass der Text die richtige, vom Theme vorgegebene Farbe hat */
+        .msc-body, .msc-body label {
+           color: inherit !important;
         }
         #multiSchoolingList p {
             font-size: 1.1em;
