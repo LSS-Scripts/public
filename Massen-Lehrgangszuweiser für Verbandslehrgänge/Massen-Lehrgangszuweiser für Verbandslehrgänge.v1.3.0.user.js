@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.2.1
+// @version      1.3.0
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -18,6 +18,50 @@
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     async function init() {
+        const style = document.createElement('style');
+    style.textContent = `
+        #multiSchoolingContainer {
+            border-radius: 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border: 1px solid #2c3e50; /* Dunkelblau als Akzent */
+            overflow: hidden; /* Stellt sicher, dass die Ecken rund bleiben */
+        }
+        .msc-header {
+            background: linear-gradient(to right, #34495e, #2c3e50); /* Eleganter Verlauf */
+            color: white;
+            padding: 12px 18px;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .msc-body {
+            padding: 18px;
+            background-color: #f8f9fa; /* Sehr helles Grau für den Inhalt */
+        }
+        .msc-course-item, .msc-select-all-container {
+            padding: 12px;
+            border-radius: 4px;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+            display: flex; /* Für bessere Ausrichtung */
+            align-items: center; /* Zentriert Checkbox und Text vertikal */
+        }
+        .msc-course-item:hover, .msc-select-all-container:hover {
+            background-color: #e9ecef; /* Heller Hover-Effekt */
+        }
+        .msc-course-item input[type="checkbox"], .msc-select-all-container input[type="checkbox"] {
+            margin-right: 12px;
+            transform: scale(1.2); /* Macht die Checkbox etwas größer */
+        }
+        .msc-select-all-container {
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        #multiSchoolingList p {
+            font-size: 1.1em;
+        }
+    `;
+    document.head.appendChild(style);
         // *** KORRIGIERTER SELEKTOR ***
         // Sucht jetzt wieder zuverlässig nach dem Button, ohne eine Formular-ID vorauszusetzen.
         const assignButton = document.querySelector('input[name="commit"][value="Ausbilden"]');
@@ -34,13 +78,13 @@
 
         const container = document.createElement('div');
         container.id = 'multiSchoolingContainer';
-        container.className = 'panel panel-default';
+        // Die alte `className` und `style` werden nicht mehr gebraucht, das macht jetzt alles der CSS-Block.
         container.style.marginTop = '20px';
         container.innerHTML = `
-            <div class="panel-heading" style="background-color: #f5f5f5; border-bottom: 1px solid #ddd;">
-                <h4>Zusätzliche identische Lehrgänge auswählen</h4>
+            <div class="msc-header">
+                🎓 Massen-Zuweisung für identische Lehrgänge
             </div>
-            <div class="panel-body" id="multiSchoolingList">
+            <div class="msc-body" id="multiSchoolingList">
                 <p>Suche nach identischen Lehrgängen mit freien Plätzen...</p>
                 <img src="/images/ajax-loader.gif" class="ajax-loader" style="display: block; margin-top: 10px;">
             </div>
@@ -64,14 +108,37 @@
 
             const listElement = document.getElementById('multiSchoolingList');
             if (similarCourses.length > 0) {
-                listElement.innerHTML = similarCourses.map(course => `
-                    <div class="form-check" style="margin-bottom: 5px;">
+                // HTML für die "Alle auswählen" Checkbox
+                const selectAllHTML = `
+                    <div class="form-check msc-select-all-container">
+                        <input class="form-check-input" type="checkbox" id="selectAllCourses">
+                        <label class="form-check-label" for="selectAllCourses">
+                            Alle verfügbaren Lehrgänge auswählen
+                        </label>
+                    </div>
+                `;
+
+                // HTML für die einzelnen Lehrgänge mit neuen Klassen
+                const coursesHTML = similarCourses.map(course => `
+                    <div class="form-check msc-course-item">
                         <input class="form-check-input multi-schooling-checkbox" type="checkbox" value="${course.id}" id="course-${course.id}" data-spaces="${course.open_spaces}">
-                        <label class="form-check-label" for="course-${course.id}">
-                            ID: ${course.id} | Freie Plätze: <strong>${course.open_spaces}</strong> | Start: ${new Date(course.finish_time).toLocaleString()}
+                        <label class="form-check-label" for="course-${course.id}" style="cursor:pointer; width: 100%;">
+                            ID: ${course.id} | Freie Plätze: <strong>${course.open_spaces}</strong> | Start: ${new Date(course.finish_time).toLocaleString('de-DE')}
                         </label>
                     </div>
                 `).join('');
+
+                listElement.innerHTML = selectAllHTML + coursesHTML;
+
+                // Event-Listener für die neue "Alle auswählen" Checkbox
+                const selectAllCheckbox = document.getElementById('selectAllCourses');
+                selectAllCheckbox.addEventListener('change', (event) => {
+                    const isChecked = event.target.checked;
+                    document.querySelectorAll('.multi-schooling-checkbox').forEach(checkbox => {
+                        checkbox.checked = isChecked;
+                    });
+                });
+
             } else {
                 listElement.innerHTML = '<p>Keine weiteren, noch nicht gestarteten, identischen Lehrgänge mit freien Plätzen gefunden.</p>';
             }
