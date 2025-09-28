@@ -92,8 +92,8 @@
   },
   {
     "name": "Lehrgangsabbrecher",
-    "version": "1.4.3",
-    "fileName": "Lehgangsabbrecher.v1.4.3.user.js",
+    "version": "1.5.0",
+    "fileName": "Lehgangsabbrecher.v1.5.0.user.js",
     "description": "Sorgt in der Lehrgangsübersicht für gesammelte Abbruchmöglichkeiten für unbesetzte Lehrgänge (alle, pro Schule und auch einzelne Lehrgänge)",
     "changelog": ""
   },
