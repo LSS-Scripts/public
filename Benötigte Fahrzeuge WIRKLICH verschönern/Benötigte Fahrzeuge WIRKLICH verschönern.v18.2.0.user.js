@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.1.9
+// @version      18.2.0
 // @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
