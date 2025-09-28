@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lehrgangsabbrecher (Final)
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.0.1
 // @description  Stabile Version: Bricht gezielt Lehrgänge mit 10 freien Plätzen ab. Bietet globale, schul-spezifische und einzelne Abbruchfunktionen.
 // @author       Masklin (Komplettüberholung durch Gemini)
 // @match        https://www.leitstellenspiel.de/buildings/*
@@ -199,8 +199,10 @@
             const linksInSchool = collectLinks(schoolContainer);
             if (linksInSchool.length > 0) {
                 const btn = document.createElement('button');
-                btn.className = 'btn btn-xs btn-danger pull-right';
+                // KORREKTUR: 'pull-right' entfernt, da es zu Layout-Problemen führen kann.
+                btn.className = 'btn btn-xs btn-danger';
                 btn.textContent = `${linksInSchool.length} offene abbrechen`;
+                btn.style.marginLeft = '10px'; // Sicherer Abstand
                 btn.onclick = e => {
                     e.preventDefault();
                     if (confirm(`Möchtest du ${linksInSchool.length} Lehrgänge in dieser Schule abbrechen?`)) callCancelLinks(linksInSchool);
