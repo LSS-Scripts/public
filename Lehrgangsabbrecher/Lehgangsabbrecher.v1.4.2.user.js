@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Lehrgangsabbrecher
+// @name         Lehrgangsabbrecher (IndexedDB Version)
 // @namespace    http://tampermonkey.net/
-// @version      1.4.1
-// @description  Sammelt Links zu Lehrgängen mit 10 freien Plätzen auf Leitstellenspiel.de und ruft deren Abbruch-URLs im Hintergrund auf, mit Fortschrittsanzeige und Einzel-Abbrechfunktion.
-// @author       Masklin
+// @version      1.4.2
+// @description  Sammelt Links zu Lehrgängen mit 10 freien Plätzen auf Leitstellenspiel.de und ruft deren Abbruch-URLs im Hintergrund auf, mit Fortschrittsanzeige und Einzel-Abbrechfunktion. Umgebaut auf IndexedDB für bessere Kompatibilität.
+// @author       Masklin (Umbau von Gemini)
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @match        https://leitstellenspiel.de/buildings/*
 // @match        https://missionchief.com/buildings/*
@@ -18,8 +18,6 @@
 // @exclude      *://*/*alliance*
 // @exclude      *://*/*profile*
 // @grant        GM_xmlhttpRequest
-// @grant        GM_setValue
-// @grant        GM_getValue
 // @grant        GM_notification
 // @grant        GM_info
 // @grant        GM_addStyle
@@ -35,6 +33,53 @@
     const UI_PANEL_ID = 'lss-schooling-crawler-control-panel'; // Eindeutige ID für das Panel
     const STORAGE_KEY_INITIATE_FULL_PROCESS = 'lss_initiate_full_schooling_process'; // Neuer Schlüssel für den Status
 
+    // --- IndexedDB Hilfsfunktionen (Ersatz für GM_getValue / GM_setValue) ---
+    const DB_NAME = 'LssLehrgangsAbbrecherDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'script_data';
+    let dbPromise = null;
+
+    function getDb() {
+        if (!dbPromise) {
+            dbPromise = new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject("IndexedDB konnte nicht geöffnet werden.");
+                request.onsuccess = event => resolve(event.target.result);
+                request.onupgradeneeded = event => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+            });
+        }
+        return dbPromise;
+    }
+
+    async function dbGetValue(key, defaultValue) {
+        const db = await getDb();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readonly');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.get(key);
+            request.onerror = () => reject("Fehler beim Lesen aus IndexedDB.");
+            request.onsuccess = () => {
+                resolve(request.result !== undefined ? request.result : defaultValue);
+            };
+        });
+    }
+
+    async function dbSetValue(key, value) {
+        const db = await getDb();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction(STORE_NAME, 'readwrite');
+            const store = transaction.objectStore(STORE_NAME);
+            const request = store.put(value, key);
+            request.onerror = () => reject("Fehler beim Schreiben in IndexedDB.");
+            request.onsuccess = () => resolve(true);
+        });
+    }
+
     // --- Globale Variablen ---
     let collectedLinks = [];
     let uiPanel = null; // Speichert eine Referenz auf das erstellte UI-Panel
@@ -43,18 +88,22 @@
 
     // --- Hilfsfunktionen zum Laden und Speichern der Links ---
     async function loadCollectedLinks() {
-        const storedLinks = await GM_getValue(STORAGE_KEY_COLLECTED_LINKS, '[]');
+        const storedLinks = await dbGetValue(STORAGE_KEY_COLLECTED_LINKS, '[]');
         try {
-            collectedLinks = JSON.parse(storedLinks);
-            collectedLinks = Array.from(new Set(collectedLinks)); // Duplikate entfernen
+            // Falls der Wert direkt als Array gespeichert wurde, wird er korrekt behandelt.
+            // Falls er als String gespeichert wurde (wie bei GM_getValue), wird er geparst.
+            const parsedLinks = typeof storedLinks === 'string' ? JSON.parse(storedLinks) : storedLinks;
+            collectedLinks = Array.from(new Set(parsedLinks)); // Duplikate entfernen
         } catch (e) {
             collectedLinks = [];
         }
     }
 
     async function saveCollectedLinks() {
-        await GM_setValue(STORAGE_KEY_COLLECTED_LINKS, JSON.stringify(Array.from(new Set(collectedLinks))));
+        // Wir speichern das Array direkt, nicht den JSON-String. IndexedDB kann das.
+        await dbSetValue(STORAGE_KEY_COLLECTED_LINKS, Array.from(new Set(collectedLinks)));
     }
+
 
     /**
      * Setzt den Fortschrittsbalken zurück und zeigt ihn an.
@@ -434,7 +483,7 @@
         }
 
         if (!confirm(`Möchtest du wirklich ${links.length} Lehrgangs-Links im Hintergrund aufrufen, um sie abzubrechen? Dies kann viele Anfragen verursachen.\n\nEs gibt jetzt auch Einzel-Abbrechen-Buttons direkt in den Lehrgangszeilen, wenn der Tab geladen ist!`)) {
-            await GM_setValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+            await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
             return;
         }
 
@@ -542,7 +591,7 @@
             image: 'https://leitstellenspiel.de/images/building_fireschool.png'
         });
 
-        await GM_setValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+        await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
 
         setTimeout(() => {
             if (uiPanel && uiPanel.querySelector('.progress')) {
@@ -562,7 +611,7 @@
      * Startet den gesamten Prozess (Reload -> Sammeln -> Abbrechen)
      */
     async function initiateFullSchoolingProcess() {
-        await GM_setValue(STORAGE_KEY_INITIATE_FULL_PROCESS, true);
+        await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, true);
         GM_notification({
             title: 'LSS Lehrgangs-Sammler',
             text: 'Starte Neu-Laden der Seite und anschließenden globalen Abbruch...',
@@ -805,9 +854,9 @@
                     if (schoolingTableReady) {
                         setTimeout(addSingleCancelAndFinishButtons, 200);
 
-                        const shouldInitiateFullProcess = await GM_getValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+                        const shouldInitiateFullProcess = await dbGetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
                         if (shouldInitiateFullProcess) {
-                            await GM_setValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+                            await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
 
                             collectedLinks = await collectLinksOnly();
                             if (collectedLinks.length > 0) {
@@ -836,9 +885,9 @@
                 if (initialSchoolingTab && initialSchoolingTab.classList.contains('active') && initialSchoolingTab.querySelector('table.building_schooling_table')) {
                     setTimeout(addSingleCancelAndFinishButtons, 200);
 
-                    const shouldInitiateFullProcess = await GM_getValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+                    const shouldInitiateFullProcess = await dbGetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
                     if (shouldInitiateFullProcess) {
-                        await GM_setValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
+                        await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
 
                         collectedLinks = await collectLinksOnly();
                         if (collectedLinks.length > 0) {
