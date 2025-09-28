@@ -317,7 +317,7 @@
         'drohnen-erweiterungen-(fw,-thw,-seg)':['125','126','127','128','129'],'einsatzleiter-2':['34','78','129'],'gw-uas':['127'],
         'gw-bt':['130'],'gw-bt':['130'],'bt-kombi':['131'],'bt-kombi':['131'],'bt-kombis':['131'],'bt-kombis':['131'],'fkh':['141'],
         'bt-lkw':['133'],'betreuungshelfer':['130','131','133'],'verpflegungshelfer':['130','131','133','138','139'],
-        'betreuungs--und-verpflegungsausstattung':['130'],'betreuungs--und-verpflegungsausstattungen':['130'],'polizeipferde':['134','135','136'],
+        'betreuungs--und-verpflegungsausstattung':['130'],'betreuungs--und-verpflegungsausstattungen':['130'],'polizeipferde':['134','135','136'],'polizeipferd':['134','135','136'],
         'reiterstaffeln':['135'],'s-personal-mit-ausbildung':['134','135','136','137'],'fükw-(thw)':['144'],'fükomkw':['145'],'anh-füla':['146'],
         'fmkw':['147'],'mtw-fgr-k':['148'],'höhenrettung-(bergrettung)':['158'],'bergrettungsfahrzeuge':['149'],'hubschrauber-mit-winde':['156','157'],
         'gw-bergrettung':['150'],'gw-bergrettung-(nef)':['149'],'bergrettung':['149','154','158'],
