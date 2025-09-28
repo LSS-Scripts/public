@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Lehrgangsabbrecher (Final)
+// @name         Lehrgangsabbrecher (Stabile Version)
 // @namespace    http://tampermonkey.net/
-// @version      2.0.1
+// @version      2.2.0
 // @description  Stabile Version: Bricht gezielt Lehrgänge mit 10 freien Plätzen ab. Bietet globale, schul-spezifische und einzelne Abbruchfunktionen.
 // @author       Masklin (Komplettüberholung durch Gemini)
 // @match        https://www.leitstellenspiel.de/buildings/*
@@ -18,7 +18,6 @@
 // @exclude      *://*/*alliance*
 // @exclude      *://*/*profile*
 // @grant        GM_xmlhttpRequest
-// @grant        GM_notification
 // @grant        GM_addStyle
 // @connect      *
 // ==/UserScript==
@@ -36,22 +35,43 @@
     let progressBar = null;
     let progressText = null;
 
-    // --- IndexedDB Hilfsfunktionen (Ersatz für GM_setValue/GM_getValue) ---
-    const DB_NAME = 'LssLehrgangsAbbrecherDB_v2';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'script_data';
-    let dbPromise = null;
+    // --- Eigenes Benachrichtigungssystem (Ersatz für GM_notification) ---
+    GM_addStyle(`
+        .lss-custom-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            color: #fff;
+            z-index: 10000;
+            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            opacity: 0.95;
+        }
+        .lss-custom-notification.success { background-color: #28a745; }
+        .lss-custom-notification.error { background-color: #dc3545; }
+    `);
+    function showCustomNotification(text, type = 'success', timeout = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `lss-custom-notification ${type}`;
+        notification.textContent = text;
+        document.body.appendChild(notification);
+        setTimeout(() => document.body.removeChild(notification), timeout);
+    }
 
+    // --- IndexedDB Hilfsfunktionen ---
+    const DB_NAME = 'LssLehrgangsAbbrecherDB_v2';
+    let dbPromise = null;
     function getDb() {
         if (!dbPromise) {
             dbPromise = new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                const request = indexedDB.open(DB_NAME, 1);
                 request.onerror = () => reject("IndexedDB Error");
                 request.onsuccess = event => resolve(event.target.result);
                 request.onupgradeneeded = event => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains(STORE_NAME)) {
-                        db.createObjectStore(STORE_NAME);
+                    if (!event.target.result.objectStoreNames.contains('script_data')) {
+                        event.target.result.createObjectStore('script_data');
                     }
                 };
             });
@@ -61,7 +81,7 @@
     async function dbGetValue(key, defaultValue) {
         const db = await getDb();
         return new Promise(resolve => {
-            const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key);
+            const request = db.transaction('script_data', 'readonly').objectStore('script_data').get(key);
             request.onsuccess = () => resolve(request.result !== undefined ? request.result : defaultValue);
             request.onerror = () => resolve(defaultValue);
         });
@@ -69,23 +89,25 @@
     async function dbSetValue(key, value) {
         const db = await getDb();
         return new Promise(resolve => {
-            const request = db.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME).put(value, key);
+            const request = db.transaction('script_data', 'readwrite').objectStore('script_data').put(value, key);
             request.onsuccess = () => resolve(true);
             request.onerror = () => resolve(false);
         });
     }
 
     // --- UI & Fortschrittsbalken ---
-    function resetProgressBar(totalCalls) {
+    function resetProgressBar(totalCalls) { /* ... (unverändert) ... */ }
+    function updateProgressBar(current, total) { /* ... (unverändert) ... */ }
+    function createUIPanel() { /* ... (unverändert) ... */ }
+    resetProgressBar = function(totalCalls) {
         if (!progressBar || !progressText) return;
         progressBar.style.width = '0%';
         progressBar.classList.remove('progress-bar-success', 'progress-bar-danger');
         progressBar.classList.add('active', 'progress-bar-striped');
         progressText.textContent = `Vorbereitung... (0/${totalCalls})`;
         uiPanel.querySelector('.progress').style.display = 'block';
-    }
-
-    function updateProgressBar(current, total) {
+    };
+    updateProgressBar = function(current, total) {
         if (!progressBar || !progressText) return;
         const percentage = total > 0 ? (current / total) * 100 : 0;
         progressBar.style.width = `${percentage}%`;
@@ -94,9 +116,8 @@
             progressBar.classList.remove('active', 'progress-bar-striped');
             progressBar.classList.add(progressBar.getAttribute('data-has-failed') === 'true' ? 'progress-bar-danger' : 'progress-bar-success');
         }
-    }
-
-    function createUIPanel() {
+    };
+    createUIPanel = function() {
         if (document.getElementById(UI_PANEL_ID)) return;
         uiPanel = document.createElement('div');
         uiPanel.id = UI_PANEL_ID;
@@ -118,20 +139,18 @@
         uiPanel.querySelector('#collectAndCancelBtn').addEventListener('click', initiateFullSchoolingProcess);
         const tabs = document.getElementById('tabs');
         if (tabs) tabs.parentNode.insertBefore(uiPanel, tabs.nextSibling);
-    }
+    };
+
 
     // --- Kernlogik ---
     async function callCancelLinks(linksToProcess, isGlobal = false) {
         if (!linksToProcess || linksToProcess.length === 0) {
-            GM_notification({ title: 'Lehrgangsabbrecher', text: 'Keine passenden Lehrgänge zum Abbrechen gefunden.' });
+            showCustomNotification('Keine passenden Lehrgänge zum Abbrechen gefunden.', 'error');
             return;
         }
-
         const totalCalls = linksToProcess.length;
         if (isGlobal) resetProgressBar(totalCalls);
-
         let callsCompleted = 0, callsFailed = 0;
-
         for (const link of linksToProcess) {
             const match = link.match(/\/schoolings\/(\d+)/);
             if (match && match[1]) {
@@ -153,16 +172,14 @@
                 await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
-        GM_notification({
-            title: 'Lehrgangsabbrecher',
-            text: `Aktion abgeschlossen. Erfolgreich: ${callsCompleted}, Fehlgeschlagen: ${callsFailed}. Seite wird in 5s neu geladen.`,
-            timeout: 5000
-        });
+        showCustomNotification(`Aktion abgeschlossen. Erfolgreich: ${callsCompleted}, Fehlgeschlagen: ${callsFailed}. Seite wird in 5s neu geladen.`, 'success', 5000);
         if (isGlobal) await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
         setTimeout(() => window.location.reload(), 5000);
     }
 
-    function collectLinks(parentElement = document) {
+    function collectLinks(parentElement = document) { /* ... (unverändert) ... */ }
+    async function initiateFullSchoolingProcess() { /* ... (unverändert) ... */ }
+    collectLinks = function(parentElement = document) {
         const links = new Set();
         parentElement.querySelectorAll(`.building_schooling_table tbody tr`).forEach(row => {
             const freeSlotsCell = row.cells[2];
@@ -172,18 +189,19 @@
             }
         });
         return Array.from(links);
-    }
-
-    async function initiateFullSchoolingProcess() {
+    };
+    initiateFullSchoolingProcess = async function() {
         if (confirm(`Möchtest du die Seite wirklich neu laden und danach ALLE offenen Lehrgänge in ALLEN Schulen abbrechen?`)) {
             await dbSetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, true);
             window.location.hash = 'tab_schooling';
             window.location.reload();
         }
-    }
+    };
+
 
     // --- DOM-Manipulation & Überwachung ---
-    function processDOMElements() {
+    function processDOMElements() { /* ... (unverändert, nutzt die korrigierte Logik aus v2.1.0) ... */ }
+    processDOMElements = function() {
         const schoolingTab = document.getElementById('tab_schooling');
         if (!schoolingTab || !schoolingTab.classList.contains('active')) {
             if (uiPanel) uiPanel.style.display = 'none';
@@ -194,20 +212,31 @@
         // 1. Buttons in Schul-Überschriften
         schoolingTab.querySelectorAll('h3:not([data-lss-processed="true"])').forEach(header => {
             header.dataset.lssProcessed = 'true';
-            const schoolContainer = header.closest('.panel, .panel-default');
-            if (!schoolContainer) return;
-            const linksInSchool = collectLinks(schoolContainer);
-            if (linksInSchool.length > 0) {
-                const btn = document.createElement('button');
-                // KORREKTUR: 'pull-right' entfernt, da es zu Layout-Problemen führen kann.
-                btn.className = 'btn btn-xs btn-danger';
-                btn.textContent = `${linksInSchool.length} offene abbrechen`;
-                btn.style.marginLeft = '10px'; // Sicherer Abstand
-                btn.onclick = e => {
-                    e.preventDefault();
-                    if (confirm(`Möchtest du ${linksInSchool.length} Lehrgänge in dieser Schule abbrechen?`)) callCancelLinks(linksInSchool);
-                };
-                header.appendChild(btn);
+            let schoolTable = null;
+            let nextElement = header.nextElementSibling;
+            while (nextElement) {
+                if (nextElement.matches('table.building_schooling_table')) {
+                    schoolTable = nextElement;
+                    break;
+                }
+                schoolTable = nextElement.querySelector('table.building_schooling_table');
+                if (schoolTable) break;
+                nextElement = nextElement.nextElementSibling;
+            }
+
+            if (schoolTable) {
+                const linksInSchool = collectLinks(schoolTable);
+                if (linksInSchool.length > 0) {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-xs btn-danger';
+                    btn.textContent = `${linksInSchool.length} offene abbrechen`;
+                    btn.style.marginLeft = '10px';
+                    btn.onclick = e => {
+                        e.preventDefault();
+                        if (confirm(`Möchtest du ${linksInSchool.length} Lehrgänge in dieser Schule abbrechen?`)) callCancelLinks(linksInSchool);
+                    };
+                    header.appendChild(btn);
+                }
             }
         });
 
@@ -237,7 +266,8 @@
                 }
             });
         });
-    }
+    };
+
 
     // --- Skript-Start ---
     if (window.top === window.self && window.location.pathname.startsWith('/buildings/')) {
@@ -247,14 +277,12 @@
             const observer = new MutationObserver(() => processDOMElements());
             observer.observe(tabContentContainer, { childList: true, subtree: true });
         }
-
         (async () => {
             processDOMElements(); // Initialer Lauf
             if (window.location.hash === '#tab_schooling') {
                 const shouldStartFullProcess = await dbGetValue(STORAGE_KEY_INITIATE_FULL_PROCESS, false);
                 if (shouldStartFullProcess) {
-                    const allLinks = collectLinks();
-                    await callCancelLinks(allLinks, true);
+                    await callCancelLinks(collectLinks(), true);
                 }
             }
         })();
