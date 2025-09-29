@@ -77,6 +77,13 @@
     "changelog": ""
   },
   {
+    "name": "Fahrzeuge in Wache umbenennen",
+    "version": "",
+    "fileName": "Fahrzeuge umbenennen.v1.7.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Fahrzeugfilter",
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
