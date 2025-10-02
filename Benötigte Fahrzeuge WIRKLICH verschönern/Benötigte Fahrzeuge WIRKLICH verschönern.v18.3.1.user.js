@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.3.0
+// @version      18.3.1
 // @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
@@ -390,7 +390,7 @@
         "ELW Drohne": 5,
         "ELW2 Drohne": 6,
         "Rettungstreppe": 2,
-        "GW-Bergrettung": 6,
+        "GW-Höhenrettung": 9,
         "WLF": 3,
         "FwK": 2,
         "Dekon-P": 6,
@@ -452,7 +452,7 @@
         "ELW Drohne": 5,
         "ELW2 Drohne": 6,
         "Rettungstreppe": 2,
-        "GW-Bergrettung": 6,
+        "GW-Höhenrettung": 9,
         "WLF": 3,
         "FwK": 2,
         "Dekon-P": 6,
