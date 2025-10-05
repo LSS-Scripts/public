@@ -56,6 +56,13 @@
     "changelog": ""
   },
   {
+    "name": "Erweiterungsanzeige & Schnellbau",
+    "version": "4.1.0",
+    "fileName": "Erweiterungsanzeige & Schnellbau.v4.1.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
