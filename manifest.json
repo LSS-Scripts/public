@@ -59,7 +59,7 @@
     "name": "Erweiterungsanzeige & Schnellbau",
     "version": "4.1.0",
     "fileName": "Erweiterungsanzeige & Schnellbau.v4.1.0.user.js",
-    "description": "",
+    "description": "Dieses Script verpasst der Ausbau-Ansicht in Wachen eine moderne, interaktive Oberfläche für den perfekten Überblick. Es ermöglicht den gleichzeitigen Bau mehrerer ausgewählter Erweiterungen mit nur einem Klick und speichert die Auswahl als globale Vorlage für alle weiteren Wachen.",
     "changelog": ""
   },
   {
