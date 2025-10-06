@@ -1,4 +1,6 @@
 BETA!!!!!
 <br>
-Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich
+Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich.
+<br>
+Man kann mit Platzhaltern arbeiten: [PLZ] [ORT] [NR] (für PLZ & Ort erst Adressliste laden. dafür müssen alle Fzg. aktuell auf status 2 sein.)
 <br>VG M.
