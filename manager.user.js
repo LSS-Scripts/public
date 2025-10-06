@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.4.2
+// @version      13.4.3
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
@@ -842,8 +842,11 @@
             });
         });
         window.BMScriptManager.openDatabase().then(() => {
-            window.BMScriptManager.checkForUpdatesInBackground();
-        });
+    // Starte die Prüfung erst nach einer kurzen Verzögerung
+    setTimeout(() => {
+        window.BMScriptManager.checkForUpdatesInBackground();
+    }, 4000); // 4000 Millisekunden = 4 Sekunden Verzögerung
+    });
 
         window.BMScriptManager.runActiveScripts();
     });
