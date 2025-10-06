@@ -5,8 +5,6 @@
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
-// @downloadURL  https://raw.githubusercontent.com/LSS-Scripts/public/main/manager.user.js
-// @updateURL    https://raw.githubusercontent.com/LSS-Scripts/public/main/manager.user.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @run-at       document-start
