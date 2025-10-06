@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      17.3.0
+// @version      17.3.1
 // @description  Standalone-Tool filtert jetzt sofort und zeigt die exakte Anzahl umrüstbarer Fahrzeuge direkt auf den Buttons an.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
