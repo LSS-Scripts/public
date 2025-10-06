@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.3.7 (Reactivation Fix)
+// @version      13.4.0
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
@@ -552,12 +552,83 @@
                     }
                 }
                 console.log(`[B&M Manager] Alle Änderungen verarbeitet. Aktualisiere UI...`);
+                localStorage.removeItem('bm_update_available');
                 await window.BMScriptManager.loadAndDisplayScripts(true);
             } catch (error) {
                 console.error('[B&M Manager] Ein Fehler ist beim Anwenden der Änderungen aufgetreten:', error);
             } finally {
                 saveButton.disabled = false;
                 saveButton.innerHTML = 'Änderungen anwenden';
+            }
+        },
+        checkForUpdatesInBackground: async function() {
+            // Hier kannst du das Intervall später leicht anpassen (z.B. auf 60 * 60 * 1000 für eine Stunde)
+            const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 Minuten
+            const now = Date.now();
+            const lastCheck = parseInt(localStorage.getItem('bm_last_update_check') || '0');
+
+            if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+                console.log(`[B&M Manager] Update-Prüfung übersprungen, letzte Prüfung war vor weniger als ${UPDATE_CHECK_INTERVAL_MS / 60000} Minuten.`);
+                // Prüfen, ob eine Benachrichtigung von einer früheren Prüfung noch aktiv sein sollte
+                if (localStorage.getItem('bm_update_available') === 'true') {
+                    this.showUpdateNotification();
+                }
+                return;
+            }
+
+            console.log('[B&M Manager] Führe Update-Prüfung im Hintergrund aus...');
+            localStorage.setItem('bm_last_update_check', now.toString());
+            localStorage.setItem('bm_update_available', 'false'); // Zurücksetzen
+
+            try {
+                // Online-Skripte abrufen (vereinfachte Logik aus loadAndDisplayScripts)
+                const publicRepoInfo = { owner: GITHUB_REPO_OWNER, name: GITHUB_REPO_NAME, token: null };
+                const publicScripts = await this.fetchScriptsWithManifest(publicRepoInfo);
+
+                // Hier könnten bei Bedarf auch private Repos geprüft werden, für den Anfang reicht aber das öffentliche.
+
+                const allOnlineScripts = publicScripts.flat();
+                const localScripts = await this.getScriptsFromDB();
+                const activeLocalScripts = localScripts.filter(s => s.isActive !== false);
+
+                if (activeLocalScripts.length === 0) return; // Keine aktiven Skripte, keine Prüfung nötig
+
+                const onlineScriptsMap = new Map(allOnlineScripts.map(s => [s.name, s.version]));
+                let updateFound = false;
+
+                for (const localScript of activeLocalScripts) {
+                    if (onlineScriptsMap.has(localScript.name)) {
+                        const onlineVersion = onlineScriptsMap.get(localScript.name);
+                        if (this.compareVersions(onlineVersion, localScript.version) > 0) {
+                            console.log(`[B&M Manager] Update für '${localScript.name}' gefunden: ${localScript.version} -> ${onlineVersion}`);
+                            updateFound = true;
+                            break; // Ein Fund reicht aus
+                        }
+                    }
+                }
+
+                if (updateFound) {
+                    localStorage.setItem('bm_update_available', 'true');
+                    this.showUpdateNotification();
+                    console.log('[B&M Manager] UI-Cache wird invalidiert, um sofortige Update-Anzeige zu erzwingen.');
+                    sessionStorage.removeItem('bm_cache_data');
+                    sessionStorage.removeItem('bm_cache_timestamp');
+                }
+            } catch (error) {
+                console.error('[B&M Manager] Fehler bei der Hintergrund-Update-Prüfung:', error);
+            }
+        },
+
+        showUpdateNotification: function() {
+            const profileMenuLink = document.getElementById('menu_profile');
+            const bmManagerLink = document.getElementById('b-m-scriptmanager-link');
+
+            if (profileMenuLink) {
+                // Diese Klasse wird vom Spiel selbst für grüne Hintergründe genutzt (z.B. bei neuen Forum-Posts)
+                profileMenuLink.classList.add('alliance_forum_new');
+            }
+            if (bmManagerLink) {
+                bmManagerLink.classList.add('bm-update-highlight');
             }
         },
         getSettings: function(scriptName) {
@@ -661,6 +732,7 @@
         #bm-script-filter { width: 100%; padding: 8px 40px 8px 10px; margin-bottom: 20px; background-color: #333; color: #eee; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; }
         #bm-refresh-btn { position: absolute; right: 10px; top: 7px; font-size: 1.5em; cursor: pointer; color: #aaa; transition: color .2s, transform .5s; }
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
+        #b-m-scriptmanager-link.bm-update-highlight { background-color: #28a745; border-radius: 3px; }
         #script-list { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
         .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.85em; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .script-button.hidden { display: none; }
@@ -769,6 +841,9 @@
                 const isMatch = scriptName.includes(searchTerm) || scriptInfo.includes(searchTerm);
                 button.classList.toggle('hidden', !isMatch);
             });
+        });
+        window.BMScriptManager.openDatabase().then(() => {
+            window.BMScriptManager.checkForUpdatesInBackground();
         });
 
         window.BMScriptManager.runActiveScripts();
