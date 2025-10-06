@@ -8,7 +8,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @run-at       document-start
-// ==UserScript==
+// ==/UserScript==
 
 (function() {
     'use strict';
