@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      17.2.0
+// @version      17.3.0
 // @description  Standalone-Tool filtert jetzt sofort und zeigt die exakte Anzahl umrüstbarer Fahrzeuge direkt auf den Buttons an.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
@@ -505,6 +505,7 @@
                            <select id="lssToolVehicleTypeFilter" class="form-control" style="width: 250px; height: 100px;" size="5" disabled><option value="-1">Alle Fahrzeugtypen</option></select>
                         </div>
                         <select id="lssToolFmsFilter" class="form-control" style="width: 150px;" disabled><option value="-1">Alle FMS</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option></select>
+                        <select id="lssToolLeitstellenFilter" class="form-control" style="width: 200px;" disabled><option value="-1">Alle Leitstellen</option></select>
                         <span id="lssToolVehicleCount" style="font-weight: bold; margin-left: auto;"></span>
                     </div>
                     <div id="lssToolActionButtons" style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; min-height: 34px;"></div>
@@ -518,6 +519,7 @@
         document.getElementById('lssToolVehicleTypeSearch').addEventListener('input', filterVehicleDropdown);
         document.getElementById('lssToolVehicleTypeFilter').addEventListener('change', handleApplyFilters);
         document.getElementById('lssToolFmsFilter').addEventListener('change', handleApplyFilters);
+        document.getElementById('lssToolLeitstellenFilter').addEventListener('change', handleApplyFilters);
         handleLoadApiData();
     }
 
@@ -539,51 +541,108 @@
     }
 
     async function handleLoadApiData() {
-        const btn = document.getElementById('lssToolLoadDataBtn');
-        btn.textContent = 'Lade...'; btn.disabled = true;
-        document.getElementById('lssToolVehicleCount').textContent = 'Lade Fahrzeuge...';
-        maxStatsCache = {};
-        try {
-            const response = await fetch('/api/vehicles');
-            if (!response.ok) throw new Error(`Serverantwort: ${response.status}`);
-            allApiVehicles = await response.json();
-            document.getElementById('lssToolVehicleCount').textContent = `${allApiVehicles.length} Fahrzeuge geladen. Bitte Filter anwenden.`;
-            const vehicleTypeFilter = document.getElementById('lssToolVehicleTypeFilter');
-            vehicleTypeFilter.innerHTML = '<option value="-1">Alle Fahrzeugtypen</option>';
-            const ownedTypes = new Set(allApiVehicles.map(v => v.vehicle_type));
-            const processedTypes = new Set();
-            for (const groupName in VEHICLE_GROUPS) {
-                const groupOpt = document.createElement('optgroup');
-                groupOpt.label = groupName;
-                const typesInGroup = VEHICLE_GROUPS[groupName].filter(typeId => ownedTypes.has(typeId)).sort((a, b) => (VEHICLE_TYPE_MAP[a] || '').localeCompare(VEHICLE_TYPE_MAP[b] || ''));
-                if (typesInGroup.length > 0) {
-                    typesInGroup.forEach(typeId => { const typeName = VEHICLE_TYPE_MAP[typeId] || `Typ ${typeId}`; const option = document.createElement('option'); option.value = typeId; option.textContent = typeName; groupOpt.appendChild(option); processedTypes.add(typeId); });
-                    vehicleTypeFilter.appendChild(groupOpt);
-                }
+    const btn = document.getElementById('lssToolLoadDataBtn');
+    btn.textContent = 'Lade...'; btn.disabled = true;
+    document.getElementById('lssToolVehicleCount').textContent = 'Lade Fahrzeuge...';
+    maxStatsCache = {};
+
+    try {
+        // Beide API-Endpunkte parallel abrufen
+        const [vehiclesResponse, buildingsResponse] = await Promise.all([
+            fetch('/api/vehicles'),
+            fetch('/api/buildings')
+        ]);
+
+        if (!vehiclesResponse.ok) throw new Error(`Serverantwort Fahrzeuge: ${vehiclesResponse.status}`);
+        if (!buildingsResponse.ok) throw new Error(`Serverantwort Gebäude: ${buildingsResponse.status}`);
+
+        const vehicles = await vehiclesResponse.json();
+        const buildings = await buildingsResponse.json();
+
+        // 1. Eine Karte erstellen, die jede Wachen-ID einer Leitstellen-ID zuordnet.
+        const buildingToLeitstelleMap = {};
+        const leitstellen = {}; // Zum Sammeln aller Leitstellen für das Dropdown
+        buildings.forEach(building => {
+            // In der buildings-API heißt der Schlüssel "leitstelle_building_id"
+            if (building.leitstelle_building_id) {
+                buildingToLeitstelleMap[building.id] = building.leitstelle_building_id;
             }
-            const otherGroup = document.createElement('optgroup');
-            otherGroup.label = "Sonstige";
-            let hasOthers = false;
-            ownedTypes.forEach(typeId => {
-                if (!processedTypes.has(typeId)) { const typeName = VEHICLE_TYPE_MAP[typeId] || `Typ ${typeId}`; const option = document.createElement('option'); option.value = typeId; option.textContent = typeName; otherGroup.appendChild(option); hasOthers = true; }
-            });
-            if (hasOthers) vehicleTypeFilter.appendChild(otherGroup);
-            vehicleTypeFilter.disabled = false;
-            document.getElementById('lssToolFmsFilter').disabled = false;
-        } catch(e) { alert(`Fehler beim Laden der Fahrzeuge: ${e.message}`); document.getElementById('lssToolVehicleCount').textContent = 'Fehler!'; }
-        finally { btn.textContent = 'Aktualisieren'; btn.disabled = false; await handleApplyFilters(); }
+            // Sammle alle Leitstellen, um das neue Dropdown zu füllen (building_type 7 für Leitstellen im Spiel)
+            if (building.building_type === 7) {
+                leitstellen[building.id] = building.caption;
+            }
+        });
+
+        // 2. Jedes Fahrzeug mit der passenden leitstelle_id anreichern
+        allApiVehicles = vehicles.map(vehicle => {
+            vehicle.leitstelle_id = buildingToLeitstelleMap[vehicle.building_id] || null;
+            return vehicle;
+        });
+
+        document.getElementById('lssToolVehicleCount').textContent = `${allApiVehicles.length} Fahrzeuge geladen. Bitte Filter anwenden.`;
+
+        // Teil 1: Fahrzeugtyp-Filter befüllen (dieser Teil bleibt fast gleich)
+        const vehicleTypeFilter = document.getElementById('lssToolVehicleTypeFilter');
+        vehicleTypeFilter.innerHTML = '<option value="-1">Alle Fahrzeugtypen</option>';
+        const ownedTypes = new Set(allApiVehicles.map(v => v.vehicle_type));
+        const processedTypes = new Set();
+        for (const groupName in VEHICLE_GROUPS) {
+            const groupOpt = document.createElement('optgroup');
+            groupOpt.label = groupName;
+            const typesInGroup = VEHICLE_GROUPS[groupName].filter(typeId => ownedTypes.has(typeId)).sort((a, b) => (VEHICLE_TYPE_MAP[a] || '').localeCompare(VEHICLE_TYPE_MAP[b] || ''));
+            if (typesInGroup.length > 0) {
+                typesInGroup.forEach(typeId => { const typeName = VEHICLE_TYPE_MAP[typeId] || `Typ ${typeId}`; const option = document.createElement('option'); option.value = typeId; option.textContent = typeName; groupOpt.appendChild(option); processedTypes.add(typeId); });
+                vehicleTypeFilter.appendChild(groupOpt);
+            }
+        }
+        const otherGroup = document.createElement('optgroup');
+        otherGroup.label = "Sonstige";
+        let hasOthers = false;
+        ownedTypes.forEach(typeId => {
+            if (!processedTypes.has(typeId)) { const typeName = VEHICLE_TYPE_MAP[typeId] || `Typ ${typeId}`; const option = document.createElement('option'); option.value = typeId; option.textContent = typeName; otherGroup.appendChild(option); hasOthers = true; }
+        });
+        if (hasOthers) vehicleTypeFilter.appendChild(otherGroup);
+
+        // 3. NEU: Das Leitstellen-Dropdown befüllen
+        const leitstellenFilter = document.getElementById('lssToolLeitstellenFilter');
+        leitstellenFilter.innerHTML = '<option value="-1">Alle Leitstellen</option>';
+        // Leitstellen sortieren und einfügen
+        Object.keys(leitstellen).sort((a, b) => leitstellen[a].localeCompare(leitstellen[b])).forEach(id => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = leitstellen[id];
+            leitstellenFilter.appendChild(option);
+        });
+
+        // Alle Filter aktivieren
+        vehicleTypeFilter.disabled = false;
+        document.getElementById('lssToolFmsFilter').disabled = false;
+        leitstellenFilter.disabled = false;
+
+    } catch(e) {
+        alert(`Fehler beim Laden der Fahrzeuge: ${e.message}`);
+        document.getElementById('lssToolVehicleCount').textContent = 'Fehler!';
     }
+    finally {
+        btn.textContent = 'Aktualisieren';
+        btn.disabled = false;
+        await handleApplyFilters();
+    }
+}
 
     async function handleApplyFilters() {
-        const typeFilter = document.getElementById('lssToolVehicleTypeFilter').value;
-        const fmsFilter = document.getElementById('lssToolFmsFilter').value;
-        currentlyFilteredVehicles = allApiVehicles.filter(v =>
-            (typeFilter == -1 || v.vehicle_type == typeFilter) &&
-            (fmsFilter == -1 || v.fms_real == fmsFilter)
-        );
-        document.getElementById('lssToolVehicleCount').textContent = `${currentlyFilteredVehicles.length} Fahrzeuge im Filter`;
-        await generateActionButtonsForApi();
-    }
+    const typeFilter = document.getElementById('lssToolVehicleTypeFilter').value;
+    const fmsFilter = document.getElementById('lssToolFmsFilter').value;
+    const leitstellenFilter = document.getElementById('lssToolLeitstellenFilter').value; // Neuer Filter
+
+    currentlyFilteredVehicles = allApiVehicles.filter(v =>
+        (typeFilter == -1 || v.vehicle_type == typeFilter) &&
+        (fmsFilter == -1 || v.fms_real == fmsFilter) &&
+        (leitstellenFilter == -1 || v.leitstelle_id == leitstellenFilter) // Neue Bedingung
+    );
+    document.getElementById('lssToolVehicleCount').textContent = `${currentlyFilteredVehicles.length} Fahrzeuge im Filter`;
+    await generateActionButtonsForApi();
+}
 
     async function generateActionButtonsForApi() {
         const container = document.getElementById('lssToolActionButtons');
