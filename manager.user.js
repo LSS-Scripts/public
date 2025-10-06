@@ -3,7 +3,7 @@
 // @namespace    https://github.com/LSS-Scripts/public
 // @version      13.4.1
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
-// @author       Dein Name (und Gemini)
+// @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
