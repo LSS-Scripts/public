@@ -781,6 +781,8 @@
         .bm-settings-footer button#bm-settings-cancel { background-color: #6c757d; }
     `);
 
+    if (window.location.href.startsWith('https://www.leitstellenspiel.de')) {
+
     document.addEventListener('DOMContentLoaded', () => {
         const container = document.createElement('div');
         container.id = 'lss-script-manager-container';
@@ -841,13 +843,16 @@
                 button.classList.toggle('hidden', !isMatch);
             });
         });
-        window.BMScriptManager.openDatabase().then(() => {
-    // Starte die Prüfung erst nach einer kurzen Verzögerung
-    setTimeout(() => {
-        window.BMScriptManager.checkForUpdatesInBackground();
-    }, 4000); // 4000 Millisekunden = 4 Sekunden Verzögerung
     });
 
+    // Diese Aktionen starten jetzt nur noch auf der Zielseite
+    window.BMScriptManager.openDatabase().then(() => {
+        // Wir verzögern die Update-Prüfung trotzdem, um sicherzugehen
+        setTimeout(() => {
+            window.BMScriptManager.checkForUpdatesInBackground();
+        }, 3000); // 3 Sekunden
+        
         window.BMScriptManager.runActiveScripts();
     });
+}
 })();
