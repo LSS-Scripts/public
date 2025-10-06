@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.4.0
+// @version      13.4.1
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten.
 // @author       Dein Name (und Gemini)
 // @match        https://www.leitstellenspiel.de/*
@@ -562,8 +562,7 @@
             }
         },
         checkForUpdatesInBackground: async function() {
-            // Hier kannst du das Intervall später leicht anpassen (z.B. auf 60 * 60 * 1000 für eine Stunde)
-            const UPDATE_CHECK_INTERVAL_MS = 2 * 60 * 1000; // 2 Minuten
+            const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 60 Minuten
             const now = Date.now();
             const lastCheck = parseInt(localStorage.getItem('bm_last_update_check') || '0');
 
