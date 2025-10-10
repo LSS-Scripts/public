@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Einsatz Endzeit-Anzeige
 // @namespace    HendrikStaufenbiel
-// @version      3.5.3
+// @version      3.5.4
 // @description  
 // @inspiration  Die Funktion zur Fahrzeughervorhebung basiert auf einem Script von Jan (jxn_30).
 // @author       Hendrik, Masklin (Modifiziert durch KI & Community-Feedback)
@@ -1947,6 +1947,7 @@ function bereinigeAlteEinsaetze() {
 
                 if (needsRefresh && typeof addEndTimes === 'function' && window.location.pathname === '/') {
                     addEndTimes();
+                    document.dispatchEvent(new CustomEvent('eza_refreshed'));
                 }
             });
         } catch (e) {
