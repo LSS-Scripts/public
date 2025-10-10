@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Einsatz Endzeit-Anzeige
 // @namespace    HendrikStaufenbiel
-// @version      3.5.4
+// @version      3.5.5
 // @description  
 // @inspiration  Die Funktion zur Fahrzeughervorhebung basiert auf einem Script von Jan (jxn_30).
 // @author       Hendrik, Masklin (Modifiziert durch KI & Community-Feedback)
@@ -1246,26 +1246,29 @@ function bereinigeAlteEinsaetze() {
             btnNextEnd.addEventListener('click', () => {
                 if (einsatzMitFruehestemEnde) {
                     einsatzMitFruehestemEnde.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const panelHeading = einsatzMitFruehestemEnde.querySelector(`div[id^="mission_panel_heading_"]`);
-                    if (panelHeading) {
-                        const endzeitAnzeigeElement = panelHeading.querySelector('.endzeit-anzeige');
-                        if (endzeitAnzeigeElement) {
-                            const computedStyle = window.getComputedStyle(endzeitAnzeigeElement);
-                            const currentBgColor = computedStyle.backgroundColor;
-                            let animationClassToAdd = 'blink-animation';
+                    
+                    // NEU & KOMPATIBEL: Sucht die Anzeige an BEIDEN Orten.
+                    // Zuerst in der neuen ".mission-card" ODER (das Komma) im alten Panel-Heading.
+                    const endzeitAnzeigeElement = einsatzMitFruehestemEnde.querySelector(
+                        '.mission-card .endzeit-anzeige, div[id^="mission_panel_heading_"] .endzeit-anzeige'
+                    );
 
-                            if (currentBgColor === 'rgb(46, 204, 113)') {
-                                animationClassToAdd = 'blink-green-animation';
-                            }
+                    if (endzeitAnzeigeElement) {
+                        const computedStyle = window.getComputedStyle(endzeitAnzeigeElement);
+                        const currentBgColor = computedStyle.backgroundColor;
+                        let animationClassToAdd = 'blink-animation';
 
-                            endzeitAnzeigeElement.classList.remove('blink-animation', 'blink-green-animation');
-                            setTimeout(() => {
-                                endzeitAnzeigeElement.classList.add(animationClassToAdd);
-                                setTimeout(() => {
-                                    endzeitAnzeigeElement.classList.remove(animationClassToAdd);
-                                }, 5000);
-                            }, 10);
+                        if (currentBgColor === 'rgb(46, 204, 113)') {
+                            animationClassToAdd = 'blink-green-animation';
                         }
+
+                        endzeitAnzeigeElement.classList.remove('blink-animation', 'blink-green-animation');
+                        setTimeout(() => {
+                            endzeitAnzeigeElement.classList.add(animationClassToAdd);
+                            setTimeout(() => {
+                                endzeitAnzeigeElement.classList.remove(animationClassToAdd);
+                            }, 5000);
+                        }, 10);
                     }
                 }
             });
