@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.3.1
+// @version      18.3.2
 // @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
@@ -576,6 +576,9 @@
         "GW-Gefahrgut": 3
     },
     "Personen mit Dekon-P-Ausbildung": {
+        "Dekon-P": 6
+    },
+        "Person mit Dekon-P-Ausbildung": {
         "Dekon-P": 6
     },
     "GW-Wasserrettung": {
