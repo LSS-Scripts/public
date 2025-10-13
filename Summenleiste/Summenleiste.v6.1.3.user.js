@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         LSS - Summenleiste (Version 6.0 - Stabil)
+// @name         LSS - Summenleiste (Version 6.1.3 - Abschlussreife Einsätze)
 // @namespace    http://tampermonkey.net/
-// @version      6.1
-// @description  Stabile, eigenständige Version der Summenleiste mit Warnfunktion. Nutzt einen Timer statt Observer.
-// @author       Masklin, DeinName & Gemini
+// @version      6.1.3
+// @description  Stabile, eigenständige Version der Summenleiste mit Warnfunktion. Zählt zusätzlich abschlussreife Einsätze.
+// @author       Masklin, BAHendrik & Gemini
 // @match        https://www.leitstellenspiel.de/
 // @grant        none
 // ==/UserScript==
@@ -13,10 +13,11 @@
 
     try {
         const ACTIVATION_HOUR = 19;
-        const UPDATE_INTERVAL_MS = 2500; // Aktualisiert die Zahlen alle 2.5 Sekunden
+        const UPDATE_INTERVAL_MS = 2500;
 
-        const mainMissionList = document.getElementById('mission_list');
-        if (!mainMissionList) {
+        const missionsPanelBody = document.getElementById('missions-panel-body');
+        if (!missionsPanelBody) {
+            console.error("[Summenleiste] Das Element #missions-panel-body wurde nicht gefunden. Skript wird beendet.");
             return;
         }
 
@@ -33,14 +34,16 @@
         if (!sumDisplayContainer) {
             sumDisplayContainer = document.createElement('div');
             sumDisplayContainer.id = 'tm-sum-display-container';
+            // ### ANPASSUNG: Text-Label geändert ###
             sumDisplayContainer.innerHTML = `
                 <span id="mission-count-display" title="Sichtbare Einsätze"></span>
-                <span id="credit-sum-display" title="Durchschnittliche Credits"></span>
+                <span id="due-mission-count-display" title="Abschlussreife Einsätze"></span>
+                <span id="credit-sum-display" title="Summe Ø-Credits"></span>
                 <span id="patient-sum-display" title="Patienten"></span>
                 <span id="prisoner-sum-display" title="Gefangene"></span>
                 <span id="endangered-mission-count-display" title="Einsätze, die in der nächsten Nacht gelöscht werden"></span>
             `;
-            mainMissionList.parentNode.insertBefore(sumDisplayContainer, mainMissionList);
+            missionsPanelBody.parentNode.insertBefore(sumDisplayContainer, missionsPanelBody);
         }
 
         const styleElement = document.createElement('style');
@@ -77,7 +80,7 @@
         }
 
         function calculateAndDisplaySums() {
-            let totalCredits = 0, totalPatients = 0, totalPrisoners = 0, visibleMissions = 0, endangeredMissions = 0;
+            let totalCredits = 0, totalPatients = 0, totalPrisoners = 0, visibleMissions = 0, endangeredMissions = 0, dueMissions = 0;
             const now = new Date();
             const currentHour = now.getHours();
             const isTimeForWarning = currentHour >= ACTIVATION_HOUR;
@@ -104,24 +107,27 @@
                             }
                         } catch (e) { console.error('[Summenleiste] Fehler beim Parsen der JSON-Daten:', e); }
                     }
+
+                    const endTimeDisplay = mission.querySelector('.endzeit-anzeige');
+                    if (!endTimeDisplay || window.getComputedStyle(endTimeDisplay).backgroundColor !== 'rgb(255, 0, 0)') {
+                        dueMissions++;
+                    }
                 }
             });
             const createHtml = (icon, value) => `${icon} ${value.toLocaleString('de-DE')}`;
             const createPatientHtml = (value) => `<img src="/images/icons8-dizzy_person_2.svg" style="height: 18px; margin-right: 5px; vertical-align: middle;"> ${value.toLocaleString('de-DE')}`;
             document.getElementById('mission-count-display').innerHTML = createHtml('🚩', visibleMissions);
+            document.getElementById('due-mission-count-display').innerHTML = createHtml('✅', dueMissions);
             document.getElementById('credit-sum-display').innerHTML = createHtml('💰', totalCredits);
             document.getElementById('patient-sum-display').innerHTML = createPatientHtml(totalPatients);
             document.getElementById('prisoner-sum-display').innerHTML = createHtml('⛓️', totalPrisoners);
             document.getElementById('endangered-mission-count-display').innerHTML = createHtml('⚠️', endangeredMissions);
         }
 
-        // --- Die neue, sichere Update-Methode ---
-        // Wir verzichten auf den problematischen "Beobachter" und starten stattdessen einen harmlosen Timer.
         applyThemeStyles();
-        calculateAndDisplaySums(); // Einmalige Berechnung sofort beim Start
-        setInterval(calculateAndDisplaySums, UPDATE_INTERVAL_MS); // Alle paar Sekunden neu berechnen
-        
-        // Ein Observer nur für den Dark-Mode, der ist unkritisch.
+        calculateAndDisplaySums();
+        setInterval(calculateAndDisplaySums, UPDATE_INTERVAL_MS);
+
         const themeObserver = new MutationObserver(applyThemeStyles);
         themeObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
