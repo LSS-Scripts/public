@@ -1,1 +1,1 @@
-Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt. Jetzt mit fixer Position ÜBER der Einsatzliste und der Summer abschließbaerer Einsätze.
+Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt. Jetzt mit fixer Position ÜBER der Einsatzliste und der Summe abschließbaerer Einsätze (Via Endzeit-Script).
