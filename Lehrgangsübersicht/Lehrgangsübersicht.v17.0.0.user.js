@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Schulungsübersicht (Finale Version)
 // @namespace    http://tampermonkey.net/
-// @version      16.0
+// @version      17.0
 // @description  Zeigt eine detaillierte Übersicht pro Schultyp als Tabelle mit "Lehrgang starten"-Button.
-// @author       Masklin
+// @author       Dein Name oder Pseudonym
 // @match        *://*.leitstellenspiel.de/buildings/*
 // @grant        none
 // @run-at       document-idle
@@ -50,13 +50,16 @@
             let schoolTypeName = "Unbekannte Schule";
             const altText = img.alt.toLowerCase();
 
-            if (altText.includes('fireschool')) schoolTypeName = "Feuerwehrschule";
+            // KORREKTUR: Spezifische Namen IMMER zuerst prüfen, um Fehlzuordnungen zu vermeiden.
+            if (altText.includes('coastal rescue school')) schoolTypeName = "Seenotrettungsschule";
+            else if (altText.includes('water_rescue_school')) schoolTypeName = "Wasserrettungsschule";
             else if (altText.includes('rettungsschule')) schoolTypeName = "Rettungsschule";
             else if (altText.includes('polizeischule')) schoolTypeName = "Polizeischule";
             else if (altText.includes('thw_school') || altText.includes('thw')) schoolTypeName = "THW-Schule";
-            else if (altText.includes('water_rescue_school')) schoolTypeName = "Wasserrettungsschule";
-            else if (altText.includes('coastal rescue school')) schoolTypeName = "Seenotrettungsschule";
+            else if (altText.includes('fireschool')) schoolTypeName = "Feuerwehrschule";
+            // Fallback für alte Namen, falls vorhanden
             else if (altText.includes('rescueteam')) schoolTypeName = "Rettungsschule";
+
 
             if (schoolTypeName === "Unbekannte Schule") {
                 console.log(`[LSS-Diagnose] Unbekannter Schultyp: "${img.alt}"`);
@@ -68,27 +71,29 @@
             schoolData[schoolTypeName].count++;
 
             let occupiedInThisSchool = 0;
+            let startLinkForThisSchool = null;
             let nextElement = header.nextElementSibling;
 
             while (nextElement) {
-                // Stoppe die Suche, wenn die nächste Schule beginnt
                 if (nextElement.tagName === 'H3') break;
 
-                // Finde die Tabelle und zähle die belegten Räume
                 if (nextElement.tagName === 'TABLE') {
                     occupiedInThisSchool = nextElement.querySelectorAll('tbody > tr > td > span[id*="education_schooling_"]').length;
                 }
 
-                // NEU: Finde den "Neuen Lehrgang starten"-Button
-                if (nextElement.tagName === 'A' && nextElement.classList.contains('btn-success') && nextElement.textContent.includes('Neuen Lehrgang starten')) {
-                    // Speichere den Link nur, wenn für diesen Schultyp noch keiner gespeichert wurde
-                    if (schoolData[schoolTypeName].startLink === null) {
-                        schoolData[schoolTypeName].startLink = nextElement.getAttribute('href');
-                    }
+                if (nextElement.tagName === 'A' && nextElement.textContent.includes('Neuen Lehrgang starten')) {
+                    startLinkForThisSchool = nextElement.getAttribute('href');
                 }
                 nextElement = nextElement.nextElementSibling;
             }
+            
             schoolData[schoolTypeName].occupied += occupiedInThisSchool;
+
+            // ZUSÄTZLICHE PRÜFUNG: Speichere den Link nur, wenn diese Schule auch wirklich freie Plätze hat (4 - belegt > 0)
+            // UND für diesen Schultyp noch kein Link gespeichert wurde.
+            if ((4 - occupiedInThisSchool > 0) && startLinkForThisSchool && schoolData[schoolTypeName].startLink === null) {
+                schoolData[schoolTypeName].startLink = startLinkForThisSchool;
+            }
         });
 
         // --- HTML-ERSTELLUNG ---
@@ -103,8 +108,7 @@
             const roomsForType = data.count * 4;
             const freeForType = roomsForType - data.occupied;
 
-            // Erstelle die "Aktion"-Zelle
-            let actionCell = '<td></td>'; // Leere Zelle als Standard
+            let actionCell = '<td></td>';
             if (freeForType > 0 && data.startLink) {
                 actionCell = `<td><a class="btn btn-xs btn-success" href="${data.startLink}">Starten</a></td>`;
             }
