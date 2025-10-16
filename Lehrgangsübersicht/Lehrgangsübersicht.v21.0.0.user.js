@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Schulungsübersicht (Finale Version)
 // @namespace    http://tampermonkey.net/
-// @version      17.0
-// @description  Zeigt eine detaillierte Übersicht pro Schultyp als Tabelle mit "Lehrgang starten"-Button.
+// @version      21.0
+// @description  Zeigt eine detaillierte Übersicht pro Schultyp als Tabelle mit korrekt zugeordnetem "Lehrgang starten"-Button.
 // @author       Dein Name oder Pseudonym
 // @match        *://*.leitstellenspiel.de/buildings/*
 // @grant        none
@@ -22,8 +22,8 @@
             const loading = document.querySelector(`#${targetTabPaneId} .loading_dot`);
             if (el && !loading) {
                 clearInterval(interval);
-                setTimeout(callback, 200);
-            } else if (attempts > 60) {
+                setTimeout(callback, 300);
+            } else if (attempts > 70) {
                 clearInterval(interval);
             }
             attempts++;
@@ -47,23 +47,18 @@
             const img = header.querySelector('img[alt*="Building"]');
             if (!img) return;
 
+            const schoolInstanceLink = header.querySelector('a[href*="/buildings/"]');
+            const schoolInstanceHref = schoolInstanceLink ? schoolInstanceLink.getAttribute('href') : null;
+            if (!schoolInstanceHref) return;
+
             let schoolTypeName = "Unbekannte Schule";
             const altText = img.alt.toLowerCase();
-
-            // KORREKTUR: Spezifische Namen IMMER zuerst prüfen, um Fehlzuordnungen zu vermeiden.
             if (altText.includes('coastal rescue school')) schoolTypeName = "Seenotrettungsschule";
             else if (altText.includes('water_rescue_school')) schoolTypeName = "Wasserrettungsschule";
-            else if (altText.includes('rettungsschule')) schoolTypeName = "Rettungsschule";
+            else if (altText.includes('rettungsschule') || altText.includes('rescueteam')) schoolTypeName = "Rettungsschule";
             else if (altText.includes('polizeischule')) schoolTypeName = "Polizeischule";
             else if (altText.includes('thw_school') || altText.includes('thw')) schoolTypeName = "THW-Schule";
             else if (altText.includes('fireschool')) schoolTypeName = "Feuerwehrschule";
-            // Fallback für alte Namen, falls vorhanden
-            else if (altText.includes('rescueteam')) schoolTypeName = "Rettungsschule";
-
-
-            if (schoolTypeName === "Unbekannte Schule") {
-                console.log(`[LSS-Diagnose] Unbekannter Schultyp: "${img.alt}"`);
-            }
 
             if (!schoolData[schoolTypeName]) {
                 schoolData[schoolTypeName] = { count: 0, occupied: 0, startLink: null };
@@ -71,28 +66,28 @@
             schoolData[schoolTypeName].count++;
 
             let occupiedInThisSchool = 0;
-            let startLinkForThisSchool = null;
+
+            // Finde die Tabelle NACH dem Header
             let nextElement = header.nextElementSibling;
-
-            while (nextElement) {
-                if (nextElement.tagName === 'H3') break;
-
+            while (nextElement && nextElement.tagName !== 'H3') {
                 if (nextElement.tagName === 'TABLE') {
                     occupiedInThisSchool = nextElement.querySelectorAll('tbody > tr > td > span[id*="education_schooling_"]').length;
-                }
-
-                if (nextElement.tagName === 'A' && nextElement.textContent.includes('Neuen Lehrgang starten')) {
-                    startLinkForThisSchool = nextElement.getAttribute('href');
+                    break; // Tabelle gefunden, wir können aufhören
                 }
                 nextElement = nextElement.nextElementSibling;
             }
-            
             schoolData[schoolTypeName].occupied += occupiedInThisSchool;
 
-            // ZUSÄTZLICHE PRÜFUNG: Speichere den Link nur, wenn diese Schule auch wirklich freie Plätze hat (4 - belegt > 0)
-            // UND für diesen Schultyp noch kein Link gespeichert wurde.
-            if ((4 - occupiedInThisSchool > 0) && startLinkForThisSchool && schoolData[schoolTypeName].startLink === null) {
-                schoolData[schoolTypeName].startLink = startLinkForThisSchool;
+            // KORREKTE LOGIK: Schaue auf das Element VOR dem Header
+            const prevElement = header.previousElementSibling;
+            if (prevElement && prevElement.tagName === 'A' && prevElement.textContent.includes('Neuen Lehrgang starten')) {
+                // Verifiziere, dass der Link des Buttons mit dem Link der Schule übereinstimmt
+                if (prevElement.getAttribute('href') === schoolInstanceHref) {
+                    // Speichere den Link, wenn für diesen Schultyp noch keiner existiert
+                    if (schoolData[schoolTypeName].startLink === null) {
+                        schoolData[schoolTypeName].startLink = schoolInstanceHref;
+                    }
+                }
             }
         });
 
@@ -161,7 +156,7 @@
     }
 
     function runAnalysis() {
-        const contentSelector = `#${targetTabPaneId} h3, #${targetTabPaneId} .alert.alert-info`;
+        const contentSelector = `#${targetTabPaneId} h3`;
         waitForContent(contentSelector, generateAndShowSummary);
     }
 
