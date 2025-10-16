@@ -112,6 +112,13 @@
     "changelog": ""
   },
   {
+    "name": "Lehrgangsübersicht",
+    "version": "16.0.0",
+    "fileName": "Lehrgangsübersicht.v16.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
     "version": "1.3.1",
     "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.3.1.user.js",
