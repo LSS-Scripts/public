@@ -3,3 +3,4 @@ Zeigt bei der Leitstelle -> Lehrgänge eine Statistik an und beitet, wenn freie 
 Erstes Release, also: auch hier BETA!
 <br>
 Geht aktuell davon aus, dass Schulen IMMER 4 Räume haben. 
+Zeigt eine Ampel (frei/belegt) auf der Hauptseite (Gebäudeliste)
