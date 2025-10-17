@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Capslock-Kastrator (Erweitert V2)
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Wandelt im LSS-Verbandschat Namen und Nachrichten, die übermäßig in Großbuchstaben geschrieben sind, in eine lesbarere Form um und kürzt Wortlängungen.
 // @author       B&M (Erweiterung durch Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -33,7 +33,7 @@
                         let processedWord = word.charAt(0) + word.slice(1).toLowerCase();
                         // NEUE ÄNDERUNG HIER: Ersetze 3 oder mehr gleiche aufeinanderfolgende Buchstaben durch einen einzigen.
                         // Aus "Ohaaaaaaaaaa" wird "Oha".
-                        return processedWord.replace(/(.)\1{2,}/g, '$1');
+                        return processedWord.replace(/([a-zA-Z])\1{2,}/g, '$1');
                     }
                     return word;
                 }).join(' ');
