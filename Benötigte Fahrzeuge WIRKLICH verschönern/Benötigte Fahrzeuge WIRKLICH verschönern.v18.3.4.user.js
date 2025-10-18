@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.3.3
+// @version      18.3.4
 // @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
@@ -335,7 +335,8 @@
         "Bt-Kombi": 9
     },
     "Verpflegungshelfer": {
-        "GW-Bt": 3
+        "GW-Bt": 3,
+        "Bt-LKW": 2
     },
     "LNA": {
         "KdoW-LNA": 1
