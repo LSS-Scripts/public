@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.5.0
+// @version      1.5.1
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M (mit Anpassungen)
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -132,7 +132,7 @@
                 // NEU: HTML für die Zusammenfassung (Wunsch 2)
                 const summaryHTML = `
                     <p style="font-weight: bold; margin-bottom: 15px;">
-                        ✅ ${similarCourses.length} weitere Lehrgänge mit ${totalExtraSpaces} zusätzlichen Plätzen gefunden.
+                        ℹ️ ${similarCourses.length} weitere Lehrgänge mit ${totalExtraSpaces} zusätzlichen Plätzen gefunden.
                     </p>
                 `;
 
