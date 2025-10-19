@@ -119,6 +119,13 @@
     "changelog": ""
   },
   {
+    "name": "Lehrgangszuweiser",
+    "version": "1.9.9",
+    "fileName": "Lehrgangszuweiser.v1.9.9.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Lehrgangsübersicht (Teilnehmerzahl)",
     "version": "1.3.0",
     "fileName": "Lehrgangsübersicht (Teilnehmerzahl).v1.3.0.user.js",
