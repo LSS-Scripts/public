@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         Leitstellenspiel Gebäude- & Personalstatistik (V4.0)
+// @name         Leitstellenspiel Gebäude- & Personalstatistik (V9.0)
 // @namespace    http://tampermonkey.net/
-// @version      4.0
-// @description  Zählt Gebäude, Personal (API), Personal in Ausbildung (HTML) und ausgebildetes Personal (HTML)
+// @version      9.0
+// @description  Zählt Personal-Details mit Live-Update, 4-Spalten-Design und breitem Modal (Blaues Theme)
 // @author       Gemini
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM.xmlHttpRequest
+// @grant        GM_addStyle
 // @connect      leitstellenspiel.de
 // ==/UserScript==
 
@@ -13,7 +14,8 @@
     'use strict';
 
     // --- Konstanten ---
-    const MAX_CONCURRENT_WORKERS = 8; // 8 parallele Anfragen
+    const MAX_CONCURRENT_WORKERS = 8;
+    const UPDATE_UI_EVERY_X_BUILDINGS = 10;
 
     const BUILDING_TYPE_MAP = {
         0: 'Feuerwache', 1: 'Feuerwehrschule', 2: 'Rettungswache', 3: 'Rettungsschule',
@@ -28,33 +30,68 @@
 
     const getBuildingName = (type) => BUILDING_TYPE_MAP[type] || `Unbekannter Typ (${type})`;
 
+    // --- Eigene CSS-Stile ---
+    const customCss = `
+        /* Modal breiter und feste Mindestbreite */
+        #gemini_building_stats_modal .modal-dialog {
+            width: 90%;
+            max-width: 1600px;
+            min-width: 1000px;
+        }
+        /* Statistik-Box (ehem. well) */
+        .gemini-stat-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #3a3a3a; /* Dunkelgrau */
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            color: #f1f1f1;
+            font-weight: 500;
+        }
+        /* NEU: Zähler (Badge) in warmem Blau */
+        .gemini-stat-badge {
+            background-color: #3498db; /* Helles Blau */
+            color: #ffffff;
+            padding: 5px 10px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 10px;
+        }
+        /* NEU: Überschriften in einem passenden Blauton */
+        #gemini_building_stats_modal h4 {
+            color: #5bc0de; /* Ein hellerer Blauton für Überschriften */
+            margin-top: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 5px;
+        }
+    `;
+    GM_addStyle(customCss);
+
+
     // --- Haupt-Statistik-Funktion ---
 
-    /**
-     * Wird aufgerufen, wenn der Menüpunkt geklickt wird.
-     */
     async function showBuildingStats(event) {
         event.preventDefault();
-        console.log('[LSS-Statistik V4.0] Starte Statistik-Erhebung...');
+        console.log('[LSS-Statistik V9.0] Starte Statistik-Erhebung...');
 
-        // 1. Modal sofort anzeigen mit Lade-Status
         showModal('<h4 id="gemini_stats_title">Lade Gebäudeliste...</h4><div id="gemini_stats_body"></div>');
         const modalTitle = document.getElementById('gemini_stats_title');
         const modalBody = document.getElementById('gemini_stats_body');
 
         try {
-            // 2. Basis-Daten von der API abrufen
             const response = await fetch('https://www.leitstellenspiel.de/api/buildings');
             if (!response.ok) throw new Error(`HTTP-Fehler! Status: ${response.status}`);
             const buildings = await response.json();
 
-            // 3. Basis-Daten verarbeiten
             const allBuildingIds = [];
             const buildingCounts = new Map();
             const personnelCounts = new Map();
             let totalBuildings = 0;
             let totalPersonnel = 0;
-            const tasks = []; // Aufgaben-Queue für die Worker
+            const tasks = [];
 
             for (const building of buildings) {
                 allBuildingIds.push(building.id);
@@ -66,7 +103,7 @@
                 personnelCounts.set(type, (personnelCounts.get(type) || 0) + pCount);
                 totalPersonnel += pCount;
 
-                if (pCount > 0) { // Nur Gebäude mit Personal müssen wir scannen
+                if (pCount > 0) {
                     tasks.push({
                         id: building.id,
                         url: `https://www.leitstellenspiel.de/buildings/${building.id}/personals`
@@ -74,82 +111,90 @@
                 }
             }
 
-            console.log(`[LSS-Statistik V4.0] ${buildings.length} Gebäude gefunden. ${tasks.length} Gebäude mit Personal werden gescannt.`);
-            console.log('[LSS-Statistik V4.0] Gesammelte Gebäude-IDs:', allBuildingIds);
+            console.log(`[LSS-Statistik V9.0] ${buildings.length} Gebäude gefunden. ${tasks.length} Gebäude mit Personal werden gescannt.`);
+            console.log('[LSS-Statistik V9.0] Gesammelte Gebäude-IDs:', allBuildingIds);
 
-            // 4. HTML für Basis-Statistiken generieren
             modalBody.innerHTML = generateBaseStatsHtml(buildingCounts, personnelCounts, totalBuildings, totalPersonnel);
             modalTitle.textContent = 'Gebäude- & Personalstatistik';
 
-            // 5. Worker-Pool für Ausbildungs- & Rollen-Scan starten
-            const detailedStatsHtml = await scanPersonnelPages(tasks, modalBody);
-            modalBody.innerHTML += detailedStatsHtml; // Finale Statistik hinzufügen
+            modalBody.innerHTML += `
+                <div id="gemini-progress-wrapper"></div>
+                <div id="gemini-training-stats-wrapper"><h4>Personal in Ausbildung</h4><div id="gemini-training-stats"></div></div>
+                <div id="gemini-role-stats-wrapper"><h4>Ausgebildetes Personal (Rollen)</h4><div id="gemini-role-stats"></div></div>
+            `;
+
+            await scanPersonnelPages(
+                tasks,
+                document.getElementById('gemini-progress-wrapper'),
+                document.getElementById('gemini-training-stats'),
+                document.getElementById('gemini-role-stats')
+            );
 
         } catch (error) {
-            console.error('[LSS-Statistik V4.0] Fehler:', error);
+            console.error('[LSS-Statistik V9.0] Fehler:', error);
             modalBody.innerHTML = `<div class="alert alert-danger">Fehler beim Abrufen der Daten: ${error.message}</div>`;
         }
     }
 
     /**
      * Generiert das HTML für die (schnellen) API-Basierten Statistiken
+     * 4-Spalten-Layout (col-md-3)
      */
     function generateBaseStatsHtml(buildingCounts, personnelCounts, totalBuildings, totalPersonnel) {
         let totalHtml = '<h4>Gesamtstatistik</h4><div class="row">';
-        totalHtml += `<div class="col-md-6 col-sm-6 col-xs-12"><strong>Gesamtgebäude:</strong> ${totalBuildings.toLocaleString()}</div>`;
-        totalHtml += `<div class="col-md-6 col-sm-6 col-xs-12"><strong>Gesamtpersonal (aus API):</strong> ${totalPersonnel.toLocaleString()}</div>`;
-        totalHtml += '</div><hr>';
+        totalHtml += `<div class="col-md-6 col-sm-6 col-xs-12"><div class="gemini-stat-box"><strong>Gesamtgebäude</strong><span class="gemini-stat-badge">${totalBuildings.toLocaleString()}</span></div></div>`;
+        totalHtml += `<div class="col-md-6 col-sm-6 col-xs-12"><div class="gemini-stat-box"><strong>Gesamtpersonal (aus API)</strong><span class="gemini-stat-badge">${totalPersonnel.toLocaleString()}</span></div></div>`;
+        totalHtml += '</div>';
 
         let buildingGridHtml = '<h4>Gebäudeanzahl</h4><div class="row">';
         const sortedBuildingCounts = new Map([...buildingCounts.entries()].sort((a, b) => a[0] - b[0]));
         for (const [type, count] of sortedBuildingCounts.entries()) {
-            buildingGridHtml += `<div class="col-md-4 col-sm-6 col-xs-12"><strong>${getBuildingName(type)}:</strong> ${count}</div>`;
+            buildingGridHtml += `<div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="gemini-stat-box">
+                    <span>${getBuildingName(type)}</span>
+                    <span class="gemini-stat-badge">${count.toLocaleString()}</span>
+                </div>
+            </div>`;
         }
-        buildingGridHtml += '</div><hr>';
+        buildingGridHtml += '</div>';
 
         let personnelGridHtml = '<h4>Personalanzahl (aus API)</h4><div class="row">';
         const sortedPersonnelCounts = new Map([...personnelCounts.entries()].sort((a, b) => a[0] - b[0]));
         for (const [type, count] of sortedPersonnelCounts.entries()) {
-            personnelGridHtml += `<div class="col-md-4 col-sm-6 col-xs-12"><strong>${getBuildingName(type)}:</strong> ${count.toLocaleString()}</div>`;
+             personnelGridHtml += `<div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="gemini-stat-box">
+                    <span>${getBuildingName(type)}</span>
+                    <span class="gemini-stat-badge">${count.toLocaleString()}</span>
+                </div>
+            </div>`;
         }
-        personnelGridHtml += '</div><hr>';
+        personnelGridHtml += '</div>';
 
         return totalHtml + buildingGridHtml + personnelGridHtml;
     }
 
     // --- Worker-Pool & HTML-Parsing ---
 
-    /**
-     * Startet den Worker-Pool, um alle Personal-Seiten zu scannen.
-     * @param {Array} tasks - Liste von {id, url} Objekten
-     * @param {HTMLElement} modalBody - Das Modal-Body-Element zur Fortschrittsanzeige
-     * @returns {Promise<string>} Das HTML für die Ausbildungs- & Rollen-Statistik
-     */
-    async function scanPersonnelPages(tasks, modalBody) {
-        // 6. Fortschrittsanzeige im Modal erstellen
-        const progressWrapper = document.createElement('div');
+    async function scanPersonnelPages(tasks, progressWrapper, trainingDiv, roleDiv) {
+        // NEU: Progressbar in Blau
         progressWrapper.innerHTML = `
             <h4>Personal-Scan (wird geladen...)</h4>
-            <div class="progress">
+            <div class="progress" style="background-color: #555;">
                 <div id="gemini_stats_progressbar" class="progress-bar progress-bar-info progress-bar-striped active" role="progressbar" style="width: 0%; min-width: 2em;">
                     0 / ${tasks.length}
                 </div>
             </div>
             <div id="gemini_stats_progress_details" style="text-align: center; margin-bottom: 15px;">Starte Scan...</div>
         `;
-        modalBody.appendChild(progressWrapper);
         const progressBar = document.getElementById('gemini_stats_progressbar');
         const progressDetails = document.getElementById('gemini_stats_progress_details');
 
-        // 7. Globale Zähler für die Worker
-        const trainingStats = { total: 0, courses: new Map() }; // "Im Unterricht"
-        const trainedRoleStats = { total: 0, roles: new Map() }; // "Ausgebildete Rolle"
-
+        const trainingStats = { total: 0, courses: new Map() };
+        const trainedRoleStats = { total: 0, roles: new Map() };
         let processedCount = 0;
         const totalTasks = tasks.length;
-        const queue = [...tasks]; // Kopie der Tasks als Warteschlange
+        const queue = [...tasks];
 
-        // 8. Worker-Funktion
         const worker = async () => {
             while (queue.length > 0) {
                 const task = queue.shift();
@@ -157,80 +202,81 @@
 
                 try {
                     const html = await fetchPage(task.url);
-                    // Parse liefert jetzt BEIDE Listen zurück
                     const { coursesFound, rolesFound } = parsePersonnelHtml(html);
 
-                    // Ergebnisse für "In Ausbildung" synchronisieren
                     trainingStats.total += coursesFound.length;
-                    for (const courseName of coursesFound) {
-                        trainingStats.courses.set(courseName, (trainingStats.courses.get(courseName) || 0) + 1);
-                    }
+                    coursesFound.forEach(course => trainingStats.courses.set(course, (trainingStats.courses.get(course) || 0) + 1));
 
-                    // Ergebnisse für "Ausgebildete Rollen" synchronisieren
                     trainedRoleStats.total += rolesFound.length;
-                     for (const roleName of rolesFound) {
-                        trainedRoleStats.roles.set(roleName, (trainedRoleStats.roles.get(roleName) || 0) + 1);
-                    }
+                    rolesFound.forEach(role => trainedRoleStats.roles.set(role, (trainedRoleStats.roles.get(role) || 0) + 1));
 
                 } catch (error) {
-                    console.warn(`[LSS-Statistik V4.0] Fehler bei Gebäude ${task.id}:`, error);
+                    console.warn(`[LSS-Statistik V9.0] Fehler bei Gebäude ${task.id}:`, error);
                 }
 
-                // Fortschritt aktualisieren
                 processedCount++;
                 const percentage = ((processedCount / totalTasks) * 100).toFixed(1);
                 progressBar.style.width = `${percentage}%`;
                 progressBar.textContent = `${processedCount} / ${totalTasks}`;
                 progressDetails.textContent = `Scanne Gebäude ${task.id}...`;
+
+                if (processedCount % UPDATE_UI_EVERY_X_BUILDINGS === 0 || processedCount === totalTasks) {
+                    renderLiveStats(trainingStats, trainedRoleStats, trainingDiv, roleDiv);
+                }
             }
         };
 
-        // 9. Worker-Pool starten
-        console.log(`[LSS-Statistik V4.0] Starte ${MAX_CONCURRENT_WORKERS} Worker für ${totalTasks} Aufgaben.`);
         const workerPromises = [];
         for (let i = 0; i < MAX_CONCURRENT_WORKERS; i++) {
             workerPromises.push(worker());
         }
 
-        // 10. Warten, bis alle Worker fertig sind
         await Promise.all(workerPromises);
 
-        console.log('[LSS-Statistik V4.0] Scan abgeschlossen. In Ausbildung:', trainingStats);
-        console.log('[LSS-Statistik V4.0] Ausgebildete Rollen:', trainedRoleStats);
+        console.log('[LSS-Statistik V9.0] Scan abgeschlossen. In Ausbildung:', trainingStats);
+        console.log('[LSS-Statistik V9.0] Ausgebildete Rollen:', trainedRoleStats);
 
-        // 11. Fortschrittsanzeige aufräumen
         progressWrapper.remove();
+    }
 
-        // 12. Finale HTML-Statistiken generieren
-        let htmlOutput = "";
-
+    /**
+     * Rendert die Zähler für Ausbildung und Rollen in ihre Ziel-DIVs.
+     * 4-Spalten-Layout (col-md-3)
+     */
+    function renderLiveStats(trainingStats, trainedRoleStats, trainingDiv, roleDiv) {
         // HTML für "In Ausbildung"
-        htmlOutput += '<h4>Personal in Ausbildung</h4><div class="row">';
-        htmlOutput += `<div class="col-md-12 col-sm-12 col-xs-12"><strong>Gesamt in Ausbildung:</strong> ${trainingStats.total.toLocaleString()}</div>`;
-        htmlOutput += '</div><br><div class="row">';
+        let trainingHtml = `<div class="row"><div class="col-md-12"><div class="gemini-stat-box"><strong>Gesamt in Ausbildung</strong><span class="gemini-stat-badge">${trainingStats.total.toLocaleString()}</span></div></div></div>`;
+        trainingHtml += '<div class="row">';
         const sortedCourses = new Map([...trainingStats.courses.entries()].sort((a, b) => b[1] - a[1]));
         for (const [course, count] of sortedCourses.entries()) {
-            htmlOutput += `<div class="col-md-4 col-sm-6 col-xs-12"><strong>${course}:</strong> ${count.toLocaleString()}</div>`;
+            trainingHtml += `<div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="gemini-stat-box">
+                    <span>${course}</span>
+                    <span class="gemini-stat-badge">${count.toLocaleString()}</span>
+                </div>
+            </div>`;
         }
-        htmlOutput += '</div><hr>'; // Trennlinie
+        trainingHtml += '</div>';
+        trainingDiv.innerHTML = trainingHtml;
 
         // HTML für "Ausgebildetes Personal"
-        htmlOutput += '<h4>Ausgebildetes Personal (Rollen)</h4><div class="row">';
-        htmlOutput += `<div class="col-md-12 col-sm-12 col-xs-12"><strong>Gesamt mit zugewiesener Rolle:</strong> ${trainedRoleStats.total.toLocaleString()}</div>`;
-        htmlOutput += '</div><br><div class="row">';
+        let roleHtml = `<div class="row"><div class="col-md-12"><div class="gemini-stat-box"><strong>Gesamt zugewiesene Rollen</strong><span class="gemini-stat-badge">${trainedRoleStats.total.toLocaleString()}</span></div></div></div>`;
+        roleHtml += '<div class="row">';
         const sortedRoles = new Map([...trainedRoleStats.roles.entries()].sort((a, b) => b[1] - a[1]));
         for (const [role, count] of sortedRoles.entries()) {
-            htmlOutput += `<div class="col-md-4 col-sm-6 col-xs-12"><strong>${role}:</strong> ${count.toLocaleString()}</div>`;
+            roleHtml += `<div class="col-md-3 col-sm-6 col-xs-12">
+                <div class="gemini-stat-box">
+                    <span>${role}</span>
+                    <span class="gemini-stat-badge">${count.toLocaleString()}</span>
+                </div>
+            </div>`;
         }
-        htmlOutput += '</div>';
-
-        return htmlOutput;
+        roleHtml += '</div>';
+        roleDiv.innerHTML = roleHtml;
     }
 
     /**
      * Ruft eine Seite mit GM.xmlHttpRequest ab.
-     * @param {string} url - Die abzurufende URL
-     * @returns {Promise<string>} Der HTML-Inhalt der Seite
      */
     function fetchPage(url) {
         return new Promise((resolve, reject) => {
@@ -255,9 +301,7 @@
     }
 
     /**
-     * Parst das HTML einer Personal-Seite und extrahiert Ausbildungen UND Rollen.
-     * @param {string} html - Der HTML-String
-     * @returns {Object} { coursesFound: Array<string>, rolesFound: Array<string> }
+     * Parst das HTML einer Personal-Seite.
      */
     function parsePersonnelHtml(html) {
         const coursesFound = [];
@@ -265,13 +309,9 @@
         try {
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
-
-            // Alle Personal-Zeilen finden
             const rows = doc.querySelectorAll('tr[data-filterable-by]');
 
             rows.forEach(row => {
-                // 1. Check: "Im Unterricht"
-                // <span class="label ...">Im Unterricht: <a href="/schoolings/...">LEHRGANGSNAME</a></span>
                 const trainingLink = row.querySelector('span.label > a[href*="/schoolings/"]');
                 if (trainingLink) {
                     const courseName = trainingLink.textContent.trim();
@@ -279,19 +319,23 @@
                         coursesFound.push(courseName);
                     }
                 } else {
-                    // 2. Check: "Ausgebildete Rolle" (nur wenn nicht in Ausbildung)
-                    // <td>Notarzt</td>
                     const roleCell = row.querySelector('td:nth-child(2)');
                     if (roleCell) {
-                        const roleName = roleCell.textContent.trim();
-                        if (roleName) { // Nur hinzufügen, wenn die Zelle nicht leer ist
-                            rolesFound.push(roleName);
+                        const roleNamesString = roleCell.textContent.trim();
+                        if (roleNamesString) {
+                            const individualRoles = roleNamesString.split(',');
+                            for (let role of individualRoles) {
+                                const cleanRole = role.trim();
+                                if (cleanRole) {
+                                    rolesFound.push(cleanRole);
+                                }
+                            }
                         }
                     }
                 }
             });
         } catch (e) {
-            console.error('[LSS-Statistik V4.0] Fehler beim Parsen von HTML:', e);
+            console.error('[LSS-Statistik V9.0] Fehler beim Parsen von HTML:', e);
         }
         return { coursesFound, rolesFound };
     }
@@ -299,11 +343,6 @@
 
     // --- Modal- & Menü-Helferfunktionen ---
 
-    /**
-     * Erstellt und zeigt ein Bootstrap-Modal an.
-     * NEU: .modal-body ist jetzt scrollbar.
-     * @param {string} modalBodyHtml - Der initiale HTML-Inhalt für den Body.
-     */
     function showModal(modalBodyHtml, totalIds = 0) {
         let modal = document.getElementById('gemini_building_stats_modal');
         if (modal) {
@@ -317,7 +356,7 @@
         modal.setAttribute('tabindex', '-1');
         modal.setAttribute('role', 'dialog');
         modal.innerHTML = `
-            <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -325,7 +364,7 @@
                     </div>
                     <div class="modal-body" style="max-height: 75vh; overflow-y: auto;">
                         ${modalBodyHtml}
-                        <hr>
+                        <hr style="border-color: #444;">
                         <p><small>Alle Gebäude-IDs wurden zur weiteren Verwendung in der Browser-Konsole (F12) geloggt.</small></p>
                     </div>
                     <div classs="modal-footer">
@@ -341,9 +380,6 @@
         });
     }
 
-    /**
-     * Findet den "Logout"-Button und fügt den Statistik-Link darunter ein.
-     */
     function addMenuItem() {
         const logoutButton = document.getElementById('logout_button');
         if (logoutButton) {
@@ -351,8 +387,7 @@
             if (logoutLi) {
                 const newLi = document.createElement('li');
                 newLi.setAttribute('role', 'presentation');
-                // Text angepasst auf V4.0
-                newLi.innerHTML = `<a href="#" id="gemini_building_stats_link"><span class="glyphicon glyphicon-stats" aria-hidden="true" style="margin-right: 5px;"></span> Erweiterte Statistik (V4.0)</a>`;
+                newLi.innerHTML = `<a href="#" id="gemini_building_stats_link"><span class="glyphicon glyphicon-stats" aria-hidden="true" style="margin-right: 5px;"></span> Erweiterte Statistik (V9.0)</a>`;
                 logoutLi.after(newLi);
                 document.getElementById('gemini_building_stats_link').addEventListener('click', showBuildingStats);
             }
