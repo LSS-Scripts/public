@@ -56,6 +56,13 @@
     "changelog": ""
   },
   {
+    "name": "Erweiterte Statistik",
+    "version": "4.0.0",
+    "fileName": "Erweiterte Statistik.v4.0.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Erweiterungsanzeige & Schnellbau",
     "version": "4.1.0",
     "fileName": "Erweiterungsanzeige & Schnellbau.v4.1.0.user.js",
