@@ -112,6 +112,13 @@
     "changelog": ""
   },
   {
+    "name": "Lehrgangsübersicht (Teilnehmerzahl)",
+    "version": "",
+    "fileName": "Lehrgangsübersicht (Teilnehmerzahl).v1.1.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Lehrgangsübersicht",
     "version": "22.0.0",
     "fileName": "Lehrgangsübersicht.v22.0.0.user.js",
