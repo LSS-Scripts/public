@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel Lehrgangsübersicht (Teilnehmerzahl) - Dark/Light Mode
 // @namespace    http://tampermonkey.net/
-// @version      1.2
-// @description  Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an (mit Dark/Light Mode Support).
+// @version      1.3
+// @description  Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an (mit Dark/Light Mode Support, nutzt feste Tabellen-ID).
 // @author       Gemini & Dein Name
 // @match        https://www.leitstellenspiel.de/schoolings
 // @grant        GM_addStyle
@@ -91,11 +91,10 @@
             const htmlText = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(htmlText, 'text/html');
-            // Robusterer Selektor: sucht nach der Tabelle *innerhalb* des div.col-md-9, das wahrscheinlich den Hauptinhalt enthält.
+            // Robusterer Selektor: sucht nach der Tabelle *innerhalb* des div.col-md-9
             const participantTable = doc.querySelector('.col-md-9 table.table-striped');
 
             if (participantTable && participantTable.tBodies.length > 0) {
-                // Zähle nur die <tr>-Elemente im ersten <tbody>
                 return participantTable.tBodies[0].querySelectorAll('tr').length;
             } else {
                  console.warn(`[Lehrgangsübersicht] Teilnehmertabelle nicht gefunden auf ${url}. Selektor: '.col-md-9 table.table-striped'`);
@@ -113,7 +112,7 @@
         }
     }
 
-    /**
+     /**
      * Findet ein Element anhand seines Textinhalts (Groß-/Kleinschreibung und Leerzeichen ignorierend).
      * @param {string} selector - Der CSS-Selektor für die zu durchsuchenden Elemente (z.B. 'h3').
      * @param {string} text - Der gesuchte Textinhalt.
@@ -123,9 +122,21 @@
         const normalizedText = text.trim().toLowerCase();
         const elements = document.querySelectorAll(selector);
         for (let element of elements) {
-            if (element.textContent.trim().toLowerCase() === normalizedText) {
+            // Prüfen, ob der direkte Textinhalt übereinstimmt (ignoriert Kindelemente wie Buttons)
+            const directText = Array.from(element.childNodes)
+                .filter(node => node.nodeType === Node.TEXT_NODE)
+                .map(node => node.textContent.trim())
+                .join('')
+                .toLowerCase();
+            if (directText === normalizedText) {
                 return element;
             }
+        }
+        // Fallback, falls der Text in Kindelementen verteilt ist (weniger präzise)
+        for (let element of elements) {
+             if (element.textContent.trim().toLowerCase().includes(normalizedText)) {
+                 return element;
+             }
         }
         return null;
     }
@@ -146,58 +157,61 @@
             <ul id="schooling-summary-list"></ul>
         `;
 
-        // 2. Robusteren Einfügepunkt finden (basierend auf der Überschrift)
-        const heading = findElementByText('h3', 'Lehrgänge mit eigenen Teilnehmern');
-        let insertionTarget = null;
+        // 2. Einfügepunkt finden (jetzt direkt über der Tabelle mit der ID)
+        const mainTable = document.getElementById('schooling_own_table'); // *** Geänderter Selektor ***
+        let insertionSuccessful = false;
 
-        if (heading && heading.closest('div[data-v-05a96bb1]')) {
-             // Den Hauptcontainer für diesen Abschnitt finden
-             insertionTarget = heading.closest('div[data-v-05a96bb1]');
-             // Füge die Übersicht als erstes Kind dieses Containers ein
-             insertionTarget.prepend(summaryContainer);
-        } else {
-            // Fallback: Einfügen vor dem ersten Vue-Tabpanel, falls die Überschrift nicht gefunden wird
-            console.warn("[Lehrgangsübersicht] Überschrift nicht gefunden, versuche Fallback-Einfügepunkt.");
-            insertionTarget = document.querySelector('.vue-tabpanel');
-            if (insertionTarget && insertionTarget.parentNode) {
-                 insertionTarget.parentNode.insertBefore(summaryContainer, insertionTarget);
-            } else {
-                 console.error("[Lehrgangsübersicht] Konnte keinen geeigneten Einfügepunkt finden. Füge am Anfang des Body ein.");
-                 document.body.prepend(summaryContainer); // Letzter Fallback
+        if (mainTable) {
+             // Versuche, das Elternelement zu finden, das wahrscheinlich ein Wrapper ist
+            let parentWrapper = mainTable.closest('div[data-v-8b206cce]') || mainTable.closest('.vue-tabpanel') || mainTable.parentNode;
+            if (parentWrapper && parentWrapper.parentNode) {
+                parentWrapper.parentNode.insertBefore(summaryContainer, parentWrapper);
+                insertionSuccessful = true;
             }
+        }
+
+        // Fallback, falls die Tabelle oder der Parent nicht gefunden wurde
+        if (!insertionSuccessful) {
+             const heading = findElementByText('h3', 'Lehrgänge mit eigenen Teilnehmern');
+             if (heading && heading.closest('div[data-v-05a96bb1]')) {
+                 const insertionTarget = heading.closest('div[data-v-05a96bb1]');
+                 insertionTarget.prepend(summaryContainer);
+                 insertionSuccessful = true;
+                 console.warn("[Lehrgangsübersicht] Tabelle mit ID 'schooling_own_table' nicht gefunden, nutze Überschrift als Fallback-Einfügepunkt.");
+             } else {
+                 console.error("[Lehrgangsübersicht] Konnte weder Tabelle 'schooling_own_table' noch Überschrift finden. Füge am Anfang des Body ein.");
+                 document.body.prepend(summaryContainer);
+             }
         }
 
         // 3. Stile anwenden
         addStyles(isDarkMode);
 
-        // 4. Robusteren Selektor für die Haupttabelle verwenden
-        // Sucht die erste Tabelle innerhalb des Vue-Tabpanels, das dem Einfügepunkt folgt (oder darin enthalten ist)
-        let mainTable = null;
-        if (insertionTarget) {
-             mainTable = insertionTarget.querySelector('.vue-tabpanel table.table-striped');
-        }
-        // Fallback, falls insertionTarget nicht korrekt gefunden wurde oder die Struktur anders ist
-        if (!mainTable) {
-            mainTable = document.querySelector('.vue-tabpanel table.table-striped');
-        }
-
-
-         if (!mainTable || mainTable.tBodies.length === 0) {
-            document.getElementById('summary-loading-message').textContent = 'Fehler: Haupt-Lehrgangstabelle nicht gefunden (aktualisierter Selektor).';
-            console.error('[Lehrgangsübersicht] Haupt-Lehrgangstabelle auch mit aktualisiertem Selektor nicht gefunden.');
+        // 4. Prüfen, ob die Haupttabelle wirklich gefunden wurde
+         if (!mainTable) {
+            document.getElementById('summary-loading-message').textContent = 'Fehler: Haupt-Lehrgangstabelle mit ID "schooling_own_table" nicht gefunden.';
+            console.error('[Lehrgangsübersicht] Haupt-Lehrgangstabelle mit ID "schooling_own_table" nicht gefunden.');
             return;
         }
+        if (mainTable.tBodies.length === 0) {
+             document.getElementById('summary-loading-message').textContent = 'Fehler: Haupt-Lehrgangstabelle hat keinen tbody.';
+             console.error('[Lehrgangsübersicht] Haupt-Lehrgangstabelle hat keinen tbody.');
+             return;
+        }
 
-        // 5. Daten sammeln und verarbeiten (Rest des Codes bleibt gleich)
+
+        // 5. Daten sammeln und verarbeiten
         const courses = {};
         const fetchTasks = [];
-        const rows = mainTable.tBodies[0].querySelectorAll('tr.schooling_opened_table_searchable');
+        // Direkter Zugriff auf den tbody der gefundenen Tabelle
+        const rows = mainTable.tBodies[0].querySelectorAll('tr'); // Einfacher 'tr', da die ID spezifisch genug ist
         const totalCoursesToFetch = rows.length;
         let coursesFetched = 0;
         const progressCounter = document.getElementById('progress-counter');
         progressCounter.textContent = `(0/${totalCoursesToFetch})`;
 
         rows.forEach(row => {
+            // Der Link ist jetzt in der ersten Zelle (td)
             const linkElement = row.querySelector('td:first-child a.btn');
             if (linkElement) {
                 const courseName = linkElement.textContent.trim();
@@ -217,15 +231,17 @@
                         console.error(`[Lehrgangsübersicht] Fehler beim Verarbeiten des Links ${courseUrl}:`, error);
                     });
                 fetchTasks.push(task);
+            } else {
+                 console.warn("[Lehrgangsübersicht] Kein Link in Tabellenzeile gefunden:", row);
             }
         });
 
         if (fetchTasks.length === 0) {
-            document.getElementById('summary-loading-message').textContent = 'Keine laufenden Lehrgänge gefunden.';
+            document.getElementById('summary-loading-message').textContent = 'Keine auswertbaren Lehrgänge in der Tabelle gefunden.';
             return;
         }
 
-        // 6. Warten und Ergebnisse anzeigen (Rest bleibt gleich)
+        // 6. Warten und Ergebnisse anzeigen
         try {
             await Promise.all(fetchTasks);
             const summaryList = document.getElementById('schooling-summary-list');
@@ -257,6 +273,7 @@
     }
 
     // Skriptstart mit Verzögerung
-    setTimeout(displaySchoolingSummary, 500);
+    // Die Tabelle mit der ID sollte relativ schnell da sein, aber eine kleine Verzögerung schadet nicht.
+    setTimeout(displaySchoolingSummary, 300);
 
 })();
