@@ -113,8 +113,8 @@
   },
   {
     "name": "Lehrgangsübersicht (Teilnehmerzahl)",
-    "version": "",
-    "fileName": "Lehrgangsübersicht (Teilnehmerzahl).v1.1.user.js",
+    "version": "1.2.0",
+    "fileName": "Lehrgangsübersicht (Teilnehmerzahl).v1.2.0.user.js",
     "description": "Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an",
     "changelog": ""
   },
