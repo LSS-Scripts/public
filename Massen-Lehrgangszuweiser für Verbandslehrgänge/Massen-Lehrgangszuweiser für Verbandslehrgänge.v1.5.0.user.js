@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.4.0
+// @version      1.5.0
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
-// @author       B&M
+// @author       B&M (mit Anpassungen)
 // @match        https://www.leitstellenspiel.de/schoolings/*
 // @match        https://polizei.leitstellenspiel.de/schoolings/*
 // @match        https://www.meldkamerspel.com/schoolings/*
@@ -61,6 +61,16 @@
             margin-bottom: 10px;
             font-weight: bold;
         }
+
+        /* NEU: Grid-Container für die Lehrgangsliste (Wunsch 1) */
+        #msc-course-grid {
+            display: grid;
+            /* Zeigt so viele Spalten wie möglich an, die mind. 350px breit sind */
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 8px; /* Kleiner Abstand zwischen den Kacheln */
+            margin-top: 10px; /* Abstand zur "Alle auswählen"-Box */
+        }
+
         /* Stellt sicher, dass der Text die richtige, vom Theme vorgegebene Farbe hat */
         .msc-body, .msc-body label {
            color: inherit !important;
@@ -116,6 +126,16 @@
 
             const listElement = document.getElementById('multiSchoolingList');
             if (similarCourses.length > 0) {
+                // NEU: Berechne die Gesamtanzahl der zusätzlichen Plätze (Wunsch 2)
+                const totalExtraSpaces = similarCourses.reduce((sum, course) => sum + course.open_spaces, 0);
+
+                // NEU: HTML für die Zusammenfassung (Wunsch 2)
+                const summaryHTML = `
+                    <p style="font-weight: bold; margin-bottom: 15px;">
+                        ✅ ${similarCourses.length} weitere Lehrgänge mit ${totalExtraSpaces} zusätzlichen Plätzen gefunden.
+                    </p>
+                `;
+
                 // HTML für die "Alle auswählen" Checkbox
                 const selectAllHTML = `
                     <div class="form-check msc-select-all-container">
@@ -136,7 +156,11 @@
                     </div>
                 `).join('');
 
-                listElement.innerHTML = selectAllHTML + coursesHTML;
+                // NEU: Wrapper für das Grid-Layout (Wunsch 1)
+                const coursesContainerHTML = `<div id="msc-course-grid">${coursesHTML}</div>`;
+
+                // GEÄNDERT: Füge Zusammenfassung, "Alle auswählen" und das Grid zusammen
+                listElement.innerHTML = summaryHTML + selectAllHTML + coursesContainerHTML;
 
                 // --- ANFANG: Code für Zählung der freien Plätze ---
 
