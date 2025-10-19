@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.3.1
+// @version      1.4.0
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -24,7 +24,7 @@
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             /* NEU: Randfarbe, die auf beiden Themes gut aussieht */
-            border: 1px solid #5a6268; 
+            border: 1px solid #5a6268;
             overflow: hidden;
             /* WICHTIG: Es wird kein eigener Hintergrund gesetzt, um den des Spiels zu übernehmen */
         }
@@ -138,6 +138,42 @@
 
                 listElement.innerHTML = selectAllHTML + coursesHTML;
 
+                // --- ANFANG: Code für Zählung der freien Plätze ---
+
+                // Das Element finden, das die Zahl anzeigt
+                const baseSpacesElement = document.getElementById('schooling_free');
+                // Die ursprüngliche Zahl der freien Plätze auslesen (oder 0, falls nicht gefunden)
+                const baseSpaces = baseSpacesElement ? (parseInt(baseSpacesElement.textContent, 10) || 0) : 0;
+
+                // Diese Funktion berechnet die Plätze neu und aktualisiert die Anzeige
+                function updateAvailableSpaces() {
+                    let totalSpaces = baseSpaces; // Starte mit den Plätzen des aktuellen Lehrgangs
+
+                    // Finde alle ZUSÄTZLICH ausgewählten Checkboxen
+                    const checkedCourses = document.querySelectorAll('.multi-schooling-checkbox:checked');
+
+                    // Zähle deren freie Plätze (aus dem 'data-spaces' Attribut) hinzu
+                    checkedCourses.forEach(checkbox => {
+                        const spaces = parseInt(checkbox.dataset.spaces, 10);
+                        if (!isNaN(spaces)) {
+                            totalSpaces += spaces;
+                        }
+                    });
+
+                    // Aktualisiere die Zahl im HTML
+                    if (baseSpacesElement) {
+                        baseSpacesElement.textContent = totalSpaces;
+                    }
+                }
+
+                // Hänge die Update-Funktion an JEDE einzelne Lehrgangs-Checkbox
+                document.querySelectorAll('.multi-schooling-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateAvailableSpaces);
+                });
+
+                // --- ENDE: Code für Zählung der freien Plätze ---
+
+
                 // Event-Listener für die neue "Alle auswählen" Checkbox
                 const selectAllCheckbox = document.getElementById('selectAllCourses');
                 selectAllCheckbox.addEventListener('change', (event) => {
@@ -145,6 +181,7 @@
                     document.querySelectorAll('.multi-schooling-checkbox').forEach(checkbox => {
                         checkbox.checked = isChecked;
                     });
+                    updateAvailableSpaces(); // <-- HINZUGEFÜGT: Zähler aktualisieren
                 });
 
             } else {
@@ -166,14 +203,29 @@
                 return;
             }
 
-            const currentCourseInfo = allAvailableCourses.find(c => c.id === currentCourseId) || { id: currentCourseId, open_spaces: parseInt(document.getElementById('schooling_free').textContent, 10) || 10 };
+            // HINWEIS: Hier wurde die Logik zur Ermittlung der Plätze angepasst,
+            // um die Plätze aus der API zu nutzen, falls verfügbar.
+            const apiCourseInfo = allAvailableCourses.find(c => c.id === currentCourseId);
+            const currentCourseInfo = apiCourseInfo || {
+                id: currentCourseId,
+                open_spaces: parseInt(document.getElementById('schooling_free').textContent, 10) || 10
+            };
+
+            // Wenn die API-Info da war, aber die Plätze durch die Zähl-Logik überschrieben wurden,
+            // stellen wir hier die *ursprünglichen* Plätze des aktuellen Kurses wieder her.
+            if(apiCourseInfo) {
+                currentCourseInfo.open_spaces = apiCourseInfo.open_spaces;
+            }
+
             const additionalCoursesInfo = Array.from(document.querySelectorAll('.multi-schooling-checkbox:checked'))
                 .map(cb => allAvailableCourses.find(c => c.id === parseInt(cb.value, 10)))
                 .filter(Boolean);
 
             const targetCourses = [currentCourseInfo, ...additionalCoursesInfo];
 
+            // Die Gesamtzahl wird jetzt aus den tatsächlich ausgewählten Kursen berechnet
             const totalSlots = targetCourses.reduce((sum, course) => sum + course.open_spaces, 0);
+
             if (personnelQueue.length > totalSlots) {
                 if (!confirm(`Du hast ${personnelQueue.length} Personen ausgewählt, aber nur ${totalSlots} Plätze sind in den gewählten Lehrgängen verfügbar. Nur die ersten ${totalSlots} Personen werden zugewiesen. Fortfahren?`)) {
                     return;
