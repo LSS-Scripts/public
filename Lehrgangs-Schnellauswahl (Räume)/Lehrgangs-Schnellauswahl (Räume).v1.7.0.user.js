@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Schnellauswahl Schulräume
 // @namespace    http://tampermonkey.net/
-// @version      1.5
-// @description  Setzt Verbandsfreigabe auf 2 Tage & fügt Buttons hinzu, die per Checkbox Räume auswählen ODER Räume auswählen & Ausbildung starten.
-// @author       Masklin
+// @version      1.7
+// @description  Automatischer Reset vor Neuauswahl. Setzt Verbandsfreigabe & wählt Räume (optional mit Auto-Start).
+// @author       Masklin & Gemini
 // @match        https://www.leitstellenspiel.de/buildings/*
 // @grant        none
 // @run-at       document-idle
@@ -17,54 +17,12 @@
     const BUTTON_CONTAINER_ID = 'lss_room_quick_selector';
     const INSERTION_POINT_ID = 'empty_rooms_education_selection';
     const SUBMIT_BUTTON_SELECTOR = 'input.btn.btn-success[name="commit"][value="Ausbilden"]';
-    
-    // ID und Storage-Key für die Checkbox
     const CHECKBOX_ID = 'lss_direct_start_checkbox';
     const STORAGE_KEY_DIRECT_START = 'lss_direct_start_enabled';
-    
-    // ID für die Verbandsfreigabe
     const ALLIANCE_DURATION_ID = 'alliance_duration';
     const ALLIANCE_DURATION_VALUE = '172800'; // "2 Tage"
 
     // --- Logik-Funktionen ---
-
-    /**
-     * Setzt Verbandsfreigabe UND alle Raum-Select-Boxen auf einen Wert.
-     */
-    function selectAllRooms(numberToSelect) {
-        
-        // --- NEU: Verbandsfreigabe immer auf "2 Tage" setzen ---
-        const allianceDurationSelect = document.getElementById(ALLIANCE_DURATION_ID);
-        if (allianceDurationSelect) {
-            allianceDurationSelect.value = ALLIANCE_DURATION_VALUE;
-            // Event auslösen, falls die Seite darauf reagiert
-            allianceDurationSelect.dispatchEvent(new Event('change', { bubbles: true }));
-        } else {
-            // Nur zur Info im Log, falls die ID sich mal ändert
-            console.info("LSS Quick Selector: 'alliance_duration' Select nicht gefunden (vielleicht keine Verbandsschule?).");
-        }
-        // --- Ende NEU ---
-
-        // Setze die Räume für die einzelnen Lehrgänge
-        const allSelects = document.querySelectorAll(`select.empty_rooms_education_selector`);
-        allSelects.forEach(select => {
-            const educationKey = select.dataset.educationKey;
-            if (!educationKey) return;
-            const targetValue = `${educationKey}:${numberToSelect}`;
-            const targetOption = select.querySelector(`option[value="${targetValue}"]`);
-
-            if (targetOption) {
-                select.value = targetValue;
-            } else if (numberToSelect > 0) { // Höchsten Wert wählen, falls z.B. 300 geklickt, aber nur 50 verfügbar
-                const lastOption = select.querySelector('option:last-child');
-                if (lastOption) select.value = lastOption.value;
-            } else { // 0 (Reset)
-                const firstOption = select.querySelector('option:first-child');
-                 if(firstOption) select.value = firstOption.value;
-            }
-            select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-    }
 
     /**
      * Klickt den originalen "Ausbilden"-Button.
@@ -80,10 +38,64 @@
     }
 
     /**
-     * Erstellt die komplette UI und fügt sie ein.
+     * Setzt Verbandsfreigabe, resettet alle Räume auf 0, und setzt dann den neuen Wert.
+     */
+    function selectAllRooms(numberToSelect) {
+        
+        // --- Schritt 1: Verbandsfreigabe immer auf "2 Tage" setzen ---
+        const allianceDurationSelect = document.getElementById(ALLIANCE_DURATION_ID);
+        if (allianceDurationSelect) {
+            allianceDurationSelect.value = ALLIANCE_DURATION_VALUE;
+            allianceDurationSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        const allSelects = document.querySelectorAll(`select.empty_rooms_education_selector`);
+
+        // --- Schritt 2: RESET-SCHLEIFE ---
+        // Setze ZUERST alle auf 0, damit die Zählung der Seite zurückgesetzt wird.
+        allSelects.forEach(select => {
+            const educationKey = select.dataset.educationKey;
+            if (!educationKey) return;
+            const zeroValue = `${educationKey}:0`;
+            const zeroOption = select.querySelector(`option[value="${zeroValue}"]`);
+            if (zeroOption) {
+                if (select.value !== zeroValue) { // Nur ändern, wenn nicht schon 0
+                    select.value = zeroValue;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+        
+        // --- Schritt 3: AUSWAHL-SCHLEIFE ---
+        // Setze jetzt den gewünschten Wert (z.B. 30).
+        // (Wenn "0 (Reset)" geklickt wurde, ist numberToSelect 0,
+        // und dieser Block setzt einfach alles nochmal auf 0, was OK ist)
+        allSelects.forEach(select => {
+            const educationKey = select.dataset.educationKey;
+            if (!educationKey) return;
+            const targetValue = `${educationKey}:${numberToSelect}`;
+            const targetOption = select.querySelector(`option[value="${targetValue}"]`);
+
+            if (targetOption) {
+                // Wert (z.B. 30) ist verfügbar
+                select.value = targetValue;
+            } else if (numberToSelect > 0) { 
+                // Wert ist nicht verfügbar (z.B. 300 geklickt, aber nur 100 max)
+                // Wähle den höchsten verfügbaren Wert (die letzte Option)
+                const lastOption = select.querySelector('option:last-child');
+                if (lastOption) select.value = lastOption.value;
+            }
+            // (Der 'else'-Fall für numberToSelect === 0 ist bereits durch Reset-Schleife abgedeckt)
+            
+            // Sende das Change-Event für den neuen Wert
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    }
+
+    /**
+     * Erstellt die komplette UI
      */
     function addQuickSelectButtons(insertionPoint) {
-        // 1. Haupt-Container
         const mainContainer = document.createElement('div');
         mainContainer.id = BUTTON_CONTAINER_ID;
         mainContainer.style.marginBottom = '20px';
@@ -91,33 +103,29 @@
         mainContainer.style.border = '1.5px solid #444';
         mainContainer.style.borderRadius = '4px';
 
-        // --- TEIL 1: Button-Leiste (Auswählen) ---
         const containerPart1 = document.createElement('div');
         containerPart1.innerHTML = '<h4 style="margin-bottom: 5px;">Schnellauswahl (setzt Freigabe immer auf 2 Tage):</h4>';
 
-        // Die Zahlen-Buttons
         BUTTON_VALUES.forEach(value => {
             const button = document.createElement('button');
             button.innerText = value;
             button.type = 'button';
             button.className = 'btn btn-default btn-xs';
             button.style.margin = '2px';
-            
             button.addEventListener('click', () => {
-                // Schritt 1: Immer Räume + Verbandsfreigabe auswählen
+                // Führt Reset + Neuauswahl aus
                 selectAllRooms(value);
                 
-                // Schritt 2: Prüfen, ob die Checkbox aktiv ist
+                // Prüft, ob Auto-Start aktiv ist
                 const checkbox = document.getElementById(CHECKBOX_ID);
                 if (checkbox && checkbox.checked) {
-                    // Schritt 3: Wenn ja, "Ausbilden" klicken
                     clickAusbildenButton();
                 }
             });
             containerPart1.appendChild(button);
         });
 
-        // "Zurücksetzen"-Button (setzt auch Freigabe auf 2 Tage, aber startet nie)
+        // "Zurücksetzen"-Button (führt nur selectAllRooms(0) aus)
         const zeroButton = document.createElement('button');
         zeroButton.innerText = '0 (Reset)';
         zeroButton.type = 'button';
@@ -126,7 +134,7 @@
         zeroButton.addEventListener('click', () => selectAllRooms(0));
         containerPart1.appendChild(zeroButton);
 
-        // Geklonter "Ausbilden"-Button (für manuellen Klick)
+        // Geklonter "Ausbilden"-Button
         const originalButton = document.querySelector(SUBMIT_BUTTON_SELECTOR);
         if (originalButton) {
             const clonedButton = originalButton.cloneNode(true);
@@ -138,15 +146,12 @@
         }
         mainContainer.appendChild(containerPart1);
 
-        // --- TEIL 2: Checkbox zur Verhaltenssteuerung ---
+        // Checkbox für Auto-Start
         const checkboxContainer = document.createElement('div');
         checkboxContainer.style.margin = '15px 0 5px 0';
-        
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.id = CHECKBOX_ID;
-        
-        // Gespeicherten Wert laden
         let directStartEnabled = localStorage.getItem(STORAGE_KEY_DIRECT_START) === 'true';
         checkbox.checked = directStartEnabled;
 
@@ -160,29 +165,58 @@
         checkboxContainer.appendChild(label);
         mainContainer.appendChild(checkboxContainer);
 
-        // Event Listener, um die Einstellung zu speichern
         checkbox.addEventListener('change', () => {
             localStorage.setItem(STORAGE_KEY_DIRECT_START, checkbox.checked);
         });
 
-        // Alles final einfügen
         insertionPoint.parentNode.insertBefore(mainContainer, insertionPoint);
     }
 
-    // --- MutationObserver (Startpunkt) ---
-    const observerCallback = (mutationsList, observer) => {
-        const insertionPoint = document.getElementById(INSERTION_POINT_ID);
-        const buttonsExist = document.getElementById(BUTTON_CONTAINER_ID);
+    // --- Observer-Logik (unverändert) ---
 
-        if (insertionPoint && !buttonsExist) {
-            if (insertionPoint.querySelector('select.empty_rooms_education_selector')) {
-                addQuickSelectButtons(insertionPoint);
+    let targetObserver = null; 
+
+    function controlButtonsVisibility(targetElement) {
+        let buttons = document.getElementById(BUTTON_CONTAINER_ID);
+        const isVisible = (targetElement.style.display === 'block');
+        const hasSelects = targetElement.querySelector('select.empty_rooms_education_selector');
+
+        if (isVisible && hasSelects) {
+            if (!buttons) {
+                addQuickSelectButtons(targetElement);
+            } else {
+                buttons.style.display = 'block';
+            }
+        } else {
+            if (buttons) {
+                buttons.style.display = 'none';
+            }
+        }
+    }
+
+    const targetObserverCallback = (mutationsList, observer) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+                controlButtonsVisibility(mutation.target);
             }
         }
     };
 
-    const config = { childList: true, subtree: true };
-    const observer = new MutationObserver(observerCallback);
-    observer.observe(document.body, config);
+    const bodyObserverCallback = (mutationsList, observer) => {
+        const insertionPoint = document.getElementById(INSERTION_POINT_ID);
+        
+        if (insertionPoint) {
+            observer.disconnect();
+            controlButtonsVisibility(insertionPoint);
+            targetObserver = new MutationObserver(targetObserverCallback);
+            targetObserver.observe(insertionPoint, { 
+                attributes: true, 
+                attributeFilter: ['style']
+            });
+        }
+    };
+
+    const bodyObserver = new MutationObserver(bodyObserverCallback);
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
 
 })();
