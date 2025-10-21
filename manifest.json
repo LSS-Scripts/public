@@ -213,7 +213,7 @@
     "fileName": "Statuszähler.v8.6.0.user.js",
     "description": "Ein Statuszähler, oben in der Titelleiste.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Optik","Statistik"]
   },
   {
     "name": "Summenleiste",
