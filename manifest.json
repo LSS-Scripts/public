@@ -155,7 +155,7 @@
     "name": "Lehrgangszuweiser",
     "version": "2.0.1",
     "fileName": "Lehrgangszuweiser.v2.0.1.user.js",
-    "description": "Zu faul bei den Lehrgängen eeewig zu scrollen? lass es doch ein script für Dich tun.... ",
+    "description": "Wer hunderte Leute manuell zur Schule schickt, hat die Kontrolle über sein Leben verloren. Dieses Script ist dein unbezahlter Praktikant: Es übernimmt die mühselige Zuweisung, damit du mehr Zeit für... naja, für alles andere hast.",
     "changelog": "",
     "categories": ["Lehrgänge"]
   },
