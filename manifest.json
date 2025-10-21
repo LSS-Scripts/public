@@ -4,244 +4,279 @@
     "version": "10.0.0",
     "fileName": "Ausbildungs-Mausschoner (B&M).v10.0.0.user.js",
     "description": "Dies ist das offizielle \"Mein-Mausrad-ist-mir-heilig\"-Skript, das die hunderte lästigen Klicks beim Ausbilden auf einen einzigen, heroischen Knopfdruck reduziert. Egal ob du dein Personal mühsam aus allen Ecken der Karte zusammenkratzt oder einfach massenhaft leere Räume befüllst – das Ding \"schlödelt\" sich dann selbstständig durch deine Schulen. Du siehst nur einen Fortschrittsbalken, der die Arbeit mit industrieller Geschwindigkeit erledigt.<br>Original von Jan. Ja, DEM Jan... ;)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Auto-Nachladen",
     "version": "9.0.1",
     "fileName": "Auto-Nachladen.v9.0.1.user.js",
     "description": "Ein Scriptchen, das automatisch den Fahrzeug-Nachladevorgang startet, wenn man mit der Maus auf eine nicht ausführbare AAO zeigt im Alarmfenster.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Automatisches Teilen von Einsätzen",
     "version": "2.1.2",
     "fileName": "Automatisches Teilen.v2.1.2.user.js",
     "description": "Teilt auf Knopfdruck eine von dir festgelegte Anzahl an Einsätzen, wobei es nach einem einstellbaren Creditlimit filtert und bereits geteilte Einsätze ignoriert. Zusätzlich versieht es jeden geteilten Einsatz mit einer anpassbaren Notiz, wie z.B. einer Endzeit.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Automatisches einklappen von Einsätzen",
     "version": "3.0.0",
     "fileName": "Automatisches Einklappen.v3.0.0.user.js",
     "description": "Sorgt für eine aufgeräumte Einsatzliste, indem es bereits angefahrene Einsätze automatisch einklappt. (Kombatibel mit dem Skript \"Einsätze einklappen\" und der LSSM Funktion Erweiterte Einsatzliste -> Einsätze einklappen)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Benötigte Fahrzeuge WIRKLICH verschönern",
     "version": "18.3.7",
     "fileName": "Benötigte Fahrzeuge WIRKLICH verschönern.v18.3.7.user.js",
     "description": "Wir schicken die Textwüste aus den 90ern endlich in Rente und ersetzen sie durch ein Cockpit mit allem Drum und Dran. Bunte Fortschrittsbalken und eine clevere Sortierung nach Gewerk zeigen dir auf einen Blick, was Sache ist. Disponieren war noch nie so verdammt sexy.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Betreuungsberechnung",
     "version": "1.0.4",
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
     "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).Nicht perfekt, aber für den Anfang....",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Capslock-Kastrator",
     "version": "2.1.0",
     "fileName": "Capslock-Kastrator.v2.1.0.user.js",
     "description": "Übernimmt die Kleinschreibung für User, die es selbst nicht schaffen. Ein Akt der Nächstenliebe.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Einsätze einklappen",
     "version": "5.0.0",
     "fileName": "Einsätze einklappe.v5.0.0.user.js",
     "description": "Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen \"Alle umschalten\"-Knopf in der Hauptleiste.(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Endzeit-Anzeige",
     "version": "3.5.5",
     "fileName": "Einsatz Endzeit-Anzeige.v3.5.5.user.js",
     "description": "Zeigt bei Verbands- und geteilten Einsätzen das früheste Zufahrts-Ende und bietet erweiterte Konfigurationsmöglichkeiten. Inklusive GSL- und RD-Gesperrt-Anzeige. (Modifizierte Version mit API-Abfrage für eigene Einsätze)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Erweiterte Statistik",
     "version": "9.0.0",
     "fileName": "Erweiterte Statistik.v9.0.0.user.js",
     "description": "Ein Ansatz für eine Statistik über Gebäude und Personal...<br>WIP!",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Erweiterungsanzeige & Schnellbau",
     "version": "4.1.0",
     "fileName": "Erweiterungsanzeige & Schnellbau.v4.1.0.user.js",
     "description": "Dieses Script verpasst der Ausbau-Ansicht in Wachen eine moderne, interaktive Oberfläche für den perfekten Überblick. Es ermöglicht den gleichzeitigen Bau mehrerer ausgewählter Erweiterungen mit nur einem Klick und speichert die Auswahl als globale Vorlage für alle weiteren Wachen.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
     "description": "Ein Script, das Fahrzeuge nach Kategorien automatisch, random benennt. Einfach nur so, weil man es kann....<br>13.2.3-13.3.0:Grammatikprobleme behoben. theoretisch.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeug-Tool",
     "version": "17.3.2",
     "fileName": "Fahrzeug-Tool.v17.3.2.user.js",
     "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
-    "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert 16.0.0 -> MAX-Refitting erweitert"
+    "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert 16.0.0 -> MAX-Refitting erweitert",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeuge auf Karte",
     "version": "1.0.0",
     "fileName": "Fahrzeuge auf Karte.v1.0.0.user.js",
     "description": "Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. (Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeuge in Wache umbenennen",
     "version": "1.7.0",
     "fileName": "Fahrzeuge umbenennen.v1.7.0.user.js",
     "description": "Deine Fahrzeuge einzeln zu taufen hat den Charme einer Excel-Tabelle und den Spaßfaktor einer Wurzelbehandlung. Deshalb: Dieses Skript ist dein Namens-Stempel – Vorlage einstellen, einmal draufhauen, und die ganze Flotte ist sauber beschriftet, ohne dass deine Maus um Gnade winseln muss. (Abgeguckt aus dem LSSM v3 und besser gemacht)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeugfilter",
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
     "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
-    "changelog": "{34.0.0}Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster{12.0.0}Gimmick: Gesamtkilometer auf Leitstellenseite..."
+    "changelog": "{34.0.0}Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster{12.0.0}Gimmick: Gesamtkilometer auf Leitstellenseite...",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Grafikset-Manager",
     "version": "9.1.0",
     "fileName": "Grafikset-Manager.v9.1.0.user.js",
     "description": "Fügt einen Button im Spielermenü hinzu, um ausgewählten Wachen (filterbar nach Name, Typ, Leitstelle & Grafikset-Name) ein Grafikset zuzuweisen. Robusteres Laden der Set-Liste.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Lehrgangs-Schnellauswahl (Räume)",
     "version": "1.7.0",
     "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.7.0.user.js",
     "description": "ACHTUNG: Hängt vom Ausbildungs-Mausschoner ab!<br>Weil deine Maus Besseres verdient hat, als 50 Mal dieselbe Zahl in ein Dropdown-Menü zu klicken. Dieses Script macht alles. Es wählt die Räume, stellt die Freigabe ein und ja, es klickt sogar 'Ausbilden' für dich. Deine einzige, unfassbar anstrengende Aufgabe: Ein einziges Häkchen setzen. Wir glauben an dich.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Lehrgangsabbrecher",
     "version": "2.2.1",
     "fileName": "Lehgangsabbrecher.v2.2.1.user.js",
     "description": "Sorgt in der Lehrgangsübersicht für gesammelte Abbruchmöglichkeiten für unbesetzte Lehrgänge (alle, pro Schule und auch einzelne Lehrgänge)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Lehrgangszuweiser",
     "version": "2.0.1",
     "fileName": "Lehrgangszuweiser.v2.0.1.user.js",
     "description": "Zu faul bei den Lehrgängen eeewig zu scrollen? lass es doch ein script für Dich tun.... ",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Lehrgangsübersicht (Teilnehmerzahl)",
     "version": "1.3.0",
     "fileName": "Lehrgangsübersicht (Teilnehmerzahl).v1.3.0.user.js",
     "description": "Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Lehrgangsübersicht",
     "version": "22.0.0",
     "fileName": "Lehrgangsübersicht.v22.0.0.user.js",
     "description": "Zeigt bei der Leitstelle -> Lehrgänge eine Statistik an und beitet, wenn freie Lehrgänge vorhanden sind, auch an die dort direkt zu starten.<br>Erstes Release, also: auch hier BETA!<br>Geht aktuell davon aus, dass Schulen IMMER 4 Räume haben. Zeigt eine Ampel (frei/belegt) auf der Hauptseite (Gebäudeliste)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
     "version": "1.5.1",
     "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.5.1.user.js",
     "description": "Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Massenkategorierer",
     "version": "19.0.0",
     "fileName": "Massenkategorierer.v19.0.0.user.js",
     "description": "Ein Script, um Fahrzeuge in größeren Mengen in eine eigene Fahrzeugklasse(n) einzuordnen.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Offline-Sprechwünsche entlassen",
     "version": "0.9.1",
     "fileName": "Offline-Sprechwünsche entlassen.v0.9.1.user.js",
     "description": "Prüft, ob Sprechwünsche entlassbar sind und bietet an, diese gesammelt zu entlassen.Mit Prüfung ob ELW-SEG vor Ort oder unterwegs ist. ",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Reale Gebäudeliste",
     "version": "0.5.0",
     "fileName": "Reale Gebäudeliste.v0.5.0.user.js",
     "description": "BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. Nicht auf dunkles Design gemappt!",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Statuszähler",
     "version": "8.6.0",
     "fileName": "Statuszähler.v8.6.0.user.js",
     "description": "Ein Statuszähler, oben in der Titelleiste.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Summenleiste",
     "version": "6.1.3",
     "fileName": "Summenleiste.v6.1.3.user.js",
     "description": "Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt. Jetzt mit fixer Position ÜBER der Einsatzliste und der Summe abschließbaerer Einsätze (Via Endzeit-Script).",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Tab aktiv halten",
     "version": "0.5.0",
     "fileName": "Tab aktiv halten.v0.5.0.user.js",
     "description": "Ein Versuch, Tabs im Browser aktiv zu halten - dass diese eben NICHT einschlafen, wenn der Tab gerade nicht aktiv ist.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "VA - Verbandsmitgliedschaft prüfen",
     "version": "0.9.6",
     "fileName": "VA - Verbandsmitgliedschaft prüfen.v0.9.6.user.js",
     "description": "Prüft im Verbandsforum in einem Thread, ob noch alle, die die dort geschrieben haben, noch im Verband sind. Wunschscript für Admins von Florian Hamburg... ;)",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Verbands-Scoreboard",
     "version": "0.7.1",
     "fileName": "Verbands-Scoreboard.v0.7.1.user.js",
     "description": "Dieses Skript fügt dem Spiel einen \"Scoreboard\"-Button hinzu, der eine Rangliste der Verbandsmitglieder basierend auf der Anzahl ihrer geteilten Einsätze anzeigt. Die Zählung erfolgt clientseitig und erfasst nur Einsätze, die erscheinen, während das Spiel in einem Browser-Tab aktiv ist.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Verbandsrückmeldung schreiben und weiterspringen",
     "version": "0.8.4",
     "fileName": "Verbandsrückmeldung schreiben und weiterspringen.v0.8.4.user.js",
     "description": "Fügt bei Verbandseinsätzen einen \"schreiben und weiter\"-Button ein. Wunschscript…",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Wachen-Liste",
     "version": "4.3.1",
     "fileName": "Wachen-Liste.v4.3.1.user.js",
     "description": "Stellt eine Wachenliste (Name, Personal, Stellplätze, FREIE Stellplätze) bereit, filter- und sortierbar.Aktuell NUR für Feuerwachen, Rettungswachen dun Polizeiwachen. Weitere Wachentypen werden folgen... Stay tuned.NOCH werden die Erweiterungen nicht korrekt bewertet!!!",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Wachen-Namen-Manager",
     "version": "13.6.0",
     "fileName": "Wachen-Namen-Manager.v13.6.0.user.js",
     "description": "BETA!!!!!<br>Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich.<br>Man kann mit Platzhaltern arbeiten: [PLZ] [ORT] [NR] (für PLZ & Ort erst Adressliste laden. dafür müssen alle Fzg. aktuell auf status 2 sein.)<br>VG M.",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   },
   {
     "name": "Wachen-Personal- & Erweiterungs-Prüfer",
     "version": "6.0.0",
     "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
     "description": "Prüft anhand eines ZUVOR erstellten Wachenbauplans die Personalstärke, die Erweiterungen und bietet ggf. an diese zu bauen oder das Personal auszubilden (In freigegebenen Lehrgängen) oder die entpsrechende Anzahl über den verbandschat anzufragen. ",
-    "changelog": ""
+    "changelog": "",
+    "categories": ["Sonstiges"]
   }
 ]
