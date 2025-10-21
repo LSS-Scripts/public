@@ -43,7 +43,7 @@
     "name": "Betreuungsberechnung",
     "version": "1.0.4",
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
-    "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).<br>Nicht perfekt, aber für den Anfang....",
+    "description": "Hier ist dein neuer, unfehlbarer Betreuungs-Rechner. Er weiß genau, wie viele Küchen und Helfer du brauchst. Meistens. Also, wahrscheinlich.<br><br>Achtung, Beta: Das Skript ist noch nicht fertig und erkennt eventuell noch nicht alle Fahrzeuge korrekt. Keine Gewähr, falls deine Einsatzkräfte am Ende trotzdem hungrig bleiben!",
     "changelog": "",
     "categories": ["Alarmierung"]
   },
