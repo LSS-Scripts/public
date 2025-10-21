@@ -125,7 +125,7 @@
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
     "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
     "changelog": "{34.0.0}Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster{12.0.0}Gimmick: Gesamtkilometer auf Leitstellenseite...",
-    "categories": ["Sonstiges"]
+    "categories": ["Alarmierung","Fahrzeuge","Listen","Suche"]
   },
   {
     "name": "Grafikset-Manager",
@@ -149,7 +149,7 @@
     "fileName": "Lehgangsabbrecher.v2.2.1.user.js",
     "description": "Sorgt in der Lehrgangsübersicht für gesammelte Abbruchmöglichkeiten für unbesetzte Lehrgänge (alle, pro Schule und auch einzelne Lehrgänge)",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Lehrgänge"]
   },
   {
     "name": "Lehrgangszuweiser",
