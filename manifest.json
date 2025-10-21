@@ -277,6 +277,6 @@
     "fileName": "Wachen-Personal- & Erweiterungs-Prüfer.v6.0.0.user.js",
     "description": "Prüft anhand eines ZUVOR erstellten Wachenbauplans die Personalstärke, die Erweiterungen und bietet ggf. an diese zu bauen oder das Personal auszubilden (In freigegebenen Lehrgängen) oder die entpsrechende Anzahl über den verbandschat anzufragen. ",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Gebäude","Lehrgänge"]
   }
 ]
