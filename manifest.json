@@ -189,7 +189,7 @@
     "fileName": "Massenkategorierer.v19.0.0.user.js",
     "description": "Ein Script, um Fahrzeuge in größeren Mengen in eine eigene Fahrzeugklasse(n) einzuordnen.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Fahrzeuge"]
   },
   {
     "name": "Offline-Sprechwünsche entlassen",
