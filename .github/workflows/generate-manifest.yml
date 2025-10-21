@@ -29,16 +29,28 @@ jobs:
             USER_SCRIPT=$(find "$dir" -maxdepth 1 -name "*.user.js")
             if [ -n "$USER_SCRIPT" ]; then
               FILENAME=$(basename "$USER_SCRIPT")
-              
-              # --- HIER IST DIE ENTSCHEIDENDE ÄNDERUNG ---
-              # Wir nehmen jetzt den Ordnernamen als Skript-Namen.
               NAME="$dir"
-              # --- ENDE DER ÄNDERUNG ---
-
               VERSION=$(echo "$FILENAME" | sed -n 's/.*\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\)\.user\.js/\1/p')
               
               DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
               CHANGELOG=$(cat "$dir/changelog.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
+
+              # --- NEUER BLOCK: Kategorien einlesen und formatieren ---
+              CATEGORIES_RAW=$(cat "$dir/category.txt" 2>/dev/null | tr -d '\n\r')
+              if [ -n "$CATEGORIES_RAW" ]; then
+                # Wandelt "Kat1, Kat2, Kat3" in "[\"Kat1\",\"Kat2\",\"Kat3\"]" um
+                # 1. Entfernt Leerzeichen am Anfang/Ende
+                # 2. Ersetzt " , " (mit variablen Leerzeichen) durch '","'
+                # 3. Fügt "[\"" am Anfang und "\"]" am Ende hinzu
+                CATEGORIES_JSON=$(echo "$CATEGORIES_RAW" | \
+                                  sed -e 's/^[ \t]*//' -e 's/[ \t]*$//' \
+                                      -e 's/[ \t]*,[ \t]*/\",\"/g' \
+                                      -e 's/^/\[\"/' -e 's/$/\"\]/')
+              else
+                # Fallback, wenn keine category.txt vorhanden ist
+                CATEGORIES_JSON="[\"Sonstiges\"]"
+              fi
+              # --- ENDE NEUER BLOCK ---
 
               if [ "$FIRST_ENTRY" = false ]; then
                 echo "," >> manifest.json
@@ -48,7 +60,10 @@ jobs:
               echo "    \"version\": \"$VERSION\"," >> manifest.json
               echo "    \"fileName\": \"$FILENAME\"," >> manifest.json
               echo "    \"description\": \"$DESCRIPTION\"," >> manifest.json
-              echo "    \"changelog\": \"$CHANGELOG\"" >> manifest.json
+              # --- GEÄNDERTE ZEILEN ---
+              echo "    \"changelog\": \"$CHANGELOG\"," >> manifest.json # Komma hinzugefügt
+              echo "    \"categories\": $CATEGORIES_JSON" >> manifest.json # Neue Zeile, kein Komma
+              # --- ENDE ÄNDERUNG ---
               echo -n "  }" >> manifest.json
               FIRST_ENTRY=false
             fi
