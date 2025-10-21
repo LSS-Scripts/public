@@ -1,2 +1,3 @@
-Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).
-Nicht perfekt, aber für den Anfang....
+Hier ist dein neuer, unfehlbarer Betreuungs-Rechner. Er weiß genau, wie viele Küchen und Helfer du brauchst. Meistens. Also, wahrscheinlich.
+
+Achtung, Beta: Das Skript ist noch nicht fertig und erkennt eventuell noch nicht alle Fahrzeuge korrekt. Keine Gewähr, falls deine Einsatzkräfte am Ende trotzdem hungrig bleiben!
