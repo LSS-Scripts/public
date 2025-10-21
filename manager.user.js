@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.6.2
+// @version      13.6.3
 // @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten. Fügt Kategorie-Ansicht hinzu. (CSS-Fix)
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
@@ -1079,8 +1079,8 @@
                     <button id="bm-collapse-all" title="Alle Kategorien einklappen" style="display: none;">Alle einklappen</button>
                     <label for="bm-view-switcher" style="font-size: 0.9em; margin-right: 5px;">Anzeige:</label>
                     <select id="bm-view-switcher">
-                        <option value="alphabetical">Alphabet (alle)</option>
                         <option value="category">Nach Kategorie</option>
+                        <option value="alphabetical">Alphabet (alle)</option>
                     </select>
                 </div>
             </div>
