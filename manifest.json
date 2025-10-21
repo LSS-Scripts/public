@@ -120,8 +120,8 @@
   },
   {
     "name": "Lehrgangs-Schnellauswahl (Räume)",
-    "version": "1.5.0",
-    "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.5.0.user.js",
+    "version": "1.7.0",
+    "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.7.0.user.js",
     "description": "ACHTUNG: Hängt vom Ausbildungs-Mausschoner ab!<br>Weil deine Maus Besseres verdient hat, als 50 Mal dieselbe Zahl in ein Dropdown-Menü zu klicken. Dieses Script macht alles. Es wählt die Räume, stellt die Freigabe ein und ja, es klickt sogar 'Ausbilden' für dich. Deine einzige, unfassbar anstrengende Aufgabe: Ein einziges Häkchen setzen. Wir glauben an dich.",
     "changelog": ""
   },
