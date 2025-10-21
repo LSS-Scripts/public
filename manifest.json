@@ -221,7 +221,7 @@
     "fileName": "Summenleiste.v6.1.3.user.js",
     "description": "Ein Script, das in den aktuell angezeigten Einsätzen in der Einsatzliste die zu erwartenden Credits, aktuell angezeigte Patienten und Gefangene zusammenzählt. Jetzt mit fixer Position ÜBER der Einsatzliste und der Summe abschließbaerer Einsätze (Via Endzeit-Script).",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Statistik","Optik"]
   },
   {
     "name": "Tab aktiv halten",
