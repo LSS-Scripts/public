@@ -253,7 +253,7 @@
     "fileName": "Verbandsrückmeldung schreiben und weiterspringen.v0.8.4.user.js",
     "description": "Fügt bei Verbandseinsätzen einen \"schreiben und weiter\"-Button ein. Wunschscript…",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Verbands-Tools"]
   },
   {
     "name": "Wachen-Liste",
