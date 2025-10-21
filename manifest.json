@@ -13,7 +13,7 @@
     "fileName": "Auto-Nachladen.v9.0.1.user.js",
     "description": "Ein Scriptchen, das automatisch den Fahrzeug-Nachladevorgang startet, wenn man mit der Maus auf eine nicht ausführbare AAO zeigt im Alarmfenster.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Alarmierung"]
   },
   {
     "name": "Automatisches Teilen von Einsätzen",
