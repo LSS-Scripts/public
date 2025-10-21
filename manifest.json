@@ -93,7 +93,7 @@
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
     "description": "Ein Script, das Fahrzeuge nach Kategorien automatisch, random benennt. Einfach nur so, weil man es kann....<br><br>13.2.3-13.3.0:Grammatikprobleme behoben. theoretisch.",
     "changelog": "",
-    "categories": ["Fahrzeuge"]
+    "categories": ["Fahrzeuge","Fun"]
   },
   {
     "name": "Fahrzeug-Tool",
@@ -109,7 +109,7 @@
     "fileName": "Fahrzeuge auf Karte.v1.0.0.user.js",
     "description": "Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. <br><br>(Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Statistik"]
   },
   {
     "name": "Fahrzeuge in Wache umbenennen",
