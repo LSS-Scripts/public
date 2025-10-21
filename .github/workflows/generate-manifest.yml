@@ -32,16 +32,15 @@ jobs:
               NAME="$dir"
               VERSION=$(echo "$FILENAME" | sed -n 's/.*\.v\([0-9]\+\.[0-9]\+\.[0-9]\+\)\.user\.js/\1/p')
               
-              DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
-              CHANGELOG=$(cat "$dir/changelog.txt" 2>/dev/null | sed 's/"/\\"/g' | tr -d '\n\r')
+              # --- GEÄNDERTE ZEILEN: Wandelt Newlines in <br> um ---
+              DESCRIPTION=$(cat "$dir/info.txt" 2>/dev/null | sed 's/"/\\"/g' | awk 'ORS="<br>"' | sed 's/<br>$//' | tr -d '\r')
+              CHANGELOG=$(cat "$dir/changelog.txt" 2>/dev/null | sed 's/"/\\"/g' | awk 'ORS="<br>"' | sed 's/<br>$//' | tr -d '\r')
+              # --- ENDE DER ÄNDERUNG ---
 
               # --- NEUER BLOCK: Kategorien einlesen und formatieren ---
               CATEGORIES_RAW=$(cat "$dir/category.txt" 2>/dev/null | tr -d '\n\r')
               if [ -n "$CATEGORIES_RAW" ]; then
                 # Wandelt "Kat1, Kat2, Kat3" in "[\"Kat1\",\"Kat2\",\"Kat3\"]" um
-                # 1. Entfernt Leerzeichen am Anfang/Ende
-                # 2. Ersetzt " , " (mit variablen Leerzeichen) durch '","'
-                # 3. Fügt "[\"" am Anfang und "\"]" am Ende hinzu
                 CATEGORIES_JSON=$(echo "$CATEGORIES_RAW" | \
                                   sed -e 's/^[ \t]*//' -e 's/[ \t]*$//' \
                                       -e 's/[ \t]*,[ \t]*/\",\"/g' \
@@ -60,10 +59,8 @@ jobs:
               echo "    \"version\": \"$VERSION\"," >> manifest.json
               echo "    \"fileName\": \"$FILENAME\"," >> manifest.json
               echo "    \"description\": \"$DESCRIPTION\"," >> manifest.json
-              # --- GEÄNDERTE ZEILEN ---
-              echo "    \"changelog\": \"$CHANGELOG\"," >> manifest.json # Komma hinzugefügt
-              echo "    \"categories\": $CATEGORIES_JSON" >> manifest.json # Neue Zeile, kein Komma
-              # --- ENDE ÄNDERUNG ---
+              echo "    \"changelog\": \"$CHANGELOG\"," >> manifest.json
+              echo "    \"categories\": $CATEGORIES_JSON" >> manifest.json
               echo -n "  }" >> manifest.json
               FIRST_ENTRY=false
             fi
