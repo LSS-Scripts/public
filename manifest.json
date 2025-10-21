@@ -3,7 +3,7 @@
     "name": "Ausbildungs-Mausschoner (B&M)",
     "version": "10.0.0",
     "fileName": "Ausbildungs-Mausschoner (B&M).v10.0.0.user.js",
-    "description": "Dies ist das offizielle \"Mein-Mausrad-ist-mir-heilig\"-Skript, das die hunderte lästigen Klicks beim Ausbilden auf einen einzigen, heroischen Knopfdruck reduziert. Egal ob du dein Personal mühsam aus allen Ecken der Karte zusammenkratzt oder einfach massenhaft leere Räume befüllst – das Ding \"schlödelt\" sich dann selbstständig durch deine Schulen. Du siehst nur einen Fortschrittsbalken, der die Arbeit mit industrieller Geschwindigkeit erledigt.<br>Original von Jan. Ja, DEM Jan... ;)",
+    "description": "Dies ist das offizielle \"Mein-Mausrad-ist-mir-heilig\"-Skript, das die hunderte lästigen Klicks beim Ausbilden auf einen einzigen, heroischen Knopfdruck reduziert. Egal ob du dein Personal mühsam aus allen Ecken der Karte zusammenkratzt oder einfach massenhaft leere Räume befüllst – das Ding \"schlödelt\" sich dann selbstständig durch deine Schulen. Du siehst nur einen Fortschrittsbalken, der die Arbeit mit industrieller Geschwindigkeit erledigt.<br><br><br>Original von Jan. Ja, DEM Jan... ;)",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -43,7 +43,7 @@
     "name": "Betreuungsberechnung",
     "version": "1.0.4",
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
-    "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).Nicht perfekt, aber für den Anfang....",
+    "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).<br>Nicht perfekt, aber für den Anfang....",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -59,7 +59,7 @@
     "name": "Einsätze einklappen",
     "version": "5.0.0",
     "fileName": "Einsätze einklappe.v5.0.0.user.js",
-    "description": "Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen \"Alle umschalten\"-Knopf in der Hauptleiste.(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)",
+    "description": "Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen \"Alle umschalten\"-Knopf in der Hauptleiste.<br>(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -75,7 +75,7 @@
     "name": "Erweiterte Statistik",
     "version": "9.0.0",
     "fileName": "Erweiterte Statistik.v9.0.0.user.js",
-    "description": "Ein Ansatz für eine Statistik über Gebäude und Personal...<br>WIP!",
+    "description": "Ein Ansatz für eine Statistik über Gebäude und Personal...<br><br><br>WIP!",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -91,7 +91,7 @@
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
-    "description": "Ein Script, das Fahrzeuge nach Kategorien automatisch, random benennt. Einfach nur so, weil man es kann....<br>13.2.3-13.3.0:Grammatikprobleme behoben. theoretisch.",
+    "description": "Ein Script, das Fahrzeuge nach Kategorien automatisch, random benennt. Einfach nur so, weil man es kann....<br><br>13.2.3-13.3.0:Grammatikprobleme behoben. theoretisch.",
     "changelog": "",
     "categories": ["Fahrzeuge"]
   },
@@ -99,15 +99,15 @@
     "name": "Fahrzeug-Tool",
     "version": "17.3.2",
     "fileName": "Fahrzeug-Tool.v17.3.2.user.js",
-    "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
-    "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert 16.0.0 -> MAX-Refitting erweitert",
+    "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)<br><br>NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
+    "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert <br>16.0.0 -> MAX-Refitting erweitert",
     "categories": ["Sonstiges"]
   },
   {
     "name": "Fahrzeuge auf Karte",
     "version": "1.0.0",
     "fileName": "Fahrzeuge auf Karte.v1.0.0.user.js",
-    "description": "Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. (Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)",
+    "description": "Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. <br><br>(Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -124,7 +124,7 @@
     "version": "34.0.0",
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
     "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
-    "changelog": "{34.0.0}Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster{12.0.0}Gimmick: Gesamtkilometer auf Leitstellenseite...",
+    "changelog": "{34.0.0}<br>Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster<br><br><br>{12.0.0}<br>Gimmick: Gesamtkilometer auf Leitstellenseite...",
     "categories": ["Alarmierung","Fahrzeuge","Listen","Suche"]
   },
   {
@@ -139,7 +139,7 @@
     "name": "Lehrgangs-Schnellauswahl (Räume)",
     "version": "1.7.0",
     "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.7.0.user.js",
-    "description": "ACHTUNG: Hängt vom Ausbildungs-Mausschoner ab!<br>Weil deine Maus Besseres verdient hat, als 50 Mal dieselbe Zahl in ein Dropdown-Menü zu klicken. Dieses Script macht alles. Es wählt die Räume, stellt die Freigabe ein und ja, es klickt sogar 'Ausbilden' für dich. Deine einzige, unfassbar anstrengende Aufgabe: Ein einziges Häkchen setzen. Wir glauben an dich.",
+    "description": "ACHTUNG: Hängt vom Ausbildungs-Mausschoner ab!<br><br>Weil deine Maus Besseres verdient hat, als 50 Mal dieselbe Zahl in ein Dropdown-Menü zu klicken. Dieses Script macht alles. Es wählt die Räume, stellt die Freigabe ein und ja, es klickt sogar 'Ausbilden' für dich. Deine einzige, unfassbar anstrengende Aufgabe: Ein einziges Häkchen setzen. Wir glauben an dich.",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -171,7 +171,7 @@
     "name": "Lehrgangsübersicht",
     "version": "22.0.0",
     "fileName": "Lehrgangsübersicht.v22.0.0.user.js",
-    "description": "Zeigt bei der Leitstelle -> Lehrgänge eine Statistik an und beitet, wenn freie Lehrgänge vorhanden sind, auch an die dort direkt zu starten.<br>Erstes Release, also: auch hier BETA!<br>Geht aktuell davon aus, dass Schulen IMMER 4 Räume haben. Zeigt eine Ampel (frei/belegt) auf der Hauptseite (Gebäudeliste)",
+    "description": "Zeigt bei der Leitstelle -> Lehrgänge eine Statistik an und beitet, wenn freie Lehrgänge vorhanden sind, auch an die dort direkt zu starten.<br><br><br>Erstes Release, also: auch hier BETA!<br><br><br>Geht aktuell davon aus, dass Schulen IMMER 4 Räume haben. <br>Zeigt eine Ampel (frei/belegt) auf der Hauptseite (Gebäudeliste)",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -195,7 +195,7 @@
     "name": "Offline-Sprechwünsche entlassen",
     "version": "0.9.1",
     "fileName": "Offline-Sprechwünsche entlassen.v0.9.1.user.js",
-    "description": "Prüft, ob Sprechwünsche entlassbar sind und bietet an, diese gesammelt zu entlassen.Mit Prüfung ob ELW-SEG vor Ort oder unterwegs ist. ",
+    "description": "Prüft, ob Sprechwünsche entlassbar sind und bietet an, diese gesammelt zu entlassen.<br>Mit Prüfung ob ELW-SEG vor Ort oder unterwegs ist. ",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -203,7 +203,7 @@
     "name": "Reale Gebäudeliste",
     "version": "0.5.0",
     "fileName": "Reale Gebäudeliste.v0.5.0.user.js",
-    "description": "BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. Nicht auf dunkles Design gemappt!",
+    "description": "BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA <br><br>holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. <br><br>Nicht auf dunkles Design gemappt!",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -259,7 +259,7 @@
     "name": "Wachen-Liste",
     "version": "4.3.1",
     "fileName": "Wachen-Liste.v4.3.1.user.js",
-    "description": "Stellt eine Wachenliste (Name, Personal, Stellplätze, FREIE Stellplätze) bereit, filter- und sortierbar.Aktuell NUR für Feuerwachen, Rettungswachen dun Polizeiwachen. Weitere Wachentypen werden folgen... Stay tuned.NOCH werden die Erweiterungen nicht korrekt bewertet!!!",
+    "description": "Stellt eine Wachenliste (Name, Personal, Stellplätze, FREIE Stellplätze) bereit, filter- und sortierbar.<br><br>Aktuell NUR für Feuerwachen, Rettungswachen dun Polizeiwachen. Weitere Wachentypen werden folgen... Stay tuned.<br><br>NOCH werden die Erweiterungen nicht korrekt bewertet!!!",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
@@ -267,7 +267,7 @@
     "name": "Wachen-Namen-Manager",
     "version": "13.6.0",
     "fileName": "Wachen-Namen-Manager.v13.6.0.user.js",
-    "description": "BETA!!!!!<br>Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich.<br>Man kann mit Platzhaltern arbeiten: [PLZ] [ORT] [NR] (für PLZ & Ort erst Adressliste laden. dafür müssen alle Fzg. aktuell auf status 2 sein.)<br>VG M.",
+    "description": "BETA!!!!!<br><br><br>Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich.<br><br><br>Man kann mit Platzhaltern arbeiten: [PLZ] [ORT] [NR] (für PLZ & Ort erst Adressliste laden. dafür müssen alle Fzg. aktuell auf status 2 sein.)<br><br>VG M.",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
