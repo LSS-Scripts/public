@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.7.0
-// @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten. Fügt Kategorie-Ansicht hinzu. (Sticky Button)
+// @version      13.8.0
+// @description  Erstellt UI-Elemente erst bei Bedarf ("On Demand"). Fügt Kategorie-Ansicht hinzu. (Sticky Button)
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -13,8 +13,9 @@
 // ==/UserScript==
 
 (function() {
-    'useB strict';
+    'use strict';
 
+    // --- Konstanten und Variablen ---
     const GITHUB_API_URL = 'https://api.github.com/repos/';
     const GITHUB_REPO_OWNER = 'LSS-Scripts';
     const GITHUB_REPO_NAME = 'public';
@@ -27,12 +28,15 @@
     let initialScriptStates = {};
     let scriptMetadataCache = {};
     let db;
+    let managerUiCreated = false; // Flag, ob Haupt-UI schon erstellt wurde
+    let settingsModalUiCreated = false; // Flag für Einstellungs-Modal
+    let tooltipUiCreated = false; // Flag für Tooltip
 
     window.BMScriptManager = {
         _settingsCache: {},
         _branchCache: {},
 
-        // --- Datenbank-Funktionen (Unverändert) ---
+        // --- Datenbank-Funktionen ---
         openDatabase: function() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -89,7 +93,7 @@
             });
         },
 
-        // --- GitHub/Helper-Funktionen (Unverändert) ---
+        // --- GitHub/Helper-Funktionen ---
         getScriptNameAndVersion: function(fileName) {
             const regex = /(.+)\.v(\d+\.\d+\.\d+)\.user\.js/;
             const match = fileName.match(regex);
@@ -280,7 +284,7 @@
             }
         },
 
-        // --- Aktive Skripte ausführen (Unverändert) ---
+        // --- Aktive Skripte ausführen ---
         runActiveScripts: async function() {
             await this.openDatabase();
             const scripts = await this.getScriptsFromDB();
@@ -296,9 +300,77 @@
 
         // --- UI-FUNKTIONEN ---
 
-        /**
-         * createUIElement (Unverändert)
-         */
+        // Funktion zum Erstellen der Haupt-UI
+        _createManagerUI: function() {
+            if (managerUiCreated) return; // Nur einmal erstellen
+
+            const container = document.createElement('div');
+            container.id = 'lss-script-manager-container';
+            container.innerHTML = `
+                <span class="bm-close-btn" title="Schließen & Seite neu laden">&times;</span>
+                <div class="bm-modal-content">
+                    <h3>B&M Scriptmanager</h3>
+                    <div class="bm-toolbar">
+                        <div id="bm-script-filter-wrapper">
+                            <input type="text" id="bm-script-filter" placeholder="Filter nach Name oder Info..." style="display: none;">
+                            <span id="bm-refresh-btn" title="Cache leeren und neu laden">🔄</span>
+                        </div>
+                        <div class="bm-view-controls">
+                            <button id="bm-collapse-all" title="Alle Kategorien einklappen" style="display: none;">Alle einklappen</button>
+                            <label for="bm-view-switcher" style="font-size: 0.9em; margin-right: 5px;">Anzeige:</label>
+                            <select id="bm-view-switcher">
+                                <option value="category">Nach Kategorie</option>
+                                <option value="alphabetical">Alphabet (alle)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="script-list"></div>
+                </div>
+                <button id="save-scripts-button" style="display: none;">Änderungen anwenden</button>`;
+            document.body.appendChild(container);
+
+            // Event-Listener hinzufügen
+            document.getElementById('save-scripts-button').addEventListener('click', window.BMScriptManager.applyChanges);
+            container.querySelector('.bm-close-btn').addEventListener('click', () => { location.reload(); });
+            document.getElementById('bm-refresh-btn').addEventListener('click', () => { window.BMScriptManager.loadAndDisplayScripts(true); });
+            document.getElementById('bm-view-switcher').addEventListener('change', (e) => {
+                 document.getElementById('bm-collapse-all').style.display = e.target.value === 'category' ? 'inline-block' : 'none';
+                 window.BMScriptManager.loadAndDisplayScripts(false);
+            });
+            document.getElementById('bm-collapse-all').addEventListener('click', () => {
+                document.querySelectorAll('#script-list .bm-category-group').forEach(details => { details.open = false; });
+            });
+            document.getElementById('bm-script-filter').addEventListener('input', (e) => { window.BMScriptManager._applyFilters(); });
+
+            managerUiCreated = true;
+            console.log("[B&M Manager] Haupt-UI erstellt.");
+        },
+
+        // Funktion zum Erstellen des Einstellungs-Modals
+        _createSettingsModalUI: function() {
+            if (settingsModalUiCreated) return;
+
+            const settingsModal = document.createElement('div');
+            settingsModal.id = 'bm-settings-modal';
+            settingsModal.innerHTML = `<div class="bm-settings-content"></div>`; // Nur den Container
+            document.body.appendChild(settingsModal);
+            settingsModalUiCreated = true;
+            console.log("[B&M Manager] Einstellungs-Modal-UI erstellt.");
+        },
+
+        // Funktion zum Erstellen des Tooltips
+        _createTooltipUI: function() {
+           if (tooltipUiCreated) return document.getElementById('bm-global-tooltip'); // Gib existierendes zurück
+
+           const globalTooltip = document.createElement('div');
+           globalTooltip.id = 'bm-global-tooltip';
+           document.body.appendChild(globalTooltip);
+           tooltipUiCreated = true;
+           console.log("[B&M Manager] Tooltip-UI erstellt.");
+           return globalTooltip;
+        },
+
+        // Erstellt ein einzelnes Skript-Button Element
         createUIElement: function(scriptMeta, infoText, buttonState) {
             const item = document.createElement('div');
             item.className = 'script-button ' + buttonState;
@@ -309,16 +381,10 @@
             const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
             let buttonContent = `<strong data-script-name="${scriptMeta.name}">${scriptMeta.name} <span class="version">v${scriptMeta.version}</span></strong>`;
             let icons = '';
-            if (isExternal) {
-                item.classList.add('external-script');
-                icons += `<span class="external-symbol">⚠️</span>`;
-            }
-            if (buttonState === 'update') {
-                icons += ` <span class="update-symbol" title="Update verfügbar">🔄</span>`;
-            }
-            if (buttonState === 'downgrade') {
-                icons += ` <span class="downgrade-symbol" title="Reparatur-Update empfohlen">↩️</span>`;
-            }
+            if (isExternal) { item.classList.add('external-script'); icons += `<span class="external-symbol">⚠️</span>`; }
+            if (buttonState === 'update') { icons += ` <span class="update-symbol" title="Update verfügbar">🔄</span>`; }
+            if (buttonState === 'downgrade') { icons += ` <span class="downgrade-symbol" title="Reparatur-Update empfohlen">↩️</span>`; }
+
             item.innerHTML = `${icons} ${buttonContent}`;
             item.dataset.description = infoText;
 
@@ -350,21 +416,22 @@
             }
 
             item.addEventListener('mouseover', (e) => {
-                const tooltip = document.getElementById('bm-global-tooltip');
+                const tooltip = window.BMScriptManager._createTooltipUI();
                 tooltip.innerHTML = e.currentTarget.dataset.description;
                 const buttonRect = e.currentTarget.getBoundingClientRect();
                 tooltip.style.display = 'block';
                 const tooltipWidth = tooltip.offsetWidth;
                 const viewportWidth = window.innerWidth;
                 let leftPos = buttonRect.right + 10;
-                if (leftPos + tooltipWidth > viewportWidth - 15) {
-                    leftPos = buttonRect.left - tooltipWidth - 10;
-                }
+                if (leftPos + tooltipWidth > viewportWidth - 15) { leftPos = buttonRect.left - tooltipWidth - 10; }
                 tooltip.style.top = `${buttonRect.top}px`;
                 tooltip.style.left = `${leftPos}px`;
             });
             item.addEventListener('mouseout', () => {
-                document.getElementById('bm-global-tooltip').style.display = 'none';
+                const tooltip = document.getElementById('bm-global-tooltip');
+                if (tooltip) {
+                    tooltip.style.display = 'none';
+                }
             });
 
             item.addEventListener('click', () => {
@@ -388,9 +455,11 @@
             return item;
         },
 
+        // Lädt Skript-Daten (Cache oder Github) und startet UI-Aufbau
         loadAndDisplayScripts: async function(forceRefresh = false) {
-            // ... (unverändert) ...
-            const scriptList = document.getElementById('script-list');
+            const scriptList = document.getElementById('script-list'); // Annahme: Existiert durch _createManagerUI
+            if (!scriptList) return; // Sicherheitshalber
+
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
 
@@ -414,9 +483,9 @@
 
             const loaderContainer = `<div class="bm-loader-container"><div class="bm-loader"></div> <span id="bm-loader-text">Initialisiere...</span></div>`;
             scriptList.innerHTML = loaderContainer;
-            saveButton.style.display = 'none';
-            filterInput.style.display = 'none';
-            filterInput.value = '';
+            if(saveButton) saveButton.style.display = 'none';
+            if(filterInput) filterInput.style.display = 'none';
+            if(filterInput) filterInput.value = '';
             scriptStates = {}; scriptMetadataCache = {};
 
             const updateLoaderText = (text) => {
@@ -459,16 +528,17 @@
             }
         },
 
-        /**
-         * _populateUI (Unverändert)
-         */
+        // Baut die UI basierend auf den geladenen Skript-Daten und der gewählten Ansicht
         _populateUI: async function(allScripts) {
             const scriptList = document.getElementById('script-list');
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
-            const viewMode = document.getElementById('bm-view-switcher').value;
+            const viewModeSelect = document.getElementById('bm-view-switcher');
+            const viewMode = viewModeSelect ? viewModeSelect.value : 'category'; // Fallback
 
-            document.getElementById('bm-collapse-all').style.display = viewMode === 'category' ? 'inline-block' : 'none';
+            // "Alle einklappen"-Button je nach Ansicht ein-/ausblenden
+            const collapseBtn = document.getElementById('bm-collapse-all');
+            if(collapseBtn) collapseBtn.style.display = viewMode === 'category' ? 'inline-block' : 'none';
 
             scriptList.innerHTML = 'Verarbeite & sortiere...';
             let dbScripts = await this.getScriptsFromDB();
@@ -604,16 +674,18 @@
                 }
             }
 
-            saveButton.style.display = 'block';
-            filterInput.style.display = 'block';
+            if(saveButton) saveButton.style.display = 'block';
+            if(filterInput) filterInput.style.display = 'block';
         },
 
-        /**
-         * _applyFilters (Unverändert)
-         */
+        // Filtert die angezeigten Skripte basierend auf Suche und Ansicht
         _applyFilters: function() {
-            const searchTerm = document.getElementById('bm-script-filter').value.toLowerCase();
-            const viewMode = document.getElementById('bm-view-switcher').value;
+            const filterInput = document.getElementById('bm-script-filter');
+            const viewModeSelect = document.getElementById('bm-view-switcher');
+            if(!filterInput || !viewModeSelect) return;
+
+            const searchTerm = filterInput.value.toLowerCase();
+            const viewMode = viewModeSelect.value;
 
             if (viewMode === 'alphabetical') {
                 const allButtons = document.querySelectorAll('#script-list .script-button');
@@ -651,9 +723,10 @@
             }
         },
 
-        // --- Speichern & Update-Logik (Unverändert) ---
+        // --- Speichern & Update-Logik ---
         applyChanges: async function() {
             const saveButton = document.getElementById('save-scripts-button');
+            if(!saveButton) return;
             saveButton.disabled = true;
             saveButton.innerHTML = 'Wende Änderungen an...';
             try {
@@ -750,7 +823,7 @@
             }
         },
 
-        // --- Einstellungs-UI (Unverändert) ---
+        // --- Einstellungs-UI ---
         getSettings: function(scriptName) {
             if (this._settingsCache[scriptName]) {
                 return this._settingsCache[scriptName];
@@ -765,9 +838,11 @@
             this._settingsCache[scriptName] = settings;
             localStorage.setItem(`BMSettings_${scriptName}`, JSON.stringify(settings));
         },
+        // Baut nur den *Inhalt* des Einstellungs-Modals
         _buildSettingsUI: function(scriptName, schema) {
             const settings = this.getSettings(scriptName);
-            const modal = document.getElementById('bm-settings-modal');
+            const modal = document.getElementById('bm-settings-modal'); // Sollte existieren
+            if (!modal) return;
             const content = modal.querySelector('.bm-settings-content');
             let formHtml = `<div class="bm-settings-header">Einstellungen für <strong>${scriptName}</strong></div><div class="bm-settings-body">`;
             for (const item of schema) {
@@ -789,7 +864,7 @@
             }
             formHtml += `</div><div class="bm-settings-footer"><button id="bm-settings-save">Speichern</button><button id="bm-settings-cancel">Abbrechen</button></div>`;
             content.innerHTML = formHtml;
-            modal.style.display = 'flex';
+            // Event Listener für Buttons im Footer hinzufügen (werden bei jedem Build neu erstellt)
             document.getElementById('bm-settings-cancel').addEventListener('click', () => modal.style.display = 'none');
             document.getElementById('bm-settings-save').addEventListener('click', () => {
                 const newSettings = {};
@@ -807,12 +882,15 @@
                 location.reload();
             });
         },
+        // Stellt sicher, dass das Modal existiert, lädt Code und ruft _buildSettingsUI auf
         _fetchAndShowSettingsUI: async function(scriptName) {
+            window.BMScriptManager._createSettingsModalUI(); // Sicherstellen, dass das Modal existiert
             const modal = document.getElementById('bm-settings-modal');
             const content = modal.querySelector('.bm-settings-content');
             content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`;
-            modal.style.display = 'flex';
-            const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
+            modal.style.display = 'flex'; // Modal anzeigen
+
+            let localScript = null; try{ localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName); } catch(e){}
             let scriptCode = localScript ? localScript.code : null;
             if (!scriptCode) {
                 const scriptMeta = scriptMetadataCache[scriptName];
@@ -825,8 +903,9 @@
                     scriptCode = result.content;
                 }
             }
+
             if (scriptCode) {
-                if (window.BMScriptManager.codeHasSettings(scriptCode)) {
+                 if (window.BMScriptManager.codeHasSettings(scriptCode)) {
                     const match = scriptCode.match(/\/\*--BMScriptConfig([\s\S]*?)--\*\//);
                     try {
                         const schema = JSON.parse(match[1]);
@@ -834,20 +913,19 @@
                     } catch (e) {
                         content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration im Skript ist fehlerhaft.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
                     }
-                } else {
-                    content.innerHTML = `<p style="text-align:center;">Für dieses Skript sind keine Einstellungen verfügbar.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
-                }
+                 } else {
+                     content.innerHTML = `<p style="text-align:center;">Für dieses Skript sind keine Einstellungen verfügbar.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
+                 }
             } else {
                  content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration konnte nicht geladen werden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
             }
         }
     };
 
-    // --- CSS-STYLES (MODIFIZIERT FÜR STICKY BUTTON) ---
+    // --- CSS-STYLES ---
     GM_addStyle(`
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
 
-        /* ##### MODIFIZIERT: Layout auf Flexbox umgestellt ##### */
         #lss-script-manager-container {
             position: fixed;
             top: 10vh;
@@ -864,23 +942,36 @@
             width: 90%;
             max-width: 1300px;
 
-            /* NEU: Flex-Layout */
             display: none; /* Wird von .visible überschrieben */
             flex-direction: column;
             box-sizing: border-box;
         }
         #lss-script-manager-container.visible {
-            display: flex; /* Statt 'block' */
+            display: flex;
         }
-        /* ##### /MODIFIZIERT ##### */
 
-        /* ##### NEU: Scrollbarer Inhalts-Wrapper ##### */
         .bm-modal-content {
-            flex-grow: 1; /* Nimmt allen verfügbaren Platz ein */
-            overflow-y: auto; /* NUR DIESER BEREICH SCROLLT */
-            min-height: 0; /* Wichtiger Flex-Hack */
-            padding-right: 5px; /* Kleiner Puffer für Scrollbar */
+            flex-grow: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding-right: 5px; /* Puffer für Scrollbar */
+            /* Custom Scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: #5c677d #262c37;
         }
+        .bm-modal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .bm-modal-content::-webkit-scrollbar-track {
+            background: #262c37;
+            border-radius: 4px;
+        }
+        .bm-modal-content::-webkit-scrollbar-thumb {
+            background-color: #5c677d;
+            border-radius: 4px;
+            border: 2px solid #262c37;
+        }
+
 
         #lss-script-manager-container h3 {
             color: white;
@@ -888,10 +979,9 @@
             border-bottom: 2px solid #007bff;
             padding-bottom: 10px;
             margin: 0 0 15px 0;
-            flex-shrink: 0; /* Verhindert, dass Titel schrumpft */
+            flex-shrink: 0;
         }
 
-        /* Toolbar */
         .bm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; flex-shrink: 0; }
         #bm-script-filter-wrapper { position: relative; flex-grow: 1; min-width: 300px; }
         .bm-view-controls { display: flex; gap: 10px; align-items: center; }
@@ -918,17 +1008,14 @@
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
         #b-m-scriptmanager-link.bm-update-highlight { background-color: #28a745; border-radius: 3px; }
 
-        /* Grid-Styling für Alphabetische Ansicht */
         #script-list.grid-view { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
 
-        /* Flex-Styling für Kategorie-Ansicht */
         #script-list.category-view {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
         }
 
-        /* Kategorie-Boxen (zugeklappt) */
         .bm-category-group {
             border: 1px solid #444c5e;
             border-radius: 5px;
@@ -946,7 +1033,6 @@
         }
         .bm-category-group.hidden { display: none; }
 
-        /* Geöffnete Kategorie */
         details[open].bm-category-group {
             flex-basis: 100%;
             background: transparent;
@@ -959,7 +1045,6 @@
              box-shadow: none;
         }
 
-        /* Header-Stil (mit Animation) */
         .bm-category-header {
             padding: 15px;
             cursor: pointer;
@@ -1020,7 +1105,6 @@
         .bm-stat-active { color: #28a745; }
         .bm-stat-inactive { color: #dc3545; }
 
-        /* Grid *innerhalb* einer Kategorie (mit Animation) */
         .bm-category-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -1038,7 +1122,6 @@
             padding-bottom: 15px;
         }
 
-        /* Script-Buttons (Unverändert) */
         .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.85em; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .script-button.hidden { display: none; }
         .script-button:hover { filter: brightness(1.15); transform: translateY(-2px); }
@@ -1055,24 +1138,21 @@
         .script-button.removed strong { text-decoration: line-through; }
         .script-button.downgrade { background-color: #fd7e14; border-color: #fd7e14; color: white; }
 
-        /* Tooltip (Unverändert) */
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; color: #f1f1f1;}
 
-        /* ##### MODIFIZIERT: Button ist jetzt Flex-Child ##### */
         #save-scripts-button {
             display: none;
             width: 100%;
             padding: 10px;
-            margin-top: 20px; /* Abstand zum Scroll-Bereich */
+            margin-top: 20px;
             font-weight: bold;
             color: white;
             background-color: #007bff;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            flex-shrink: 0; /* Verhindert, dass der Button schrumpft */
+            flex-shrink: 0;
         }
-        /* ##### /MODIFIZIERT ##### */
 
         .script-button.external-script { border-color: #ff9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
         .external-symbol, .update-symbol, .bm-config-btn { vertical-align: middle; }
@@ -1091,7 +1171,6 @@
         #bm-loader-text { text-align: left; }
         @keyframes bm-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Einstellungs-Modal (Unverändert) */
         #bm-settings-modal {
             display: none;
             position: fixed;
@@ -1126,95 +1205,46 @@
         .bm-settings-footer button#bm-settings-cancel { background-color: #6c757d; }
     `);
 
-    // --- HTML-Aufbau & Event-Listener (MODIFIZIERT FÜR STICKY BUTTON) ---
+    // --- HTML-Aufbau & Event-Listener ---
     document.addEventListener('DOMContentLoaded', () => {
-        const container = document.createElement('div');
-        container.id = 'lss-script-manager-container';
-        // ##### MODIFIZIERT: HTML-Struktur für Flexbox angepasst #####
-        container.innerHTML = `
-            <span class="bm-close-btn" title="Schließen & Seite neu laden">&times;</span>
 
-            <div class="bm-modal-content">
-                <h3>B&M Scriptmanager</h3>
-                <div class="bm-toolbar">
-                    <div id="bm-script-filter-wrapper">
-                        <input type="text" id="bm-script-filter" placeholder="Filter nach Name oder Info..." style="display: none;">
-                        <span id="bm-refresh-btn" title="Cache leeren und neu laden">🔄</span>
-                    </div>
-                    <div class="bm-view-controls">
-                        <button id="bm-collapse-all" title="Alle Kategorien einklappen" style="display: none;">Alle einklappen</button>
-                        <label for="bm-view-switcher" style="font-size: 0.9em; margin-right: 5px;">Anzeige:</label>
-                        <select id="bm-view-switcher">
-                            <option value="category">Nach Kategorie</option>
-                            <option value="alphabetical">Alphabet (alle)</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="script-list"></div>
-            </div>
-
-            <button id="save-scripts-button" style="display: none;">Änderungen anwenden</button>`;
-        // ##### /MODIFIZIERT #####
-        document.body.appendChild(container);
-
-        const settingsModal = document.createElement('div');
-        settingsModal.id = 'bm-settings-modal';
-        settingsModal.innerHTML = `<div class="bm-settings-content"></div>`;
-        document.body.appendChild(settingsModal);
-
-        const globalTooltip = document.createElement('div');
-        globalTooltip.id = 'bm-global-tooltip';
-        document.body.appendChild(globalTooltip);
-
-        // Menü-Link (unverändert)
+        // Menü-Link erstellen
         const userMenu = document.querySelector('a[href="/settings/index"]')?.parentNode;
         if (userMenu) {
             const scriptManagerMenuItem = document.createElement('li');
             scriptManagerMenuItem.innerHTML = `<a href="#" id="b-m-scriptmanager-link" role="button"><img class="icon icons8-Settings" src="/images/icons8-settings.svg" width="24" height="24"> B&M Scriptmanager</a>`;
             userMenu.parentNode.insertBefore(scriptManagerMenuItem, userMenu.nextSibling);
 
+            // Klick-Listener für Menü-Link
             document.getElementById('b-m-scriptmanager-link').addEventListener('click', async (e) => {
                 e.preventDefault();
+
+                // Sicherstellen, dass die UI existiert
+                window.BMScriptManager._createManagerUI();
+
+                // UI holen und Sichtbarkeit umschalten
                 const managerContainer = document.getElementById('lss-script-manager-container');
                 const isVisible = managerContainer.classList.toggle('visible');
+
+                // Wenn sichtbar, Daten laden
                 if (isVisible) {
-                    await window.BMScriptManager.openDatabase();
-                    window.BMScriptManager.loadAndDisplayScripts();
+                    const scriptList = document.getElementById('script-list');
+                    // Nur laden, wenn die Liste noch leer ist (beim ersten Öffnen oder nach Refresh)
+                    if (!scriptList || scriptList.children.length === 0) {
+                        await window.BMScriptManager.openDatabase();
+                        window.BMScriptManager.loadAndDisplayScripts();
+                    }
                 }
             });
         }
 
-        // --- Event-Listener (Unverändert) ---
-        document.getElementById('save-scripts-button').addEventListener('click', window.BMScriptManager.applyChanges);
-
-        container.querySelector('.bm-close-btn').addEventListener('click', () => {
-            location.reload();
-        });
-
-        document.getElementById('bm-refresh-btn').addEventListener('click', () => {
-            window.BMScriptManager.loadAndDisplayScripts(true);
-        });
-
-        document.getElementById('bm-view-switcher').addEventListener('change', (e) => {
-             document.getElementById('bm-collapse-all').style.display = e.target.value === 'category' ? 'inline-block' : 'none';
-             window.BMScriptManager.loadAndDisplayScripts(false);
-        });
-
-        document.getElementById('bm-collapse-all').addEventListener('click', () => {
-            document.querySelectorAll('#script-list .bm-category-group').forEach(details => {
-                details.open = false;
-            });
-        });
-
-        document.getElementById('bm-script-filter').addEventListener('input', (e) => {
-            window.BMScriptManager._applyFilters();
-        });
-
-        // --- Start-Logik (Unverändert) ---
+        // --- Start-Logik ---
+        // Öffnet DB und prüft Updates im Hintergrund
         window.BMScriptManager.openDatabase().then(() => {
             window.BMScriptManager.checkForUpdatesInBackground();
         });
 
+        // Führt aktive Skripte aus
         window.BMScriptManager.runActiveScripts();
     });
 })();
