@@ -269,7 +269,7 @@
     "fileName": "Wachen-Namen-Manager.v13.6.0.user.js",
     "description": "BETA!!!!!<br><br><br>Massenhaft Wachennamen umbenennen ist lästig? nimm doch dieses Script, auf der Leistellenseile die Wachen filtern (oder auch nicht), die man umbenennnen will, auf den Button Klicken und der Rest ergibt sich von selbst. Glaub ich.<br><br><br>Man kann mit Platzhaltern arbeiten: [PLZ] [ORT] [NR] (für PLZ & Ort erst Adressliste laden. dafür müssen alle Fzg. aktuell auf status 2 sein.)<br><br>VG M.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Gebäude"]
   },
   {
     "name": "Wachen-Personal- & Erweiterungs-Prüfer",
