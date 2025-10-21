@@ -1,6 +1,0 @@
-{34.0.0}
-Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster
-
-
-{12.0.0}
-Gimmick: Gesamtkilometer auf Leitstellenseite...
