@@ -125,7 +125,7 @@
     "fileName": "Fahrzeuglisten-Filter.v34.0.0.user.js",
     "description": "Ein Script, dass in diversen Fahrzeuglisten weitere Filter einfügt nach Typ, FMS-Status, Name, Wachenname, etc.",
     "changelog": "{34.0.0}<br>Diverse UI-Funktionen überarbeitet, Dark-Mode optimiert, Filter bei der Wache, bei der Leitstelle sowie im Einsatzfenster<br><br><br>{12.0.0}<br>Gimmick: Gesamtkilometer auf Leitstellenseite...",
-    "categories": ["Alarmierung","Fahrzeuge","Listen","Suche"]
+    "categories": ["Alarmierung","Fahrzeuge"]
   },
   {
     "name": "Grafikset-Manager",
