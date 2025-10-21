@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.8.0
-// @description  Erstellt UI-Elemente erst bei Bedarf ("On Demand"). Fügt Kategorie-Ansicht hinzu. (Sticky Button)
+// @version      13.8.1
+// @description  Fügt Statistik-Leiste hinzu. Erstellt UI-Elemente erst bei Bedarf. Kategorie-Ansicht. Sticky Button.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -28,9 +28,9 @@
     let initialScriptStates = {};
     let scriptMetadataCache = {};
     let db;
-    let managerUiCreated = false; // Flag, ob Haupt-UI schon erstellt wurde
-    let settingsModalUiCreated = false; // Flag für Einstellungs-Modal
-    let tooltipUiCreated = false; // Flag für Tooltip
+    let managerUiCreated = false;
+    let settingsModalUiCreated = false;
+    let tooltipUiCreated = false;
 
     window.BMScriptManager = {
         _settingsCache: {},
@@ -302,7 +302,7 @@
 
         // Funktion zum Erstellen der Haupt-UI
         _createManagerUI: function() {
-            if (managerUiCreated) return; // Nur einmal erstellen
+            if (managerUiCreated) return;
 
             const container = document.createElement('div');
             container.id = 'lss-script-manager-container';
@@ -324,6 +324,7 @@
                             </select>
                         </div>
                     </div>
+                    <div id="bm-stats-bar">Statistiken werden geladen...</div>
                     <div id="script-list"></div>
                 </div>
                 <button id="save-scripts-button" style="display: none;">Änderungen anwenden</button>`;
@@ -352,7 +353,7 @@
 
             const settingsModal = document.createElement('div');
             settingsModal.id = 'bm-settings-modal';
-            settingsModal.innerHTML = `<div class="bm-settings-content"></div>`; // Nur den Container
+            settingsModal.innerHTML = `<div class="bm-settings-content"></div>`;
             document.body.appendChild(settingsModal);
             settingsModalUiCreated = true;
             console.log("[B&M Manager] Einstellungs-Modal-UI erstellt.");
@@ -360,7 +361,7 @@
 
         // Funktion zum Erstellen des Tooltips
         _createTooltipUI: function() {
-           if (tooltipUiCreated) return document.getElementById('bm-global-tooltip'); // Gib existierendes zurück
+           if (tooltipUiCreated) return document.getElementById('bm-global-tooltip');
 
            const globalTooltip = document.createElement('div');
            globalTooltip.id = 'bm-global-tooltip';
@@ -455,10 +456,10 @@
             return item;
         },
 
-        // Lädt Skript-Daten (Cache oder Github) und startet UI-Aufbau
+        // Lädt Skript-Daten und startet UI-Aufbau
         loadAndDisplayScripts: async function(forceRefresh = false) {
-            const scriptList = document.getElementById('script-list'); // Annahme: Existiert durch _createManagerUI
-            if (!scriptList) return; // Sicherheitshalber
+            const scriptList = document.getElementById('script-list');
+            if (!scriptList) return;
 
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
@@ -534,9 +535,9 @@
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
             const viewModeSelect = document.getElementById('bm-view-switcher');
-            const viewMode = viewModeSelect ? viewModeSelect.value : 'category'; // Fallback
+            const viewMode = viewModeSelect ? viewModeSelect.value : 'category';
+            const statsBar = document.getElementById('bm-stats-bar');
 
-            // "Alle einklappen"-Button je nach Ansicht ein-/ausblenden
             const collapseBtn = document.getElementById('bm-collapse-all');
             if(collapseBtn) collapseBtn.style.display = viewMode === 'category' ? 'inline-block' : 'none';
 
@@ -544,6 +545,16 @@
             let dbScripts = await this.getScriptsFromDB();
             scriptList.innerHTML = '';
             initialScriptStates = {};
+
+            // Statistik berechnen
+            const totalAvailable = allScripts.length;
+            const totalInstalled = dbScripts.length;
+            const totalActive = dbScripts.filter(s => s.isActive !== false).length;
+            const totalInactive = totalInstalled - totalActive;
+
+            if (statsBar) {
+                 statsBar.innerHTML = `Verfügbar: <span class="stat-count">${totalAvailable}</span> | Installiert: <span class="stat-count">${totalInstalled}</span> (Aktiv: <span class="stat-count active">${totalActive}</span> / Inaktiv: <span class="stat-count inactive">${totalInactive}</span>)`;
+            }
 
             const onlineScriptDetails = new Map();
             const categoryMap = new Map();
@@ -678,7 +689,7 @@
             if(filterInput) filterInput.style.display = 'block';
         },
 
-        // Filtert die angezeigten Skripte basierend auf Suche und Ansicht
+        // Filtert die angezeigten Skripte
         _applyFilters: function() {
             const filterInput = document.getElementById('bm-script-filter');
             const viewModeSelect = document.getElementById('bm-view-switcher');
@@ -838,10 +849,9 @@
             this._settingsCache[scriptName] = settings;
             localStorage.setItem(`BMSettings_${scriptName}`, JSON.stringify(settings));
         },
-        // Baut nur den *Inhalt* des Einstellungs-Modals
         _buildSettingsUI: function(scriptName, schema) {
             const settings = this.getSettings(scriptName);
-            const modal = document.getElementById('bm-settings-modal'); // Sollte existieren
+            const modal = document.getElementById('bm-settings-modal');
             if (!modal) return;
             const content = modal.querySelector('.bm-settings-content');
             let formHtml = `<div class="bm-settings-header">Einstellungen für <strong>${scriptName}</strong></div><div class="bm-settings-body">`;
@@ -864,7 +874,6 @@
             }
             formHtml += `</div><div class="bm-settings-footer"><button id="bm-settings-save">Speichern</button><button id="bm-settings-cancel">Abbrechen</button></div>`;
             content.innerHTML = formHtml;
-            // Event Listener für Buttons im Footer hinzufügen (werden bei jedem Build neu erstellt)
             document.getElementById('bm-settings-cancel').addEventListener('click', () => modal.style.display = 'none');
             document.getElementById('bm-settings-save').addEventListener('click', () => {
                 const newSettings = {};
@@ -882,13 +891,12 @@
                 location.reload();
             });
         },
-        // Stellt sicher, dass das Modal existiert, lädt Code und ruft _buildSettingsUI auf
         _fetchAndShowSettingsUI: async function(scriptName) {
-            window.BMScriptManager._createSettingsModalUI(); // Sicherstellen, dass das Modal existiert
+            window.BMScriptManager._createSettingsModalUI();
             const modal = document.getElementById('bm-settings-modal');
             const content = modal.querySelector('.bm-settings-content');
             content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`;
-            modal.style.display = 'flex'; // Modal anzeigen
+            modal.style.display = 'flex';
 
             let localScript = null; try{ localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName); } catch(e){}
             let scriptCode = localScript ? localScript.code : null;
@@ -927,200 +935,114 @@
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
 
         #lss-script-manager-container {
-            position: fixed;
-            top: 10vh;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10000;
-            background-color: #262c37;
-            color: #eee;
-            border: 1px solid #444c5e;
-            border-radius: 5px;
-            padding: 20px;
-            height: 80vh;
+            position: fixed; top: 10vh; left: 50%;
+            transform: translateX(-50%); z-index: 10000;
+            background-color: #262c37; color: #eee;
+            border: 1px solid #444c5e; border-radius: 5px;
+            padding: 20px; height: 80vh;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            width: 90%;
-            max-width: 1300px;
-
-            display: none; /* Wird von .visible überschrieben */
-            flex-direction: column;
-            box-sizing: border-box;
+            width: 90%; max-width: 1300px;
+            display: none; flex-direction: column; box-sizing: border-box;
         }
-        #lss-script-manager-container.visible {
-            display: flex;
-        }
+        #lss-script-manager-container.visible { display: flex; }
 
         .bm-modal-content {
-            flex-grow: 1;
-            overflow-y: auto;
-            min-height: 0;
-            padding-right: 5px; /* Puffer für Scrollbar */
-            /* Custom Scrollbar */
-            scrollbar-width: thin;
-            scrollbar-color: #5c677d #262c37;
+            flex-grow: 1; overflow-y: auto; min-height: 0; padding-right: 5px;
+            scrollbar-width: thin; scrollbar-color: #5c677d #262c37;
         }
-        .bm-modal-content::-webkit-scrollbar {
-            width: 8px;
-        }
-        .bm-modal-content::-webkit-scrollbar-track {
-            background: #262c37;
-            border-radius: 4px;
-        }
-        .bm-modal-content::-webkit-scrollbar-thumb {
-            background-color: #5c677d;
-            border-radius: 4px;
-            border: 2px solid #262c37;
-        }
-
+        .bm-modal-content::-webkit-scrollbar { width: 8px; }
+        .bm-modal-content::-webkit-scrollbar-track { background: #262c37; border-radius: 4px; }
+        .bm-modal-content::-webkit-scrollbar-thumb { background-color: #5c677d; border-radius: 4px; border: 2px solid #262c37; }
 
         #lss-script-manager-container h3 {
-            color: white;
-            text-align: center;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
-            margin: 0 0 15px 0;
-            flex-shrink: 0;
+            color: white; text-align: center; border-bottom: 2px solid #007bff;
+            padding-bottom: 10px; margin: 0 0 15px 0; flex-shrink: 0;
         }
 
-        .bm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; flex-shrink: 0; }
+        .bm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px; flex-wrap: wrap; flex-shrink: 0; }
         #bm-script-filter-wrapper { position: relative; flex-grow: 1; min-width: 300px; }
         .bm-view-controls { display: flex; gap: 10px; align-items: center; }
         #bm-view-switcher, #bm-collapse-all {
-            background-color: #3a4150;
-            color: #eee;
-            border: 1px solid #5c677d;
-            border-radius: 4px;
-            padding: 8px 10px;
-            cursor: pointer;
+            background-color: #3a4150; color: #eee; border: 1px solid #5c677d;
+            border-radius: 4px; padding: 8px 10px; cursor: pointer;
         }
         #bm-collapse-all:hover, #bm-view-switcher:hover { background-color: #4a5160; }
 
         #bm-script-filter {
-            width: 100%;
-            padding: 8px 40px 8px 10px;
-            background-color: #3a4150;
-            color: #eee;
-            border: 1px solid #5c677d;
-            border-radius: 4px;
-            box-sizing: border-box;
+            width: 100%; padding: 8px 40px 8px 10px; background-color: #3a4150;
+            color: #eee; border: 1px solid #5c677d; border-radius: 4px; box-sizing: border-box;
         }
         #bm-refresh-btn { position: absolute; right: 10px; top: 7px; font-size: 1.5em; cursor: pointer; color: #aaa; transition: color .2s, transform .5s; }
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
         #b-m-scriptmanager-link.bm-update-highlight { background-color: #28a745; border-radius: 3px; }
 
-        #script-list.grid-view { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
-
-        #script-list.category-view {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
+        #bm-stats-bar {
+            background-color: rgba(58, 65, 80, 0.5); border: 1px solid #5c677d;
+            border-radius: 4px; padding: 8px 15px; margin-bottom: 15px;
+            font-size: 0.9em; color: #ccc; text-align: center; flex-shrink: 0;
         }
+        #bm-stats-bar .stat-count { font-weight: bold; color: #eee; margin: 0 2px; }
+        #bm-stats-bar .stat-count.active { color: #28a745; }
+        #bm-stats-bar .stat-count.inactive { color: #dc3545; }
+
+        #script-list.grid-view { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
+        #script-list.category-view { display: flex; flex-wrap: wrap; gap: 15px; }
 
         .bm-category-group {
-            border: 1px solid #444c5e;
-            border-radius: 5px;
-            margin: 0;
+            border: 1px solid #444c5e; border-radius: 5px; margin: 0;
             background: linear-gradient(145deg, #3a4150, #2c313d);
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-            transition: all 0.3s ease;
-            flex-basis: 300px;
-            flex-grow: 1;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3); transition: all 0.3s ease;
+            flex-basis: 300px; flex-grow: 1;
         }
         .bm-category-group:hover {
-            border-color: #007bff;
-            box-shadow: 3px 3px 8px rgba(0, 123, 255, 0.3);
+            border-color: #007bff; box-shadow: 3px 3px 8px rgba(0, 123, 255, 0.3);
             transform: translateY(-2px);
         }
         .bm-category-group.hidden { display: none; }
 
         details[open].bm-category-group {
-            flex-basis: 100%;
-            background: transparent;
-            box-shadow: none;
+            flex-basis: 100%; background: transparent; box-shadow: none;
             border-color: #444c5e;
         }
         details[open].bm-category-group:hover {
-             transform: none;
-             border-color: #444c5e;
-             box-shadow: none;
+             transform: none; border-color: #444c5e; box-shadow: none;
         }
 
         .bm-category-header {
-            padding: 15px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-            text-align: center;
-            position: relative;
-            list-style: none;
+            padding: 15px; cursor: pointer; border-radius: 4px;
+            transition: background-color 0.2s ease; text-align: center;
+            position: relative; list-style: none;
         }
-        .bm-category-header::-webkit-details-marker {
-            display: none;
-        }
+        .bm-category-header::-webkit-details-marker { display: none; }
         .bm-category-header::after {
-            content: '‣';
-            position: absolute;
-            right: 20px;
-            top: 50%;
-            transform: translateY(-50%) rotate(0deg);
-            transition: transform 0.3s ease;
-            font-size: 1.5em;
-            color: #aaa;
+            content: '‣'; position: absolute; right: 20px; top: 50%;
+            transform: translateY(-50%) rotate(0deg); transition: transform 0.3s ease;
+            font-size: 1.5em; color: #aaa;
         }
-        details[open] .bm-category-header::after {
-            transform: translateY(-50%) rotate(90deg);
-        }
-
+        details[open] .bm-category-header::after { transform: translateY(-50%) rotate(90deg); }
         details[open] .bm-category-header {
-             border-radius: 4px 4px 0 0;
-             background-color: #3a4150;
-             text-align: left;
+             border-radius: 4px 4px 0 0; background-color: #3a4150; text-align: left;
         }
 
         .bm-cat-title {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #eee;
-            margin-bottom: 10px;
+            font-size: 1.3em; font-weight: bold; color: #eee; margin-bottom: 10px;
         }
-        details[open] .bm-cat-title {
-            font-size: 1.2em;
-            margin-bottom: 0;
-            display: inline-block;
-        }
+        details[open] .bm-cat-title { font-size: 1.2em; margin-bottom: 0; display: inline-block; }
 
-        .bm-cat-stats {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            font-size: 0.9em;
-        }
-        details[open] .bm-cat-stats {
-            display: inline-flex;
-            float: right;
-            margin-top: 2px;
-        }
+        .bm-cat-stats { display: flex; justify-content: center; gap: 15px; font-size: 0.9em; }
+        details[open] .bm-cat-stats { display: inline-flex; float: right; margin-top: 2px; }
 
         .bm-stat-total { color: #6c9cff; }
         .bm-stat-active { color: #28a745; }
         .bm-stat-inactive { color: #dc3545; }
 
         .bm-category-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            grid-auto-rows: 75px;
-            gap: 15px;
-            padding: 0 15px;
-            background-color: rgba(40, 48, 61, 0.3);
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
+            display: grid; grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: 75px; gap: 15px; padding: 0 15px;
+            background-color: rgba(40, 48, 61, 0.3); max-height: 0;
+            overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
         }
-        details[open] .bm-category-grid {
-            max-height: 2000px;
-            padding-top: 15px;
-            padding-bottom: 15px;
-        }
+        details[open] .bm-category-grid { max-height: 2000px; padding-top: 15px; padding-bottom: 15px; }
 
         .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.85em; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .script-button.hidden { display: none; }
@@ -1141,17 +1063,9 @@
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; color: #f1f1f1;}
 
         #save-scripts-button {
-            display: none;
-            width: 100%;
-            padding: 10px;
-            margin-top: 20px;
-            font-weight: bold;
-            color: white;
-            background-color: #007bff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            flex-shrink: 0;
+            display: none; width: 100%; padding: 10px; margin-top: 20px;
+            font-weight: bold; color: white; background-color: #007bff;
+            border: none; border-radius: 5px; cursor: pointer; flex-shrink: 0;
         }
 
         .script-button.external-script { border-color: #ff9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
@@ -1172,26 +1086,14 @@
         @keyframes bm-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         #bm-settings-modal {
-            display: none;
-            position: fixed;
-            z-index: 10001;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            justify-content: center;
-            align-items: center;
+            display: none; position: fixed; z-index: 10001; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
+            justify-content: center; align-items: center;
         }
         .bm-settings-content {
-            background-color: #2c313d;
-            color: #eee;
-            padding: 20px;
-            border-radius: 5px;
-            border: 1px solid #444c5e;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            background-color: #2c313d; color: #eee; padding: 20px;
+            border-radius: 5px; border: 1px solid #444c5e; width: 90%;
+            max-width: 500px; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
         }
         .bm-settings-header { font-size: 1.5em; margin-bottom: 20px; border-bottom: 1px solid #444c5e; padding-bottom: 10px; }
         .bm-settings-body { max-height: 60vh; overflow-y: auto; padding-right: 10px; }
@@ -1207,7 +1109,6 @@
 
     // --- HTML-Aufbau & Event-Listener ---
     document.addEventListener('DOMContentLoaded', () => {
-
         // Menü-Link erstellen
         const userMenu = document.querySelector('a[href="/settings/index"]')?.parentNode;
         if (userMenu) {
@@ -1218,18 +1119,11 @@
             // Klick-Listener für Menü-Link
             document.getElementById('b-m-scriptmanager-link').addEventListener('click', async (e) => {
                 e.preventDefault();
-
-                // Sicherstellen, dass die UI existiert
                 window.BMScriptManager._createManagerUI();
-
-                // UI holen und Sichtbarkeit umschalten
                 const managerContainer = document.getElementById('lss-script-manager-container');
                 const isVisible = managerContainer.classList.toggle('visible');
-
-                // Wenn sichtbar, Daten laden
                 if (isVisible) {
                     const scriptList = document.getElementById('script-list');
-                    // Nur laden, wenn die Liste noch leer ist (beim ersten Öffnen oder nach Refresh)
                     if (!scriptList || scriptList.children.length === 0) {
                         await window.BMScriptManager.openDatabase();
                         window.BMScriptManager.loadAndDisplayScripts();
@@ -1239,12 +1133,9 @@
         }
 
         // --- Start-Logik ---
-        // Öffnet DB und prüft Updates im Hintergrund
         window.BMScriptManager.openDatabase().then(() => {
             window.BMScriptManager.checkForUpdatesInBackground();
         });
-
-        // Führt aktive Skripte aus
         window.BMScriptManager.runActiveScripts();
     });
 })();
