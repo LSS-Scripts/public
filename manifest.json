@@ -61,7 +61,7 @@
     "fileName": "Einsätze einklappe.v5.0.0.user.js",
     "description": "Platziert Einklappen-Knöpfe links in der Einsatzzeile und einen \"Alle umschalten\"-Knopf in der Hauptleiste.<br>(angelehnt an das LSSM-einklappen. Nicht mit dem lssm oder dem Teilen-Script zusammen einsetzen.)",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Optik"]
   },
   {
     "name": "Endzeit-Anzeige",
