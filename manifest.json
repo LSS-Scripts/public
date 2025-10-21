@@ -112,6 +112,13 @@
     "changelog": ""
   },
   {
+    "name": "Lehrgangs-Schnellauswahl (Räume)",
+    "version": "1.5.0",
+    "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.5.0.user.js",
+    "description": "",
+    "changelog": ""
+  },
+  {
     "name": "Lehrgangsabbrecher",
     "version": "2.2.1",
     "fileName": "Lehgangsabbrecher.v2.2.1.user.js",
