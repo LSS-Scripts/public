@@ -45,7 +45,7 @@
     "fileName": "Betreuungsberechnung.v1.0.4.user.js",
     "description": "Die notwendige Betreuung wird berechnet aus dem Personal, welches vor Ort ist, welches rollt und welches ausgewählt ist (BETA).<br>Nicht perfekt, aber für den Anfang....",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Alarmierung"]
   },
   {
     "name": "Capslock-Kastrator",
