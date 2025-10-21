@@ -29,7 +29,7 @@
     "fileName": "Automatisches Einklappen.v3.0.0.user.js",
     "description": "Sorgt für eine aufgeräumte Einsatzliste, indem es bereits angefahrene Einsätze automatisch einklappt. (Kombatibel mit dem Skript \"Einsätze einklappen\" und der LSSM Funktion Erweiterte Einsatzliste -> Einsätze einklappen)",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Optik"]
   },
   {
     "name": "Benötigte Fahrzeuge WIRKLICH verschönern",
