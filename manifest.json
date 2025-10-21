@@ -197,7 +197,7 @@
     "fileName": "Offline-Sprechwünsche entlassen.v0.9.1.user.js",
     "description": "Prüft, ob Sprechwünsche entlassbar sind und bietet an, diese gesammelt zu entlassen.<br>Mit Prüfung ob ELW-SEG vor Ort oder unterwegs ist. ",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Alarmierung","Verbands-Tools"]
   },
   {
     "name": "Reale Gebäudeliste",
