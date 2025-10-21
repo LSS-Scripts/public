@@ -181,7 +181,7 @@
     "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.5.1.user.js",
     "description": "Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Lehrgänge","Verbands-Tools"]
   },
   {
     "name": "Massenkategorierer",
