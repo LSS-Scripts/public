@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.6.1
-// @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten. Fügt Kategorie-Ansicht hinzu. (Farb-Update)
+// @version      13.6.2
+// @description  Behebt einen Fehler, bei dem initial deaktivierte Skripte nicht wieder aktiviert werden konnten. Fügt Kategorie-Ansicht hinzu. (CSS-Fix)
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -50,7 +50,6 @@
             });
         },
         getScriptsFromDB: function() {
-            // ... (unverändert) ...
             return new Promise((resolve, reject) => {
                 if (!db) { reject("Datenbank nicht geöffnet."); return; }
                 const transaction = db.transaction(['scripts'], 'readonly');
@@ -61,7 +60,6 @@
             });
         },
         getSingleScriptFromDB: function(scriptName) {
-            // ... (unverändert) ...
              return new Promise((resolve, reject) => {
                 if (!db) { reject("Datenbank nicht geöffnet."); return; }
                 const transaction = db.transaction(['scripts'], 'readonly');
@@ -72,7 +70,6 @@
             });
         },
         saveScriptToDB: function(script) {
-            // ... (unverändert) ...
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction(['scripts'], 'readwrite');
                 const objectStore = transaction.objectStore('scripts');
@@ -82,7 +79,6 @@
             });
         },
         deleteScriptFromDB: function(scriptName) {
-            // ... (unverändert) ...
             localStorage.removeItem(`BMSettings_${scriptName}`);
             return new Promise((resolve, reject) => {
                 const transaction = db.transaction(['scripts'], 'readwrite');
@@ -95,7 +91,6 @@
 
         // --- GitHub/Helper-Funktionen (Unverändert) ---
         getScriptNameAndVersion: function(fileName) {
-            // ... (unverändert) ...
             const regex = /(.+)\.v(\d+\.\d+\.\d+)\.user\.js/;
             const match = fileName.match(regex);
             if (match) {
@@ -104,7 +99,6 @@
             return null;
         },
         extractMatchFromCode: function(code) {
-            // ... (unverändert) ...
             const matchRegex = /@match\s+(.+)/g;
             let match;
             const matches = [];
@@ -114,11 +108,9 @@
             return matches;
         },
         codeHasSettings: function(code) {
-            // ... (unverändert) ...
             return /\/\*--BMScriptConfig([\s\S]*?)--\*\//.test(code);
         },
         compareVersions: function(v1, v2) {
-            // ... (unverändert) ...
             const parts1 = v1.split('.').map(Number);
             const parts2 = v2.split('.').map(Number);
             const len = Math.max(parts1.length, parts2.length);
@@ -131,7 +123,6 @@
             return 0;
         },
         _getDefaultBranch: async function(repoInfo) {
-            // ... (unverändert) ...
             const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
             if (this._branchCache[repoPath]) {
                 return this._branchCache[repoPath];
@@ -147,7 +138,6 @@
             }
         },
         _fetchRawFile: async function(filePath, repoInfo = null) {
-            // ... (unverändert) ...
             return new Promise(async (resolve) => {
                 const owner = repoInfo ? repoInfo.owner : GITHUB_REPO_OWNER;
                 const name = repoInfo ? repoInfo.name : GITHUB_REPO_NAME;
@@ -171,7 +161,6 @@
             });
         },
         _fetchFileWithAPI: async function(filePath, repoInfo) {
-            // ... (unverändert) ...
              return new Promise(async (resolve) => {
                 const owner = repoInfo.owner;
                 const name = repoInfo.name;
@@ -192,11 +181,9 @@
             });
         },
         fetchRawScript: function(dirName, fileName, repoInfo) {
-            // ... (unverändert) ...
             return this._fetchRawFile(`${dirName}/${fileName}`, repoInfo);
         },
         _fetchRESTContents: function(path, token = null) {
-            // ... (unverändert) ...
             return new Promise((resolve) => {
                 const fullUrl = GITHUB_API_URL + path;
                 const headers = token ? { 'Authorization': `token ${token}` } : {};
@@ -216,7 +203,6 @@
             });
         },
         getScriptDetails: async function(dir, repoInfo) {
-            // --- (Modifiziert: Liest categories.txt mit) ---
             try {
                 const filesInDirResult = await this._fetchRESTContents(dir.url.replace('https://api.github.com/repos/', ''), repoInfo.token);
                 if (!filesInDirResult.success) return null;
@@ -233,13 +219,13 @@
 
                 scriptMeta.description = info;
                 scriptMeta.changelog = changelog;
-
+                
                 if (categoriesRaw) {
                     scriptMeta.categories = categoriesRaw.split(',').map(s => s.trim()).filter(Boolean);
                 } else {
-                    scriptMeta.categories = [DEFAULT_CATEGORY]; // Fallback
+                    scriptMeta.categories = [DEFAULT_CATEGORY];
                 }
-
+                
                 scriptMeta.repoInfo = repoInfo;
                 scriptMeta.dirName = dir.name;
                 return scriptMeta;
@@ -249,7 +235,6 @@
             }
         },
         fetchScriptsWithManifest: async function(repoInfo) {
-            // --- (Modifiziert: Weist Fallback-Kategorie zu) ---
             const result = await this._fetchFileWithAPI('manifest.json', repoInfo);
             if (result.success) {
                 try {
@@ -271,7 +256,6 @@
             return [];
         },
         fetchScriptsWithREST: async function(repoInfo, progressCallback) {
-            // ... (unverändert) ...
             const { owner, name, token } = repoInfo;
             try {
                 if(progressCallback) progressCallback(`Lade Repository: ${owner}/${name}...`);
@@ -286,7 +270,6 @@
             }
         },
         fetchPrivateRepoScripts: async function(repoInfo, progressCallback) {
-            // ... (unverändert) ...
             const repoPath = `${repoInfo.owner}/${repoInfo.name}`;
             if(progressCallback) progressCallback(`Prüfe Manifest für ${repoPath}...`);
             const manifestResult = await this.fetchScriptsWithManifest(repoInfo);
@@ -312,9 +295,9 @@
         },
 
         // --- UI-FUNKTIONEN ---
-
+        
         /**
-         * createUIElement (Unverändert zu 13.6.0)
+         * createUIElement (Unverändert)
          */
         createUIElement: function(scriptMeta, infoText, buttonState) {
             const item = document.createElement('div');
@@ -383,7 +366,7 @@
             item.addEventListener('mouseout', () => {
                 document.getElementById('bm-global-tooltip').style.display = 'none';
             });
-
+            
             item.addEventListener('click', () => {
                 const currentState = scriptStates[scriptMeta.name];
                 if (initialScriptStates[scriptMeta.name] === 'removed' && currentState !== 'uninstall') return;
@@ -401,8 +384,8 @@
                 const isExt = item.classList.contains('external-script');
                 item.className = 'script-button ' + scriptStates[scriptMeta.name] + (isExt ? ' external-script' : '');
             });
-
-            return item;
+            
+            return item; 
         },
 
         loadAndDisplayScripts: async function(forceRefresh = false) {
@@ -477,7 +460,7 @@
         },
 
         /**
-         * _populateUI (MODIFIZIERT: Zählt aktive/inaktive Skripte und baut Header neu)
+         * _populateUI (Unverändert zu 13.6.1)
          */
         _populateUI: async function(allScripts) {
             const scriptList = document.getElementById('script-list');
@@ -491,17 +474,17 @@
             let dbScripts = await this.getScriptsFromDB();
             scriptList.innerHTML = '';
             initialScriptStates = {};
-
+            
             const onlineScriptDetails = new Map();
             const categoryMap = new Map();
 
             for (const scriptMeta of allScripts) {
                 scriptMetadataCache[scriptMeta.name] = scriptMeta;
                 const localScript = dbScripts.find(s => s.name === scriptMeta.name);
-
+                
                 let buttonState = 'install';
                 let infoText = "";
-
+                
                 if (localScript) {
                     if (typeof localScript.hasSettings === 'undefined') {
                         localScript.hasSettings = window.BMScriptManager.codeHasSettings(localScript.code);
@@ -517,7 +500,7 @@
                         else buttonState = 'active';
                     }
                 }
-
+                
                 const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
                 if (isExternal) {
                     infoText += `<strong><span class="external-warning">! NICHT ZUR WEITERGABE BESTIMMT !</span></strong>\n<em>Quelle: ${scriptMeta.repoInfo.owner}/${scriptMeta.repoInfo.name}</em>\n<hr>\n`;
@@ -545,9 +528,9 @@
             const onlineScriptNames = new Set(allScripts.map(s => s.name));
             for (const localScript of dbScripts) {
                 if (!onlineScriptNames.has(localScript.name)) {
-                    const scriptMeta = {
-                        name: localScript.name,
-                        version: localScript.version,
+                    const scriptMeta = { 
+                        name: localScript.name, 
+                        version: localScript.version, 
                         repoInfo: { owner: 'Unbekannt', name: 'Unbekannt' },
                         categories: [DEFAULT_CATEGORY]
                     };
@@ -556,7 +539,7 @@
 
                     scriptStates[localScript.name] = buttonState;
                     initialScriptStates[localScript.name] = buttonState;
-
+                    
                     const detail = { scriptMeta, infoText, buttonState };
                     if (!categoryMap.has(DEFAULT_CATEGORY)) {
                         categoryMap.set(DEFAULT_CATEGORY, []);
@@ -565,13 +548,13 @@
                     onlineScriptDetails.set(scriptMeta.name, detail);
                 }
             }
-
+            
             if (viewMode === 'alphabetical') {
                 scriptList.className = 'grid-view';
-                const sortedDetails = [...onlineScriptDetails.values()].sort((a, b) =>
+                const sortedDetails = [...onlineScriptDetails.values()].sort((a, b) => 
                     a.scriptMeta.name.toLocaleLowerCase().localeCompare(b.scriptMeta.name.toLocaleLowerCase())
                 );
-
+                
                 for (const detail of sortedDetails) {
                     const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState);
                     scriptList.appendChild(item);
@@ -580,23 +563,22 @@
             } else if (viewMode === 'category') {
                 scriptList.className = 'category-view';
                 const sortedCategories = [...categoryMap.keys()].sort((a, b) => a.toLocaleLowerCase().localeCompare(b.toLocaleLowerCase()));
-
+                
                 for (const category of sortedCategories) {
                     const categoryGroup = document.createElement('details');
                     categoryGroup.className = 'bm-category-group';
-                    categoryGroup.open = false;
+                    categoryGroup.open = false; 
 
                     const categoryHeader = document.createElement('summary');
                     categoryHeader.className = 'bm-category-header';
-
+                    
                     const scriptsInCategory = categoryMap.get(category);
                     const uniqueScripts = [...new Map(scriptsInCategory.map(d => [d.scriptMeta.name, d])).values()];
-
+                    
                     const total = uniqueScripts.length;
                     const active = uniqueScripts.filter(d => ['active', 'update', 'downgrade'].includes(d.buttonState)).length;
                     const inactive = uniqueScripts.filter(d => d.buttonState === 'inactive').length;
 
-                    // ##### MODIFIZIERT: Icon für "Total" geändert #####
                     categoryHeader.innerHTML = `
                         <div class="bm-cat-title">${category}</div>
                         <div class="bm-cat-stats">
@@ -605,8 +587,7 @@
                             <span class="bm-stat-inactive" title="Deaktiviert">❌ ${inactive}</span>
                         </div>
                     `;
-                    // ##### /MODIFIZIERT #####
-
+                    
                     categoryGroup.appendChild(categoryHeader);
 
                     const categoryGrid = document.createElement('div');
@@ -626,7 +607,7 @@
             saveButton.style.display = 'block';
             filterInput.style.display = 'block';
         },
-
+        
         /**
          * _applyFilters (Unverändert)
          */
@@ -653,7 +634,7 @@
                         const nameMatch = button.dataset.scriptName.includes(searchTerm);
                         const infoMatch = button.dataset.scriptInfo.includes(searchTerm);
                         const scriptMatch = nameMatch || infoMatch;
-
+                        
                         button.classList.toggle('hidden', !scriptMatch);
                         if (scriptMatch) {
                             scriptsVisibleInGroup++;
@@ -672,7 +653,6 @@
 
         // --- Speichern & Update-Logik (Unverändert) ---
         applyChanges: async function() {
-            // ... (unverändert) ...
             const saveButton = document.getElementById('save-scripts-button');
             saveButton.disabled = true;
             saveButton.innerHTML = 'Wende Änderungen an...';
@@ -712,7 +692,6 @@
             }
         },
         checkForUpdatesInBackground: async function() {
-            // ... (unverändert) ...
             const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
             const now = Date.now();
             const lastCheck = parseInt(localStorage.getItem('bm_last_update_check') || '0');
@@ -734,7 +713,7 @@
                 const localScripts = await this.getScriptsFromDB();
                 const activeLocalScripts = localScripts.filter(s => s.isActive !== false);
 
-                if (activeLocalScripts.length === 0) return;
+                if (activeLocalScripts.length === 0) return; 
 
                 const onlineScriptsMap = new Map(allOnlineScripts.map(s => [s.name, s.version]));
                 let updateFound = false;
@@ -744,7 +723,7 @@
                         const onlineVersion = onlineScriptsMap.get(localScript.name);
                         if (this.compareVersions(onlineVersion, localScript.version) > 0) {
                             updateFound = true;
-                            break;
+                            break; 
                         }
                     }
                 }
@@ -760,7 +739,6 @@
             }
         },
         showUpdateNotification: function() {
-            // ... (unverändert) ...
             const profileMenuLink = document.getElementById('menu_profile');
             const bmManagerLink = document.getElementById('b-m-scriptmanager-link');
 
@@ -774,7 +752,6 @@
 
         // --- Einstellungs-UI (Unverändert) ---
         getSettings: function(scriptName) {
-            // ... (unverändert) ...
             if (this._settingsCache[scriptName]) {
                 return this._settingsCache[scriptName];
             }
@@ -785,12 +762,10 @@
             } catch (e) { return {}; }
         },
         _saveSettings: function(scriptName, settings) {
-            // ... (unverändert) ...
             this._settingsCache[scriptName] = settings;
             localStorage.setItem(`BMSettings_${scriptName}`, JSON.stringify(settings));
         },
         _buildSettingsUI: function(scriptName, schema) {
-            // ... (unverändert) ...
             const settings = this.getSettings(scriptName);
             const modal = document.getElementById('bm-settings-modal');
             const content = modal.querySelector('.bm-settings-content');
@@ -833,7 +808,6 @@
             });
         },
         _fetchAndShowSettingsUI: async function(scriptName) {
-            // ... (unverändert) ...
             const modal = document.getElementById('bm-settings-modal');
             const content = modal.querySelector('.bm-settings-content');
             content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`;
@@ -869,78 +843,75 @@
         }
     };
 
-    // --- CSS-STYLES (MODIFIZIERT FÜR MEHR BLAU) ---
+    // --- CSS-STYLES (KORRIGIERT & ANGEPASST) ---
     GM_addStyle(`
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
-        /* ##### NEUER HINTERGRUND ##### */
-        #lss-script-manager-container {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10000;
+        #lss-script-manager-container { 
+            position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            z-index: 10000; 
             background-color: #262c37; /* Dunkles Blau/Slate */
-            color: #eee;
+            color: #eee; 
             border: 1px solid #444c5e; /* Passender Rand */
-            border-radius: 5px;
-            padding: 20px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            display: none;
-            width: 90%;
-            max-width: 1300px;
+            border-radius: 5px; 
+            padding: 20px; 
+            max-height: 80vh; 
+            overflow-y: auto; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); 
+            display: none; 
+            width: 90%; 
+            max-width: 1300px; 
         }
         #lss-script-manager-container.visible { display: block; }
-        /* ##### BLAUE HEADER-LINIE ##### */
-        #lss-script-manager-container h3 {
-            color: white;
-            text-align: center;
+        #lss-script-manager-container h3 { 
+            color: white; 
+            text-align: center; 
             border-bottom: 2px solid #007bff; /* Blauer Akzent */
-            padding-bottom: 10px;
-            margin: 0 0 15px 0;
+            padding-bottom: 10px; 
+            margin: 0 0 15px 0; 
         }
-
+        
         /* Toolbar */
         .bm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
         #bm-script-filter-wrapper { position: relative; flex-grow: 1; min-width: 300px; }
         .bm-view-controls { display: flex; gap: 10px; align-items: center; }
-        /* ##### BLAUERE TOOLBAR-ELEMENTE ##### */
-        #bm-view-switcher, #bm-collapse-all {
+        #bm-view-switcher, #bm-collapse-all { 
             background-color: #3a4150; /* Blau-Grau */
-            color: #eee;
+            color: #eee; 
             border: 1px solid #5c677d; /* Passender Rand */
-            border-radius: 4px;
-            padding: 8px 10px;
-            cursor: pointer;
+            border-radius: 4px; 
+            padding: 8px 10px; 
+            cursor: pointer; 
         }
         #bm-collapse-all:hover, #bm-view-switcher:hover { background-color: #4a5160; }
-
-        #bm-script-filter {
-            width: 100%;
-            padding: 8px 40px 8px 10px;
+        
+        #bm-script-filter { 
+            width: 100%; 
+            padding: 8px 40px 8px 10px; 
             background-color: #3a4150; /* Blau-Grau */
-            color: #eee;
+            color: #eee; 
             border: 1px solid #5c677d; /* Passender Rand */
-            border-radius: 4px;
-            box-sizing: border-box;
+            border-radius: 4px; 
+            box-sizing: border-box; 
         }
         #bm-refresh-btn { position: absolute; right: 10px; top: 7px; font-size: 1.5em; cursor: pointer; color: #aaa; transition: color .2s, transform .5s; }
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
         #b-m-scriptmanager-link.bm-update-highlight { background-color: #28a745; border-radius: 3px; }
-
+        
         /* Grid-Styling für Alphabetische Ansicht */
         #script-list.grid-view { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
-
+        
         /* Flex-Styling für Kategorie-Ansicht */
-        #script-list.category-view {
-            display: flex;
-            flex-wrap: wrap;
+        #script-list.category-view { 
+            display: flex; 
+            flex-wrap: wrap; 
             gap: 15px;
         }
 
-        /* ##### BLAUERE KATEGORIE-BOXEN ##### */
-        .bm-category-group {
+        /* Kategorie-Boxen (zugeklappt) */
+        .bm-category-group { 
             border: 1px solid #444c5e;
-            border-radius: 5px;
+            border-radius: 5px; 
             margin: 0;
             background: linear-gradient(145deg, #3a4150, #2c313d); /* Blau-Grau Gradient */
             box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
@@ -954,7 +925,7 @@
             transform: translateY(-2px);
         }
         .bm-category-group.hidden { display: none; }
-
+        
         /* Geöffnete Kategorie */
         details[open].bm-category-group {
             flex-basis: 100%;
@@ -964,26 +935,26 @@
         }
         details[open].bm-category-group:hover {
              transform: none;
-             border-color: #444c5e; /* Kein Hover-Effekt wenn offen */
+             border-color: #444c5e;
              box-shadow: none;
         }
-
+        
         /* Header-Stil */
-        .bm-category-header {
+        .bm-category-header { 
             padding: 15px;
-            cursor: pointer;
+            cursor: pointer; 
             border-radius: 4px;
             transition: background-color 0.2s ease;
             text-align: center;
         }
         details[open] .bm-category-header {
              border-radius: 4px 4px 0 0;
-             background-color: #3a4150; /* Blau-Grau */
+             background-color: #3a4150;
              text-align: left;
         }
-
+        
         .bm-cat-title {
-            font-size: 1.3em;
+            font-size: 1.3em; 
             font-weight: bold;
             color: #eee;
             margin-bottom: 10px;
@@ -1005,20 +976,19 @@
             float: right;
             margin-top: 2px;
         }
-
-        /* ##### BLAUE "TOTAL"-ANZEIGE ##### */
+        
         .bm-stat-total { color: #6c9cff; } /* Helles Blau */
         .bm-stat-active { color: #28a745; }
         .bm-stat-inactive { color: #dc3545; }
-
+        
         /* Grid *innerhalb* einer Kategorie */
         .bm-category-grid {
-            display: grid;
+            display: grid; 
             grid-template-columns: repeat(7, 1fr);
-            grid-auto-rows: 75px;
+            grid-auto-rows: 75px; 
             gap: 15px;
             padding: 15px;
-            background-color: rgba(40, 48, 61, 0.3); /* Dunkelblauer transparenter BG */
+            background-color: rgba(40, 48, 61, 0.3);
         }
 
         /* Script-Buttons (Unverändert) */
@@ -1037,7 +1007,7 @@
         .script-button.removed:hover { filter: brightness(1); transform: none; }
         .script-button.removed strong { text-decoration: line-through; }
         .script-button.downgrade { background-color: #fd7e14; border-color: #fd7e14; color: white; }
-
+        
         /* Tooltip (Unverändert) */
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; color: #f1f1f1;}
         #save-scripts-button { display: none; width: 100%; padding: 10px; margin-top: 20px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 5px; cursor: pointer; }
@@ -1057,28 +1027,39 @@
         .bm-loader { display: inline-block; border: 4px solid #444; border-top: 4px solid #007bff; border-radius: 50%; width: 24px; height: 24px; animation: bm-spin 1s linear infinite; margin-right: 15px; flex-shrink: 0; }
         #bm-loader-text { text-align: left; }
         @keyframes bm-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        /* Einstellungs-Modal (Angepasst an Blau) */
-        #bm-settings-modal { ... }
-        .bm-settings-content {
+        
+        /* ##### KORRIGIERT: Einstellungs-Modal ##### */
+        #bm-settings-modal { 
+            display: none; 
+            position: fixed; 
+            z-index: 10001; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: rgba(0,0,0,0.7); 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .bm-settings-content { 
             background-color: #2c313d; /* Dunkles Blau-Grau */
-            color: #eee;
-            padding: 20px;
-            border-radius: 5px;
+            color: #eee; 
+            padding: 20px; 
+            border-radius: 5px; 
             border: 1px solid #444c5e; /* Passender Rand */
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+            width: 90%; 
+            max-width: 500px; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5); 
         }
         .bm-settings-header { font-size: 1.5em; margin-bottom: 20px; border-bottom: 1px solid #444c5e; padding-bottom: 10px; }
-        .bm-settings-body { ... }
-        .bm-settings-row { ... }
-        .bm-settings-row label { ... }
-        .bm-settings-row input, .bm-settings-row select { ... }
+        .bm-settings-body { max-height: 60vh; overflow-y: auto; padding-right: 10px; }
+        .bm-settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: center; margin-bottom: 12px; }
+        .bm-settings-row label { text-align: right; cursor: help; }
+        .bm-settings-row input, .bm-settings-row select { width: 100%; box-sizing: border-box; background-color: #dadada; color: #111; border: 1px solid #999; padding: 5px; border-radius: 3px; transition: border-color .2s ease; }
         .bm-settings-row input:focus, .bm-settings-row select:focus { outline: none; border-color: #007bff; }
-        .bm-settings-row input[type="checkbox"] { ... }
+        .bm-settings-row input[type="checkbox"] { width: 20px; height: 20px; justify-self: start; }
         .bm-settings-footer { margin-top: 20px; text-align: right; border-top: 1px solid #444c5e; padding-top: 15px; }
-        .bm-settings-footer button { ... }
+        .bm-settings-footer button { background-color: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; margin-left: 10px; }
         .bm-settings-footer button#bm-settings-cancel { background-color: #6c757d; }
     `);
 
@@ -1149,7 +1130,7 @@
              document.getElementById('bm-collapse-all').style.display = e.target.value === 'category' ? 'inline-block' : 'none';
              window.BMScriptManager.loadAndDisplayScripts(false);
         });
-
+        
         document.getElementById('bm-collapse-all').addEventListener('click', () => {
             document.querySelectorAll('#script-list .bm-category-group').forEach(details => {
                 details.open = false;
@@ -1159,7 +1140,7 @@
         document.getElementById('bm-script-filter').addEventListener('input', (e) => {
             window.BMScriptManager._applyFilters();
         });
-
+        
         // --- Start-Logik (Unverändert) ---
         window.BMScriptManager.openDatabase().then(() => {
             window.BMScriptManager.checkForUpdatesInBackground();
