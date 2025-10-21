@@ -101,7 +101,7 @@
     "fileName": "Fahrzeug-Tool.v17.3.2.user.js",
     "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)<br><br>NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
     "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert <br>16.0.0 -> MAX-Refitting erweitert",
-    "categories": ["Sonstiges"]
+    "categories": ["Fahrzeuge"]
   },
   {
     "name": "Fahrzeuge auf Karte",
