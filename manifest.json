@@ -93,7 +93,7 @@
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
     "description": "Ein Script, das Fahrzeuge nach Kategorien automatisch, random benennt. Einfach nur so, weil man es kann....<br>13.2.3-13.3.0:Grammatikprobleme behoben. theoretisch.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Fahrzeuge"]
   },
   {
     "name": "Fahrzeug-Tool",
