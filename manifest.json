@@ -133,7 +133,7 @@
     "fileName": "Grafikset-Manager.v9.1.0.user.js",
     "description": "Fügt einen Button im Spielermenü hinzu, um ausgewählten Wachen (filterbar nach Name, Typ, Leitstelle & Grafikset-Name) ein Grafikset zuzuweisen. Robusteres Laden der Set-Liste.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Fahrzeuge","Gebäude","Optik"]
   },
   {
     "name": "Lehrgangs-Schnellauswahl (Räume)",
