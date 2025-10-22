@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.8.1
-// @description  Fügt Statistik-Leiste hinzu. Erstellt UI-Elemente erst bei Bedarf. Kategorie-Ansicht. Sticky Button.
+// @version      13.8.4
+// @description  Update-Filter zeigt separate Liste nur mit Updates. UI On-Demand. Kategorie-Ansicht. Sticky Button. Statistik.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -31,6 +31,7 @@
     let managerUiCreated = false;
     let settingsModalUiCreated = false;
     let tooltipUiCreated = false;
+    let filterMode = 'all'; // 'all' oder 'updates'
 
     window.BMScriptManager = {
         _settingsCache: {},
@@ -138,6 +139,7 @@
                 this._branchCache[repoPath] = defaultBranch;
                 return defaultBranch;
             } catch (e) {
+                console.warn(`[B&M Manager] Konnte Default-Branch für ${repoPath} nicht ermitteln, nutze 'main' als Fallback.`);
                 return 'main';
             }
         },
@@ -149,16 +151,20 @@
                 const defaultBranch = await this._getDefaultBranch({owner, name, token});
                 let fileUrl = `https://raw.githubusercontent.com/${owner}/${name}/${defaultBranch}/${filePath}`;
                 const headers = token ? { 'Authorization': `token ${token}` } : {};
+                // console.log(`[B&M GitHub Log] ➡️ Fordere Roh-Datei an: ${fileUrl}`);
                 GM_xmlhttpRequest({
                     method: 'GET', url: fileUrl, headers,
                     onload: res => {
                         if (res.status === 200 && res.responseText) {
+                            // console.log(`[B&M GitHub Log] ✅ Datei empfangen (Status: ${res.status}) von: ${fileUrl}`);
                             resolve({ success: true, content: res.responseText });
                         } else {
+                            // console.error(`[B&M GitHub Log] ❌ Fehler beim Abrufen der Datei (Status: ${res.status}) von: ${fileUrl}`);
                             resolve({ success: false });
                         }
                     },
                     onerror: (err) => {
+                        // console.error(`[B&M GitHub Log] ❌ Netzwerkfehler beim Anfordern der Datei von: ${fileUrl}`, err);
                         resolve({ success: false });
                     }
                 });
@@ -175,8 +181,10 @@
                 if (result.success && result.data.content) {
                     try {
                         const decodedContent = decodeURIComponent(escape(window.atob(result.data.content)));
+                        // console.log(`[B&M GitHub Log] ✅ API-Datei dekodiert: ${filePath}`);
                         resolve({ success: true, content: decodedContent });
                     } catch (e) {
+                        // console.error(`[B&M GitHub Log] ❌ Fehler beim Dekodieren der API-Datei: ${filePath}`, e);
                         resolve({ success: false });
                     }
                 } else {
@@ -191,16 +199,20 @@
             return new Promise((resolve) => {
                 const fullUrl = GITHUB_API_URL + path;
                 const headers = token ? { 'Authorization': `token ${token}` } : {};
+                // console.log(`[B&M GitHub Log] ➡️ Fordere API-Daten an: ${fullUrl}`);
                 GM_xmlhttpRequest({
                     method: 'GET', url: fullUrl, headers,
                     onload: res => {
                         if (res.status === 200) {
+                            // console.log(`[B&M GitHub Log] ✅ API-Daten empfangen (Status: ${res.status}) von: ${fullUrl}`);
                             resolve({ success: true, data: JSON.parse(res.responseText) });
                         } else {
+                            // console.error(`[B&M GitHub Log] ❌ Fehler beim Abrufen der API-Daten (Status: ${res.status}) von: ${fullUrl}`);
                             resolve({ success: false, status: res.status });
                         }
                     },
                     onerror: (err) => {
+                         // console.error(`[B&M GitHub Log] ❌ Netzwerkfehler beim Anfordern von API-Daten von: ${fullUrl}`, err);
                          resolve({ success: false, status: 'NETWORK_ERROR' });
                     }
                 });
@@ -278,23 +290,29 @@
             if(progressCallback) progressCallback(`Prüfe Manifest für ${repoPath}...`);
             const manifestResult = await this.fetchScriptsWithManifest(repoInfo);
             if (manifestResult.length > 0) {
+                // console.log(`[B&M Manager] ✅ Manifest in privatem Repo '${repoPath}' gefunden und verwendet.`);
                 return manifestResult;
             } else {
+                // console.log(`[B&M Manager] ℹ️ Kein Manifest in privatem Repo '${repoPath}' gefunden. Fallback auf Verzeichnis-Scan.`);
                 return this.fetchScriptsWithREST(repoInfo, progressCallback);
             }
         },
 
         // --- Aktive Skripte ausführen ---
         runActiveScripts: async function() {
-            await this.openDatabase();
-            const scripts = await this.getScriptsFromDB();
-            for (const script of scripts.filter(s => s.isActive !== false)) {
-                try {
-                    const isMatch = script.match.some(pattern => new RegExp(pattern.replace(/\*/g, '.*')).test(window.location.href));
-                    if (isMatch) {
-                        eval(script.code);
-                    }
-                } catch (e) { console.error(`Fehler beim Ausführen von Skript '${script.name}':`, e); }
+            try {
+               await this.openDatabase();
+               const scripts = await this.getScriptsFromDB();
+               for (const script of scripts.filter(s => s.isActive !== false)) {
+                   try {
+                       const isMatch = script.match.some(pattern => new RegExp(pattern.replace(/\*/g, '.*')).test(window.location.href));
+                       if (isMatch) {
+                           eval(script.code);
+                       }
+                   } catch (e) { console.error(`Fehler beim Ausführen von Skript '${script.name}':`, e); }
+               }
+            } catch (dbError) {
+                console.error("[B&M Manager] Fehler beim Zugriff auf die Datenbank für runActiveScripts:", dbError);
             }
         },
 
@@ -316,7 +334,7 @@
                             <span id="bm-refresh-btn" title="Cache leeren und neu laden">🔄</span>
                         </div>
                         <div class="bm-view-controls">
-                            <button id="bm-collapse-all" title="Alle Kategorien einklappen" style="display: none;">Alle einklappen</button>
+                            <button id="bm-collapse-all" title="Alle Kategorien ausklappen" style="display: none;">Alle ausklappen</button>
                             <label for="bm-view-switcher" style="font-size: 0.9em; margin-right: 5px;">Anzeige:</label>
                             <select id="bm-view-switcher">
                                 <option value="category">Nach Kategorie</option>
@@ -325,23 +343,55 @@
                         </div>
                     </div>
                     <div id="bm-stats-bar">Statistiken werden geladen...</div>
+                    <div id="bm-update-list-container" style="display: none;">
+                       <h4>Verfügbare Updates</h4>
+                       <div id="bm-update-list"></div>
+                    </div>
                     <div id="script-list"></div>
                 </div>
                 <button id="save-scripts-button" style="display: none;">Änderungen anwenden</button>`;
             document.body.appendChild(container);
 
-            // Event-Listener hinzufügen
+            // --- Event-Listener ---
             document.getElementById('save-scripts-button').addEventListener('click', window.BMScriptManager.applyChanges);
             container.querySelector('.bm-close-btn').addEventListener('click', () => { location.reload(); });
-            document.getElementById('bm-refresh-btn').addEventListener('click', () => { window.BMScriptManager.loadAndDisplayScripts(true); });
+            document.getElementById('bm-refresh-btn').addEventListener('click', () => { filterMode = 'all'; window.BMScriptManager.loadAndDisplayScripts(true); });
             document.getElementById('bm-view-switcher').addEventListener('change', (e) => {
-                 document.getElementById('bm-collapse-all').style.display = e.target.value === 'category' ? 'inline-block' : 'none';
+                 filterMode = 'all';
                  window.BMScriptManager.loadAndDisplayScripts(false);
             });
-            document.getElementById('bm-collapse-all').addEventListener('click', () => {
-                document.querySelectorAll('#script-list .bm-category-group').forEach(details => { details.open = false; });
+             document.getElementById('bm-script-filter').addEventListener('input', (e) => {
+                if (filterMode === 'updates' && e.target.value.length > 0) {
+                     filterMode = 'all'; // Verlasse Update-Modus bei Texteingabe
+                     window.BMScriptManager.loadAndDisplayScripts(false); // UI neu laden
+                 } else if (filterMode === 'all') {
+                     window.BMScriptManager._applyFilters(); // Nur Textfilter anwenden
+                 }
             });
-            document.getElementById('bm-script-filter').addEventListener('input', (e) => { window.BMScriptManager._applyFilters(); });
+
+            document.getElementById('bm-collapse-all').addEventListener('click', (event) => {
+                const button = event.target;
+                const allDetails = document.querySelectorAll('#script-list .bm-category-group:not(.hidden)');
+                const isAnyOpen = [...allDetails].some(details => details.open);
+
+                if (isAnyOpen) {
+                    allDetails.forEach(details => { details.open = false; });
+                    button.textContent = 'Alle ausklappen'; button.title = 'Alle Kategorien ausklappen';
+                } else {
+                    allDetails.forEach(details => { details.open = true; });
+                    button.textContent = 'Alle einklappen'; button.title = 'Alle Kategorien einklappen';
+                }
+            });
+
+            document.getElementById('bm-stats-bar').addEventListener('click', (e) => {
+                if (e.target.id === 'bm-stats-updates-trigger' || e.target.parentElement.id === 'bm-stats-updates-trigger') {
+                    filterMode = 'updates';
+                    const filterInput = document.getElementById('bm-script-filter');
+                    if(filterInput) filterInput.value = '';
+                    // Lade UI neu, _populateUI kümmert sich um den Rest basierend auf filterMode
+                    window.BMScriptManager.loadAndDisplayScripts(false);
+                }
+            });
 
             managerUiCreated = true;
             console.log("[B&M Manager] Haupt-UI erstellt.");
@@ -350,7 +400,6 @@
         // Funktion zum Erstellen des Einstellungs-Modals
         _createSettingsModalUI: function() {
             if (settingsModalUiCreated) return;
-
             const settingsModal = document.createElement('div');
             settingsModal.id = 'bm-settings-modal';
             settingsModal.innerHTML = `<div class="bm-settings-content"></div>`;
@@ -362,7 +411,6 @@
         // Funktion zum Erstellen des Tooltips
         _createTooltipUI: function() {
            if (tooltipUiCreated) return document.getElementById('bm-global-tooltip');
-
            const globalTooltip = document.createElement('div');
            globalTooltip.id = 'bm-global-tooltip';
            document.body.appendChild(globalTooltip);
@@ -459,7 +507,8 @@
         // Lädt Skript-Daten und startet UI-Aufbau
         loadAndDisplayScripts: async function(forceRefresh = false) {
             const scriptList = document.getElementById('script-list');
-            if (!scriptList) return;
+            const updateListContainer = document.getElementById('bm-update-list-container');
+            if (!scriptList || !updateListContainer) return; // Wenn Haupt-UI noch nicht da ist, abbrechen
 
             const saveButton = document.getElementById('save-scripts-button');
             const filterInput = document.getElementById('bm-script-filter');
@@ -475,18 +524,28 @@
             const cachedScripts = sessionStorage.getItem('bm_cache_data');
 
             if (!forceRefresh && cachedScripts && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION_MS)) {
-                scriptList.innerHTML = '';
+                scriptList.innerHTML = ''; // Leeren, falls von anderem Modus gefüllt
+                updateListContainer.querySelector('#bm-update-list').innerHTML = ''; // Leeren
                 const allScripts = JSON.parse(cachedScripts);
                 await this._populateUI(allScripts);
-                this._applyFilters();
+                // Apply filter wird nicht mehr benötigt, da _populateUI das jetzt handhabt
+                // this._applyFilters();
                 return;
             }
 
+            // Loader nur in der aktiven Liste anzeigen
             const loaderContainer = `<div class="bm-loader-container"><div class="bm-loader"></div> <span id="bm-loader-text">Initialisiere...</span></div>`;
-            scriptList.innerHTML = loaderContainer;
+            if(filterMode === 'updates'){
+                 updateListContainer.querySelector('#bm-update-list').innerHTML = loaderContainer;
+                 scriptList.innerHTML = ''; // Sicherstellen, dass andere Liste leer ist
+            } else {
+                 scriptList.innerHTML = loaderContainer;
+                 updateListContainer.querySelector('#bm-update-list').innerHTML = '';
+            }
+
             if(saveButton) saveButton.style.display = 'none';
             if(filterInput) filterInput.style.display = 'none';
-            if(filterInput) filterInput.value = '';
+            if(filterInput && filterMode !== 'updates') filterInput.value = ''; // Filter nur leeren, wenn nicht im Update-Modus
             scriptStates = {}; scriptMetadataCache = {};
 
             const updateLoaderText = (text) => {
@@ -522,14 +581,16 @@
                 sessionStorage.setItem('bm_cache_timestamp', Date.now());
 
                 await this._populateUI(allScripts);
-                this._applyFilters();
+                // Apply filter wird nicht mehr benötigt, da _populateUI das jetzt handhabt
+                // this._applyFilters();
             } catch (error) {
                 console.error('B&M Manager: Kritischer Fehler:', error);
-                scriptList.innerHTML = `<p style="color:red; text-align: center;">Fehler beim Laden.<br>Bitte Konsole prüfen.</p>`;
+                const activeList = filterMode === 'updates' ? updateListContainer.querySelector('#bm-update-list') : scriptList;
+                activeList.innerHTML = `<p style="color:red; text-align: center;">Fehler beim Laden.<br>Bitte Konsole prüfen.</p>`;
             }
         },
 
-        // Baut die UI basierend auf den geladenen Skript-Daten und der gewählten Ansicht
+        // Baut die UI und berechnet Statistiken
         _populateUI: async function(allScripts) {
             const scriptList = document.getElementById('script-list');
             const saveButton = document.getElementById('save-scripts-button');
@@ -537,160 +598,113 @@
             const viewModeSelect = document.getElementById('bm-view-switcher');
             const viewMode = viewModeSelect ? viewModeSelect.value : 'category';
             const statsBar = document.getElementById('bm-stats-bar');
+            const updateListContainer = document.getElementById('bm-update-list-container');
+            const updateList = document.getElementById('bm-update-list');
 
-            const collapseBtn = document.getElementById('bm-collapse-all');
-            if(collapseBtn) collapseBtn.style.display = viewMode === 'category' ? 'inline-block' : 'none';
+             // Sichtbarkeiten basierend auf filterMode setzen
+             if (filterMode === 'updates') {
+                 scriptList.style.display = 'none';
+                 updateListContainer.style.display = 'block';
+                 if(viewModeSelect && viewModeSelect.value !== 'category') {
+                      viewModeSelect.value = 'category'; // Stellt sicher, dass Select auf Kategorie steht
+                 }
+                 const collapseBtn = document.getElementById('bm-collapse-all');
+                 if(collapseBtn) collapseBtn.style.display = 'none';
+             } else {
+                 scriptList.style.display = viewMode === 'category' ? 'flex' : 'grid';
+                 updateListContainer.style.display = 'none';
+                 const collapseBtn = document.getElementById('bm-collapse-all');
+                 if(collapseBtn) collapseBtn.style.display = viewMode === 'category' ? 'inline-block' : 'none';
+             }
 
-            scriptList.innerHTML = 'Verarbeite & sortiere...';
-            let dbScripts = await this.getScriptsFromDB();
-            scriptList.innerHTML = '';
+
+            scriptList.innerHTML = 'Verarbeite & sortiere...'; // Wird ggf. nicht angezeigt
+            updateList.innerHTML = ''; // Immer leeren
+            let dbScripts = [];
+            try { dbScripts = await this.getScriptsFromDB(); } catch(e){ console.error("Fehler beim Lesen der DB:", e); scriptList.innerHTML = '<p style="color:red">DB Fehler</p>';}
+
             initialScriptStates = {};
-
-            // Statistik berechnen
-            const totalAvailable = allScripts.length;
-            const totalInstalled = dbScripts.length;
-            const totalActive = dbScripts.filter(s => s.isActive !== false).length;
-            const totalInactive = totalInstalled - totalActive;
-
-            if (statsBar) {
-                 statsBar.innerHTML = `Verfügbar: <span class="stat-count">${totalAvailable}</span> | Installiert: <span class="stat-count">${totalInstalled}</span> (Aktiv: <span class="stat-count active">${totalActive}</span> / Inaktiv: <span class="stat-count inactive">${totalInactive}</span>)`;
-            }
-
-            const onlineScriptDetails = new Map();
+            const detailsMap = new Map();
             const categoryMap = new Map();
 
+            // Daten sammeln und Stati berechnen
             for (const scriptMeta of allScripts) {
-                scriptMetadataCache[scriptMeta.name] = scriptMeta;
-                const localScript = dbScripts.find(s => s.name === scriptMeta.name);
-
-                let buttonState = 'install';
-                let infoText = "";
-
-                if (localScript) {
-                    if (typeof localScript.hasSettings === 'undefined') {
-                        localScript.hasSettings = window.BMScriptManager.codeHasSettings(localScript.code);
-                        window.BMScriptManager.saveScriptToDB(localScript);
-                    }
-                    scriptMeta.hasSettings = scriptMeta.hasSettings || localScript.hasSettings;
-
-                    if (localScript.isActive === false) buttonState = 'inactive';
-                    else {
-                        const vComp = this.compareVersions(scriptMeta.version, localScript.version);
-                        if (vComp > 0) buttonState = 'update';
-                        else if (vComp < 0) buttonState = 'downgrade';
-                        else buttonState = 'active';
-                    }
-                }
-
-                const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
-                if (isExternal) {
-                    infoText += `<strong><span class="external-warning">! NICHT ZUR WEITERGABE BESTIMMT !</span></strong>\n<em>Quelle: ${scriptMeta.repoInfo.owner}/${scriptMeta.repoInfo.name}</em>\n<hr>\n`;
-                }
-                if (buttonState === 'downgrade') {
-                     infoText += `<strong><span class="external-warning">EMPFEHLUNG:</span> Reparatur-Update</strong>\n<hr>\nDeine installierte Version (${localScript.version}) wurde zurückgezogen. Es wird empfohlen, die stabile Version ${scriptMeta.version} zu installieren.\n<hr>\n`;
-                }
-                infoText += (scriptMeta.description || "Keine Beschreibung.") + (scriptMeta.changelog || "");
-
-                scriptStates[scriptMeta.name] = buttonState;
-                initialScriptStates[scriptMeta.name] = buttonState;
-
-                const detail = { scriptMeta, infoText, buttonState };
-                onlineScriptDetails.set(scriptMeta.name, detail);
-
-                const categories = scriptMeta.categories && scriptMeta.categories.length > 0 ? scriptMeta.categories : [DEFAULT_CATEGORY];
-                for (const category of categories) {
-                    if (!categoryMap.has(category)) {
-                        categoryMap.set(category, []);
-                    }
-                    categoryMap.get(category).push(detail);
-                }
+                 scriptMetadataCache[scriptMeta.name] = scriptMeta;
+                 const localScript = dbScripts.find(s => s.name === scriptMeta.name);
+                 let buttonState = 'install';
+                 let infoText = "";
+                 if (localScript) {
+                     if (typeof localScript.hasSettings === 'undefined') { try { localScript.hasSettings = window.BMScriptManager.codeHasSettings(localScript.code); await window.BMScriptManager.saveScriptToDB(localScript); } catch(dbErr){ console.error("DB Save Error:", dbErr); } }
+                     scriptMeta.hasSettings = scriptMeta.hasSettings || localScript.hasSettings;
+                     if (localScript.isActive === false) buttonState = 'inactive';
+                     else { const vComp = this.compareVersions(scriptMeta.version, localScript.version); if (vComp > 0) buttonState = 'update'; else if (vComp < 0) buttonState = 'downgrade'; else buttonState = 'active'; }
+                 }
+                 const isExternal = scriptMeta.repoInfo.owner !== GITHUB_REPO_OWNER || scriptMeta.repoInfo.name !== GITHUB_REPO_NAME;
+                 if (isExternal) { infoText += `<strong><span class="external-warning">! NICHT ZUR WEITERGABE BESTIMMT !</span></strong>\n<em>Quelle: ${scriptMeta.repoInfo.owner}/${scriptMeta.repoInfo.name}</em>\n<hr>\n`; }
+                 if (buttonState === 'downgrade' && localScript) { infoText += `<strong><span class="external-warning">EMPFEHLUNG:</span> Reparatur-Update</strong>\n<hr>\nDeine installierte Version (${localScript.version}) wurde zurückgezogen. Es wird empfohlen, die stabile Version ${scriptMeta.version} zu installieren.\n<hr>\n`; }
+                 infoText += (scriptMeta.description || "Keine Beschreibung.") + (scriptMeta.changelog || "");
+                 scriptStates[scriptMeta.name] = buttonState; initialScriptStates[scriptMeta.name] = buttonState;
+                 const detail = { scriptMeta, infoText, buttonState };
+                 detailsMap.set(scriptMeta.name, detail);
+                 const categories = scriptMeta.categories && scriptMeta.categories.length > 0 ? scriptMeta.categories : [DEFAULT_CATEGORY];
+                 for (const category of categories) { if (!categoryMap.has(category)) { categoryMap.set(category, []); } categoryMap.get(category).push(detail); }
             }
-
             const onlineScriptNames = new Set(allScripts.map(s => s.name));
             for (const localScript of dbScripts) {
-                if (!onlineScriptNames.has(localScript.name)) {
-                    const scriptMeta = {
-                        name: localScript.name,
-                        version: localScript.version,
-                        repoInfo: { owner: 'Unbekannt', name: 'Unbekannt' },
-                        categories: [DEFAULT_CATEGORY]
-                    };
-                    const infoText = `<strong><span class="external-warning">VORSICHT:</span> Skript wurde online entfernt!</strong>\n<hr>\nDieses Skript ist lokal installiert, wurde aber online nicht mehr gefunden. Es wird empfohlen, es zu deinstallieren.`;
-                    const buttonState = 'removed';
-
-                    scriptStates[localScript.name] = buttonState;
-                    initialScriptStates[localScript.name] = buttonState;
-
-                    const detail = { scriptMeta, infoText, buttonState };
-                    if (!categoryMap.has(DEFAULT_CATEGORY)) {
-                        categoryMap.set(DEFAULT_CATEGORY, []);
-                    }
-                    categoryMap.get(DEFAULT_CATEGORY).push(detail);
-                    onlineScriptDetails.set(scriptMeta.name, detail);
-                }
+                 if (!onlineScriptNames.has(localScript.name)) { const scriptMeta = { name: localScript.name, version: localScript.version, repoInfo: { owner: 'Unbekannt', name: 'Unbekannt' }, categories: [DEFAULT_CATEGORY] }; const infoText = `<strong><span class="external-warning">VORSICHT:</span> Skript wurde online entfernt!</strong>\n<hr>\nDieses Skript ist lokal installiert, wurde aber online nicht mehr gefunden. Es wird empfohlen, es zu deinstallieren.`; const buttonState = 'removed'; scriptStates[localScript.name] = buttonState; initialScriptStates[localScript.name] = buttonState; const detail = { scriptMeta, infoText, buttonState }; if (!categoryMap.has(DEFAULT_CATEGORY)) { categoryMap.set(DEFAULT_CATEGORY, []); } categoryMap.get(DEFAULT_CATEGORY).push(detail); detailsMap.set(scriptMeta.name, detail); }
             }
 
-            if (viewMode === 'alphabetical') {
-                scriptList.className = 'grid-view';
-                const sortedDetails = [...onlineScriptDetails.values()].sort((a, b) =>
-                    a.scriptMeta.name.toLocaleLowerCase().localeCompare(b.scriptMeta.name.toLocaleLowerCase())
-                );
+            // Statistik anzeigen
+            const totalAvailable = detailsMap.size; const installedDetails = [...detailsMap.values()].filter(d => d.buttonState !== 'install' && d.buttonState !== 'activate'); const totalInstalled = installedDetails.length; const totalActive = installedDetails.filter(d => d.buttonState === 'active' || d.buttonState === 'update' || d.buttonState === 'downgrade').length; const totalInactive = installedDetails.filter(d => d.buttonState === 'inactive').length; const totalUpdates = installedDetails.filter(d => d.buttonState === 'update' || d.buttonState === 'downgrade').length;
+            if (statsBar) { let statsHTML = `Verfügbar: <span class="stat-count">${totalAvailable}</span> | Installiert: <span class="stat-count">${totalInstalled}</span> (Aktiv: <span class="stat-count active">${totalActive}</span> / Inaktiv: <span class="stat-count inactive">${totalInactive}</span>)`; if (totalUpdates > 0) { statsHTML += ` | <span id="bm-stats-updates-trigger" title="Nur Updates anzeigen">Updates: <span class="stat-count updates">${totalUpdates}</span></span>`; } statsBar.innerHTML = statsHTML; }
 
-                for (const detail of sortedDetails) {
-                    const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState);
-                    scriptList.appendChild(item);
+
+            // --- UI bauen ---
+            scriptList.innerHTML = ''; // Immer leeren vor dem Bauen
+            updateList.innerHTML = ''; // Immer leeren vor dem Bauen
+
+            if (filterMode === 'updates') {
+                const updateDetails = [...detailsMap.values()].filter(d => d.buttonState === 'update' || d.buttonState === 'downgrade');
+                updateDetails.sort((a,b) => a.scriptMeta.name.localeCompare(b.scriptMeta.name));
+                if (updateDetails.length > 0) {
+                     for (const detail of updateDetails) {
+                        const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState);
+                        updateList.appendChild(item);
+                     }
+                } else {
+                     updateList.innerHTML = "<p style='text-align: center; color: #aaa; grid-column: 1 / -1;'>Keine Updates verfügbar.</p>";
                 }
-
-            } else if (viewMode === 'category') {
-                scriptList.className = 'category-view';
-                const sortedCategories = [...categoryMap.keys()].sort((a, b) => a.toLocaleLowerCase().localeCompare(b.toLocaleLowerCase()));
-
-                for (const category of sortedCategories) {
-                    const categoryGroup = document.createElement('details');
-                    categoryGroup.className = 'bm-category-group';
-                    categoryGroup.open = false;
-
-                    const categoryHeader = document.createElement('summary');
-                    categoryHeader.className = 'bm-category-header';
-
-                    const scriptsInCategory = categoryMap.get(category);
-                    const uniqueScripts = [...new Map(scriptsInCategory.map(d => [d.scriptMeta.name, d])).values()];
-
-                    const total = uniqueScripts.length;
-                    const active = uniqueScripts.filter(d => ['active', 'update', 'downgrade'].includes(d.buttonState)).length;
-                    const inactive = uniqueScripts.filter(d => d.buttonState === 'inactive').length;
-
-                    categoryHeader.innerHTML = `
-                        <div class="bm-cat-title">${category}</div>
-                        <div class="bm-cat-stats">
-                            <span class="bm-stat-total" title="Gesamt in Kategorie">📚 ${total}</span>
-                            <span class="bm-stat-active" title="Aktiviert">✔️ ${active}</span>
-                            <span class="bm-stat-inactive" title="Deaktiviert">❌ ${inactive}</span>
-                        </div>
-                    `;
-
-                    categoryGroup.appendChild(categoryHeader);
-
-                    const categoryGrid = document.createElement('div');
-                    categoryGrid.className = 'bm-category-grid';
-                    categoryGroup.appendChild(categoryGrid);
-
-                    uniqueScripts.sort((a, b) => a.scriptMeta.name.toLocaleLowerCase().localeCompare(b.scriptMeta.name.toLocaleLowerCase()));
-
-                    for (const detail of uniqueScripts) {
-                         const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState);
-                         categoryGrid.appendChild(item);
-                    }
-                    scriptList.appendChild(categoryGroup);
+            } else { // filterMode === 'all'
+                if (viewMode === 'alphabetical') {
+                    scriptList.className = 'grid-view';
+                    const sortedDetails = [...detailsMap.values()].sort((a, b) => a.scriptMeta.name.toLocaleLowerCase().localeCompare(b.scriptMeta.name.toLocaleLowerCase()));
+                    for (const detail of sortedDetails) { const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState); scriptList.appendChild(item); }
+                } else if (viewMode === 'category') {
+                    scriptList.className = 'category-view';
+                    const sortedCategories = [...categoryMap.keys()].sort((a, b) => a.toLocaleLowerCase().localeCompare(b.toLocaleLowerCase()));
+                    for (const category of sortedCategories) { const categoryGroup = document.createElement('details'); categoryGroup.className = 'bm-category-group'; categoryGroup.open = false; const categoryHeader = document.createElement('summary'); categoryHeader.className = 'bm-category-header'; const scriptsInCategory = categoryMap.get(category); const uniqueScripts = [...new Map(scriptsInCategory.map(d => [d.scriptMeta.name, d])).values()]; const catTotal = uniqueScripts.length; const catActive = uniqueScripts.filter(d => ['active', 'update', 'downgrade'].includes(d.buttonState)).length; const catInactive = uniqueScripts.filter(d => d.buttonState === 'inactive').length; categoryHeader.innerHTML = `<div class="bm-cat-title">${category}</div><div class="bm-cat-stats"><span class="bm-stat-total" title="Gesamt in Kategorie">📚 ${catTotal}</span> <span class="bm-stat-active" title="Aktiviert">✔️ ${catActive}</span> <span class="bm-stat-inactive" title="Deaktiviert">❌ ${catInactive}</span></div>`; categoryGroup.appendChild(categoryHeader); const categoryGrid = document.createElement('div'); categoryGrid.className = 'bm-category-grid'; categoryGroup.appendChild(categoryGrid); uniqueScripts.sort((a, b) => a.scriptMeta.name.toLocaleLowerCase().localeCompare(b.scriptMeta.name.toLocaleLowerCase())); for (const detail of uniqueScripts) { const item = this.createUIElement(detail.scriptMeta, detail.infoText, detail.buttonState); categoryGrid.appendChild(item); } scriptList.appendChild(categoryGroup); }
                 }
             }
 
             if(saveButton) saveButton.style.display = 'block';
             if(filterInput) filterInput.style.display = 'block';
+
+            // Filter anwenden, um ggf. Elemente in der gerade gebauten Liste auszublenden (relevant für Textsuche im 'all' Modus)
+            this._applyFilters();
+             // Collapse-Button-Status initial setzen
+             this._updateCollapseButtonState();
         },
 
         // Filtert die angezeigten Skripte
         _applyFilters: function() {
+            // Wenn im Update-Modus, wird die Filterung durch _populateUI gehandhabt, nichts zu tun hier
+            if (filterMode === 'updates') {
+                 // Ggf. sicherstellen, dass Kategorien offen sind (obwohl _populateUI das schon tun sollte)
+                 // this._handleCategoryExpansionForUpdates(); // Nicht mehr nötig, da separate Liste
+                 return;
+             }
+
+            // Normale Textfilterung für 'all'-Modus
             const filterInput = document.getElementById('bm-script-filter');
             const viewModeSelect = document.getElementById('bm-view-switcher');
             if(!filterInput || !viewModeSelect) return;
@@ -703,20 +717,20 @@
                 allButtons.forEach(button => {
                     const nameMatch = button.dataset.scriptName.includes(searchTerm);
                     const infoMatch = button.dataset.scriptInfo.includes(searchTerm);
-                    button.classList.toggle('hidden', !(nameMatch || infoMatch));
+                    button.classList.toggle('hidden', !(searchTerm.length === 0 || nameMatch || infoMatch));
                 });
             } else if (viewMode === 'category') {
                 const allCategoryGroups = document.querySelectorAll('#script-list .bm-category-group');
                 allCategoryGroups.forEach(group => {
-                    const categoryTitle = group.querySelector('.bm-cat-title').textContent.toLowerCase();
-                    const titleMatch = categoryTitle.includes(searchTerm);
                     let scriptsVisibleInGroup = 0;
+                    const categoryTitle = group.querySelector('.bm-cat-title').textContent.toLowerCase();
+                    const titleMatch = searchTerm.length > 0 && categoryTitle.includes(searchTerm);
 
                     const allButtonsInGroup = group.querySelectorAll('.script-button');
                     allButtonsInGroup.forEach(button => {
                         const nameMatch = button.dataset.scriptName.includes(searchTerm);
                         const infoMatch = button.dataset.scriptInfo.includes(searchTerm);
-                        const scriptMatch = nameMatch || infoMatch;
+                        const scriptMatch = searchTerm.length === 0 || nameMatch || infoMatch;
 
                         button.classList.toggle('hidden', !scriptMatch);
                         if (scriptMatch) {
@@ -727,323 +741,111 @@
                     const groupVisible = titleMatch || (scriptsVisibleInGroup > 0);
                     group.classList.toggle('hidden', !groupVisible);
 
-                    if (searchTerm.length > 0 && !titleMatch && scriptsVisibleInGroup > 0) {
-                        group.open = true;
+                    // Kategorie nur öffnen, wenn Suche im Inhalt trifft (nicht beim Titel)
+                    if (groupVisible && !group.open && searchTerm.length > 0 && !titleMatch) {
+                       group.open = true;
+                    } else if (!groupVisible) {
+                        group.open = false; // Versteckte schließen
+                    } else if (searchTerm.length === 0 && groupVisible && group.open && !titleMatch){
+                        // Wenn Filter gelöscht wird, schließe automatisch geöffnete Gruppen wieder, außer Titeltreffer
+                        //group.open = false; // Optional: Verhalten anpassen
                     }
                 });
             }
+             // Collapse-Button-Status nach Filterung aktualisieren
+             this._updateCollapseButtonState();
         },
+
+        // Hilfsfunktion (nicht mehr zum Öffnen/Schließen benötigt)
+        _handleCategoryExpansionForUpdates: function() {
+            // Aktualisiert nur noch den Button-Status, da die Update-Liste separat ist
+            this._updateCollapseButtonState();
+        },
+
+        // Hilfsfunktion zum Aktualisieren des Collapse-Button-Textes
+        _updateCollapseButtonState: function() {
+            const collapseBtn = document.getElementById('bm-collapse-all');
+            const viewModeSelect = document.getElementById('bm-view-switcher');
+            if (!collapseBtn || !viewModeSelect || viewModeSelect.value !== 'category' || filterMode === 'updates') {
+                 if(collapseBtn) collapseBtn.style.display = 'none';
+                 return;
+             }
+
+             collapseBtn.style.display = 'inline-block';
+
+            const allVisibleDetails = document.querySelectorAll('#script-list .bm-category-group:not(.hidden)');
+            const allVisibleAreOpen = allVisibleDetails.length > 0 && [...allVisibleDetails].every(details => details.open);
+
+            if (allVisibleAreOpen) {
+                collapseBtn.textContent = 'Alle einklappen'; collapseBtn.title = 'Alle Kategorien einklappen';
+            } else {
+                collapseBtn.textContent = 'Alle ausklappen'; collapseBtn.title = 'Alle Kategorien ausklappen';
+            }
+        },
+
 
         // --- Speichern & Update-Logik ---
-        applyChanges: async function() {
-            const saveButton = document.getElementById('save-scripts-button');
-            if(!saveButton) return;
-            saveButton.disabled = true;
-            saveButton.innerHTML = 'Wende Änderungen an...';
-            try {
-                for (const scriptName in scriptStates) {
-                    const state = scriptStates[scriptName];
-                    const initialState = initialScriptStates[scriptName];
-                    const scriptMeta = scriptMetadataCache[scriptName];
-
-                    if (state === initialState && !['update', 'downgrade'].includes(state)) continue;
-
-                    if (state === 'activate' || state === 'update' || state === 'downgrade') {
-                        if (!scriptMeta) continue;
-                        const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
-                        if (result.success) {
-                           const hasSettings = window.BMScriptManager.codeHasSettings(result.content);
-                           const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: true };
-                           await window.BMScriptManager.saveScriptToDB(script);
-                        }
-                    } else if (state === 'uninstall') {
-                        await window.BMScriptManager.deleteScriptFromDB(scriptName);
-                    } else if (state === 'inactive' || (state === 'active' && initialState !== 'active')) {
-                         const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName);
-                         if (localScript) {
-                             localScript.isActive = (state === 'active');
-                             await window.BMScriptManager.saveScriptToDB(localScript);
-                         }
-                    }
-                }
-                localStorage.removeItem('bm_update_available');
-                await window.BMScriptManager.loadAndDisplayScripts(true);
-            } catch (error) {
-                console.error('[B&M Manager] Ein Fehler ist beim Anwenden der Änderungen aufgetreten:', error);
-            } finally {
-                saveButton.disabled = false;
-                saveButton.innerHTML = 'Änderungen anwenden';
-            }
-        },
-        checkForUpdatesInBackground: async function() {
-            const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
-            const now = Date.now();
-            const lastCheck = parseInt(localStorage.getItem('bm_last_update_check') || '0');
-
-            if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
-                if (localStorage.getItem('bm_update_available') === 'true') {
-                    this.showUpdateNotification();
-                }
-                return;
-            }
-
-            localStorage.setItem('bm_last_update_check', now.toString());
-            localStorage.setItem('bm_update_available', 'false');
-
-            try {
-                const publicRepoInfo = { owner: GITHUB_REPO_OWNER, name: GITHUB_REPO_NAME, token: null };
-                const publicScripts = await this.fetchScriptsWithManifest(publicRepoInfo);
-                const allOnlineScripts = publicScripts.flat();
-                const localScripts = await this.getScriptsFromDB();
-                const activeLocalScripts = localScripts.filter(s => s.isActive !== false);
-
-                if (activeLocalScripts.length === 0) return;
-
-                const onlineScriptsMap = new Map(allOnlineScripts.map(s => [s.name, s.version]));
-                let updateFound = false;
-
-                for (const localScript of activeLocalScripts) {
-                    if (onlineScriptsMap.has(localScript.name)) {
-                        const onlineVersion = onlineScriptsMap.get(localScript.name);
-                        if (this.compareVersions(onlineVersion, localScript.version) > 0) {
-                            updateFound = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (updateFound) {
-                    localStorage.setItem('bm_update_available', 'true');
-                    this.showUpdateNotification();
-                    sessionStorage.removeItem('bm_cache_data');
-                    sessionStorage.removeItem('bm_cache_timestamp');
-                }
-            } catch (error) {
-                console.error('[B&M Manager] Fehler bei der Hintergrund-Update-Prüfung:', error);
-            }
-        },
-        showUpdateNotification: function() {
-            const profileMenuLink = document.getElementById('menu_profile');
-            const bmManagerLink = document.getElementById('b-m-scriptmanager-link');
-
-            if (profileMenuLink) {
-                profileMenuLink.classList.add('alliance_forum_new');
-            }
-            if (bmManagerLink) {
-                bmManagerLink.classList.add('bm-update-highlight');
-            }
-        },
+        applyChanges: async function() { const saveButton = document.getElementById('save-scripts-button'); if(!saveButton) return; saveButton.disabled = true; saveButton.innerHTML = 'Wende Änderungen an...'; try { for (const scriptName in scriptStates) { const state = scriptStates[scriptName]; const initialState = initialScriptStates[scriptName]; const scriptMeta = scriptMetadataCache[scriptName]; if (state === initialState && !['update', 'downgrade'].includes(state)) continue; if (state === 'activate' || state === 'update' || state === 'downgrade') { if (!scriptMeta) continue; const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo); if (result.success) { const hasSettings = window.BMScriptManager.codeHasSettings(result.content); const script = { name: scriptMeta.name, version: scriptMeta.version, code: result.content, match: window.BMScriptManager.extractMatchFromCode(result.content), hasSettings: hasSettings, isActive: true }; await window.BMScriptManager.saveScriptToDB(script); } } else if (state === 'uninstall') { await window.BMScriptManager.deleteScriptFromDB(scriptName); } else if (state === 'inactive' || (state === 'active' && initialState !== 'active')) { const localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName); if (localScript) { localScript.isActive = (state === 'active'); await window.BMScriptManager.saveScriptToDB(localScript); } } } localStorage.removeItem('bm_update_available'); filterMode = 'all'; /* Nach Speichern immer zurück zum Normalmodus */ await window.BMScriptManager.loadAndDisplayScripts(true); } catch (error) { console.error('[B&M Manager] Ein Fehler ist beim Anwenden der Änderungen aufgetreten:', error); } finally { saveButton.disabled = false; saveButton.innerHTML = 'Änderungen anwenden'; } },
+        checkForUpdatesInBackground: async function() { const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; const now = Date.now(); const lastCheck = parseInt(localStorage.getItem('bm_last_update_check') || '0'); if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) { if (localStorage.getItem('bm_update_available') === 'true') { this.showUpdateNotification(); } return; } localStorage.setItem('bm_last_update_check', now.toString()); localStorage.setItem('bm_update_available', 'false'); try { const publicRepoInfo = { owner: GITHUB_REPO_OWNER, name: GITHUB_REPO_NAME, token: null }; const publicScripts = await this.fetchScriptsWithManifest(publicRepoInfo); const allOnlineScripts = publicScripts.flat(); const localScripts = await this.getScriptsFromDB(); const activeLocalScripts = localScripts.filter(s => s.isActive !== false); if (activeLocalScripts.length === 0) return; const onlineScriptsMap = new Map(allOnlineScripts.map(s => [s.name, s.version])); let updateFound = false; for (const localScript of activeLocalScripts) { if (onlineScriptsMap.has(localScript.name)) { const onlineVersion = onlineScriptsMap.get(localScript.name); if (this.compareVersions(onlineVersion, localScript.version) > 0) { updateFound = true; break; } } } if (updateFound) { localStorage.setItem('bm_update_available', 'true'); this.showUpdateNotification(); sessionStorage.removeItem('bm_cache_data'); sessionStorage.removeItem('bm_cache_timestamp'); } } catch (error) { console.error('[B&M Manager] Fehler bei der Hintergrund-Update-Prüfung:', error); } },
+        showUpdateNotification: function() { const profileMenuLink = document.getElementById('menu_profile'); const bmManagerLink = document.getElementById('b-m-scriptmanager-link'); if (profileMenuLink) { profileMenuLink.classList.add('alliance_forum_new'); } if (bmManagerLink) { bmManagerLink.classList.add('bm-update-highlight'); } },
 
         // --- Einstellungs-UI ---
-        getSettings: function(scriptName) {
-            if (this._settingsCache[scriptName]) {
-                return this._settingsCache[scriptName];
-            }
-            try {
-                const settings = JSON.parse(localStorage.getItem(`BMSettings_${scriptName}`) || '{}');
-                this._settingsCache[scriptName] = settings;
-                return settings;
-            } catch (e) { return {}; }
-        },
-        _saveSettings: function(scriptName, settings) {
-            this._settingsCache[scriptName] = settings;
-            localStorage.setItem(`BMSettings_${scriptName}`, JSON.stringify(settings));
-        },
-        _buildSettingsUI: function(scriptName, schema) {
-            const settings = this.getSettings(scriptName);
-            const modal = document.getElementById('bm-settings-modal');
-            if (!modal) return;
-            const content = modal.querySelector('.bm-settings-content');
-            let formHtml = `<div class="bm-settings-header">Einstellungen für <strong>${scriptName}</strong></div><div class="bm-settings-body">`;
-            for (const item of schema) {
-                const value = settings[`param${item.param}`] ?? item.default;
-                formHtml += `<div class="bm-settings-row" title="${item.info || ''}"><label for="bm-setting-${item.param}">${item.label}</label>`;
-                switch(item.type) {
-                    case 'checkbox': formHtml += `<input type="checkbox" id="bm-setting-${item.param}" ${value ? 'checked' : ''}>`; break;
-                    case 'number': formHtml += `<input type="number" id="bm-setting-${item.param}" value="${value}" min="${item.min || ''}" max="${item.max || ''}">`; break;
-                    case 'select':
-                        formHtml += `<select id="bm-setting-${item.param}">`;
-                        for (const option of item.options) {
-                           formHtml += `<option value="${option.value}" ${option.value === value ? 'selected' : ''}>${option.text}</option>`;
-                        }
-                        formHtml += `</select>`;
-                        break;
-                    default: formHtml += `<input type="text" id="bm-setting-${item.param}" value="${value}">`; break;
-                }
-                formHtml += `</div>`;
-            }
-            formHtml += `</div><div class="bm-settings-footer"><button id="bm-settings-save">Speichern</button><button id="bm-settings-cancel">Abbrechen</button></div>`;
-            content.innerHTML = formHtml;
-            document.getElementById('bm-settings-cancel').addEventListener('click', () => modal.style.display = 'none');
-            document.getElementById('bm-settings-save').addEventListener('click', () => {
-                const newSettings = {};
-                for (const item of schema) {
-                    const input = document.getElementById(`bm-setting-${item.param}`);
-                    const paramKey = `param${item.param}`;
-                    switch(item.type) {
-                        case 'checkbox': newSettings[paramKey] = input.checked; break;
-                        case 'number': newSettings[paramKey] = Number(input.value); break;
-                        default: newSettings[paramKey] = input.value; break;
-                    }
-                }
-                this._saveSettings(scriptName, newSettings);
-                modal.style.display = 'none';
-                location.reload();
-            });
-        },
-        _fetchAndShowSettingsUI: async function(scriptName) {
-            window.BMScriptManager._createSettingsModalUI();
-            const modal = document.getElementById('bm-settings-modal');
-            const content = modal.querySelector('.bm-settings-content');
-            content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`;
-            modal.style.display = 'flex';
-
-            let localScript = null; try{ localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName); } catch(e){}
-            let scriptCode = localScript ? localScript.code : null;
-            if (!scriptCode) {
-                const scriptMeta = scriptMetadataCache[scriptName];
-                if (!scriptMeta) {
-                    content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Skript-Metadaten nicht gefunden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
-                    return;
-                }
-                const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo);
-                if (result.success) {
-                    scriptCode = result.content;
-                }
-            }
-
-            if (scriptCode) {
-                 if (window.BMScriptManager.codeHasSettings(scriptCode)) {
-                    const match = scriptCode.match(/\/\*--BMScriptConfig([\s\S]*?)--\*\//);
-                    try {
-                        const schema = JSON.parse(match[1]);
-                        this._buildSettingsUI(scriptName, schema);
-                    } catch (e) {
-                        content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration im Skript ist fehlerhaft.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
-                    }
-                 } else {
-                     content.innerHTML = `<p style="text-align:center;">Für dieses Skript sind keine Einstellungen verfügbar.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
-                 }
-            } else {
-                 content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration konnte nicht geladen werden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`;
-            }
-        }
+        getSettings: function(scriptName) { if (this._settingsCache[scriptName]) { return this._settingsCache[scriptName]; } try { const settings = JSON.parse(localStorage.getItem(`BMSettings_${scriptName}`) || '{}'); this._settingsCache[scriptName] = settings; return settings; } catch (e) { return {}; } },
+        _saveSettings: function(scriptName, settings) { this._settingsCache[scriptName] = settings; localStorage.setItem(`BMSettings_${scriptName}`, JSON.stringify(settings)); },
+        _buildSettingsUI: function(scriptName, schema) { const settings = this.getSettings(scriptName); const modal = document.getElementById('bm-settings-modal'); if (!modal) return; const content = modal.querySelector('.bm-settings-content'); let formHtml = `<div class="bm-settings-header">Einstellungen für <strong>${scriptName}</strong></div><div class="bm-settings-body">`; for (const item of schema) { const value = settings[`param${item.param}`] ?? item.default; formHtml += `<div class="bm-settings-row" title="${item.info || ''}"><label for="bm-setting-${item.param}">${item.label}</label>`; switch(item.type) { case 'checkbox': formHtml += `<input type="checkbox" id="bm-setting-${item.param}" ${value ? 'checked' : ''}>`; break; case 'number': formHtml += `<input type="number" id="bm-setting-${item.param}" value="${value}" min="${item.min || ''}" max="${item.max || ''}">`; break; case 'select': formHtml += `<select id="bm-setting-${item.param}">`; for (const option of item.options) { formHtml += `<option value="${option.value}" ${option.value === value ? 'selected' : ''}>${option.text}</option>`; } formHtml += `</select>`; break; default: formHtml += `<input type="text" id="bm-setting-${item.param}" value="${value}">`; break; } formHtml += `</div>`; } formHtml += `</div><div class="bm-settings-footer"><button id="bm-settings-save">Speichern</button><button id="bm-settings-cancel">Abbrechen</button></div>`; content.innerHTML = formHtml; document.getElementById('bm-settings-cancel').addEventListener('click', () => modal.style.display = 'none'); document.getElementById('bm-settings-save').addEventListener('click', () => { const newSettings = {}; for (const item of schema) { const input = document.getElementById(`bm-setting-${item.param}`); const paramKey = `param${item.param}`; switch(item.type) { case 'checkbox': newSettings[paramKey] = input.checked; break; case 'number': newSettings[paramKey] = Number(input.value); break; default: newSettings[paramKey] = input.value; break; } } this._saveSettings(scriptName, newSettings); modal.style.display = 'none'; location.reload(); }); },
+        _fetchAndShowSettingsUI: async function(scriptName) { window.BMScriptManager._createSettingsModalUI(); const modal = document.getElementById('bm-settings-modal'); const content = modal.querySelector('.bm-settings-content'); content.innerHTML = `<div class="bm-loader-container"><div class="bm-loader"></div> Lade Konfiguration...</div>`; modal.style.display = 'flex'; let localScript = null; try{ localScript = await window.BMScriptManager.getSingleScriptFromDB(scriptName); } catch(e){} let scriptCode = localScript ? localScript.code : null; if (!scriptCode) { const scriptMeta = scriptMetadataCache[scriptName]; if (!scriptMeta) { content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Skript-Metadaten nicht gefunden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`; return; } const result = await window.BMScriptManager.fetchRawScript(scriptMeta.dirName, scriptMeta.fullName, scriptMeta.repoInfo); if (result.success) { scriptCode = result.content; } } if (scriptCode) { if (window.BMScriptManager.codeHasSettings(scriptCode)) { const match = scriptCode.match(/\/\*--BMScriptConfig([\s\S]*?)--\*\//); try { const schema = JSON.parse(match[1]); this._buildSettingsUI(scriptName, schema); } catch (e) { content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration im Skript ist fehlerhaft.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`; } } else { content.innerHTML = `<p style="text-align:center;">Für dieses Skript sind keine Einstellungen verfügbar.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`; } } else { content.innerHTML = `<p style="color:red; text-align:center;">Fehler: Konfiguration konnte nicht geladen werden.</p><button onclick="this.parentElement.parentElement.style.display='none'">Schließen</button>`; } }
     };
 
     // --- CSS-STYLES ---
     GM_addStyle(`
         #lss-script-manager-container, #bm-settings-modal { font-family: sans-serif; }
-
-        #lss-script-manager-container {
-            position: fixed; top: 10vh; left: 50%;
-            transform: translateX(-50%); z-index: 10000;
-            background-color: #262c37; color: #eee;
-            border: 1px solid #444c5e; border-radius: 5px;
-            padding: 20px; height: 80vh;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            width: 90%; max-width: 1300px;
-            display: none; flex-direction: column; box-sizing: border-box;
-        }
+        #lss-script-manager-container { position: fixed; top: 10vh; left: 50%; transform: translateX(-50%); z-index: 10000; background-color: #262c37; color: #eee; border: 1px solid #444c5e; border-radius: 5px; padding: 20px; height: 80vh; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 90%; max-width: 1300px; display: none; flex-direction: column; box-sizing: border-box; }
         #lss-script-manager-container.visible { display: flex; }
-
-        .bm-modal-content {
-            flex-grow: 1; overflow-y: auto; min-height: 0; padding-right: 5px;
-            scrollbar-width: thin; scrollbar-color: #5c677d #262c37;
-        }
+        .bm-modal-content { flex-grow: 1; overflow-y: auto; min-height: 0; padding-right: 5px; scrollbar-width: thin; scrollbar-color: #5c677d #262c37; }
         .bm-modal-content::-webkit-scrollbar { width: 8px; }
         .bm-modal-content::-webkit-scrollbar-track { background: #262c37; border-radius: 4px; }
         .bm-modal-content::-webkit-scrollbar-thumb { background-color: #5c677d; border-radius: 4px; border: 2px solid #262c37; }
-
-        #lss-script-manager-container h3 {
-            color: white; text-align: center; border-bottom: 2px solid #007bff;
-            padding-bottom: 10px; margin: 0 0 15px 0; flex-shrink: 0;
-        }
-
+        #lss-script-manager-container h3 { color: white; text-align: center; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin: 0 0 15px 0; flex-shrink: 0; }
         .bm-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 15px; flex-wrap: wrap; flex-shrink: 0; }
         #bm-script-filter-wrapper { position: relative; flex-grow: 1; min-width: 300px; }
         .bm-view-controls { display: flex; gap: 10px; align-items: center; }
-        #bm-view-switcher, #bm-collapse-all {
-            background-color: #3a4150; color: #eee; border: 1px solid #5c677d;
-            border-radius: 4px; padding: 8px 10px; cursor: pointer;
-        }
+        #bm-view-switcher, #bm-collapse-all { background-color: #3a4150; color: #eee; border: 1px solid #5c677d; border-radius: 4px; padding: 8px 10px; cursor: pointer; }
         #bm-collapse-all:hover, #bm-view-switcher:hover { background-color: #4a5160; }
-
-        #bm-script-filter {
-            width: 100%; padding: 8px 40px 8px 10px; background-color: #3a4150;
-            color: #eee; border: 1px solid #5c677d; border-radius: 4px; box-sizing: border-box;
-        }
+        #bm-script-filter { width: 100%; padding: 8px 40px 8px 10px; background-color: #3a4150; color: #eee; border: 1px solid #5c677d; border-radius: 4px; box-sizing: border-box; }
         #bm-refresh-btn { position: absolute; right: 10px; top: 7px; font-size: 1.5em; cursor: pointer; color: #aaa; transition: color .2s, transform .5s; }
         #bm-refresh-btn:hover { color: #fff; transform: rotate(180deg); }
         #b-m-scriptmanager-link.bm-update-highlight { background-color: #28a745; border-radius: 3px; }
-
-        #bm-stats-bar {
-            background-color: rgba(58, 65, 80, 0.5); border: 1px solid #5c677d;
-            border-radius: 4px; padding: 8px 15px; margin-bottom: 15px;
-            font-size: 0.9em; color: #ccc; text-align: center; flex-shrink: 0;
-        }
+        #bm-stats-bar { background-color: rgba(58, 65, 80, 0.5); border: 1px solid #5c677d; border-radius: 4px; padding: 8px 15px; margin-bottom: 15px; font-size: 0.9em; color: #ccc; text-align: center; flex-shrink: 0; }
         #bm-stats-bar .stat-count { font-weight: bold; color: #eee; margin: 0 2px; }
         #bm-stats-bar .stat-count.active { color: #28a745; }
         #bm-stats-bar .stat-count.inactive { color: #dc3545; }
-
+        #bm-stats-updates-trigger { cursor: pointer; text-decoration: underline; text-decoration-style: dotted; color: #ffc107; }
+        #bm-stats-updates-trigger:hover { text-decoration: none; color: #ffe082; }
+        #bm-stats-updates-trigger .stat-count.updates { color: inherit; }
+        #bm-update-list-container { margin-bottom: 15px; }
+        #bm-update-list-container h4 { color: #ffc107; border-bottom: 1px solid #ffc107; padding-bottom: 5px; margin: 0 0 15px 0; }
+        #bm-update-list { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
         #script-list.grid-view { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; }
         #script-list.category-view { display: flex; flex-wrap: wrap; gap: 15px; }
-
-        .bm-category-group {
-            border: 1px solid #444c5e; border-radius: 5px; margin: 0;
-            background: linear-gradient(145deg, #3a4150, #2c313d);
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.3); transition: all 0.3s ease;
-            flex-basis: 300px; flex-grow: 1;
-        }
-        .bm-category-group:hover {
-            border-color: #007bff; box-shadow: 3px 3px 8px rgba(0, 123, 255, 0.3);
-            transform: translateY(-2px);
-        }
+        .bm-category-group { border: 1px solid #444c5e; border-radius: 5px; margin: 0; background: linear-gradient(145deg, #3a4150, #2c313d); box-shadow: 2px 2px 5px rgba(0,0,0,0.3); transition: all 0.3s ease; flex-basis: 300px; flex-grow: 1; }
+        .bm-category-group:hover { border-color: #007bff; box-shadow: 3px 3px 8px rgba(0, 123, 255, 0.3); transform: translateY(-2px); }
         .bm-category-group.hidden { display: none; }
-
-        details[open].bm-category-group {
-            flex-basis: 100%; background: transparent; box-shadow: none;
-            border-color: #444c5e;
-        }
-        details[open].bm-category-group:hover {
-             transform: none; border-color: #444c5e; box-shadow: none;
-        }
-
-        .bm-category-header {
-            padding: 15px; cursor: pointer; border-radius: 4px;
-            transition: background-color 0.2s ease; text-align: center;
-            position: relative; list-style: none;
-        }
+        details[open].bm-category-group { flex-basis: 100%; background: transparent; box-shadow: none; border-color: #444c5e; }
+        details[open].bm-category-group:hover { transform: none; border-color: #444c5e; box-shadow: none; }
+        .bm-category-header { padding: 15px; cursor: pointer; border-radius: 4px; transition: background-color 0.2s ease; text-align: center; position: relative; list-style: none; }
         .bm-category-header::-webkit-details-marker { display: none; }
-        .bm-category-header::after {
-            content: '‣'; position: absolute; right: 20px; top: 50%;
-            transform: translateY(-50%) rotate(0deg); transition: transform 0.3s ease;
-            font-size: 1.5em; color: #aaa;
-        }
+        .bm-category-header::after { content: '‣'; position: absolute; right: 20px; top: 50%; transform: translateY(-50%) rotate(0deg); transition: transform 0.3s ease; font-size: 1.5em; color: #aaa; }
         details[open] .bm-category-header::after { transform: translateY(-50%) rotate(90deg); }
-        details[open] .bm-category-header {
-             border-radius: 4px 4px 0 0; background-color: #3a4150; text-align: left;
-        }
-
-        .bm-cat-title {
-            font-size: 1.3em; font-weight: bold; color: #eee; margin-bottom: 10px;
-        }
+        details[open] .bm-category-header { border-radius: 4px 4px 0 0; background-color: #3a4150; text-align: left; }
+        .bm-cat-title { font-size: 1.3em; font-weight: bold; color: #eee; margin-bottom: 10px; }
         details[open] .bm-cat-title { font-size: 1.2em; margin-bottom: 0; display: inline-block; }
-
         .bm-cat-stats { display: flex; justify-content: center; gap: 15px; font-size: 0.9em; }
         details[open] .bm-cat-stats { display: inline-flex; float: right; margin-top: 2px; }
-
         .bm-stat-total { color: #6c9cff; }
         .bm-stat-active { color: #28a745; }
         .bm-stat-inactive { color: #dc3545; }
-
-        .bm-category-grid {
-            display: grid; grid-template-columns: repeat(7, 1fr);
-            grid-auto-rows: 75px; gap: 15px; padding: 0 15px;
-            background-color: rgba(40, 48, 61, 0.3); max-height: 0;
-            overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out;
-        }
+        .bm-category-grid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 75px; gap: 15px; padding: 0 15px; background-color: rgba(40, 48, 61, 0.3); max-height: 0; overflow: hidden; transition: max-height 0.4s ease-in-out, padding 0.4s ease-in-out; }
         details[open] .bm-category-grid { max-height: 2000px; padding-top: 15px; padding-bottom: 15px; }
-
         .script-button { padding: 8px; border-radius: 5px; cursor: pointer; transition: all 0.2s ease; position: relative; border: 2px solid transparent; text-align: center; font-size: 0.85em; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .script-button.hidden { display: none; }
         .script-button:hover { filter: brightness(1.15); transform: translateY(-2px); }
@@ -1059,15 +861,8 @@
         .script-button.removed:hover { filter: brightness(1); transform: none; }
         .script-button.removed strong { text-decoration: line-through; }
         .script-button.downgrade { background-color: #fd7e14; border-color: #fd7e14; color: white; }
-
         #bm-global-tooltip { display: none; position: fixed; background-color: #333; padding: 10px; border-radius: 5px; white-space: pre-wrap; z-index: 10001; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.3); text-align: left; pointer-events: none; color: #f1f1f1;}
-
-        #save-scripts-button {
-            display: none; width: 100%; padding: 10px; margin-top: 20px;
-            font-weight: bold; color: white; background-color: #007bff;
-            border: none; border-radius: 5px; cursor: pointer; flex-shrink: 0;
-        }
-
+        #save-scripts-button { display: none; width: 100%; padding: 10px; margin-top: 20px; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 5px; cursor: pointer; flex-shrink: 0; }
         .script-button.external-script { border-color: #ff9800; box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
         .external-symbol, .update-symbol, .bm-config-btn { vertical-align: middle; }
         .external-symbol { margin-right: 5px; }
@@ -1084,17 +879,8 @@
         .bm-loader { display: inline-block; border: 4px solid #444; border-top: 4px solid #007bff; border-radius: 50%; width: 24px; height: 24px; animation: bm-spin 1s linear infinite; margin-right: 15px; flex-shrink: 0; }
         #bm-loader-text { text-align: left; }
         @keyframes bm-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        #bm-settings-modal {
-            display: none; position: fixed; z-index: 10001; left: 0; top: 0;
-            width: 100%; height: 100%; background-color: rgba(0,0,0,0.7);
-            justify-content: center; align-items: center;
-        }
-        .bm-settings-content {
-            background-color: #2c313d; color: #eee; padding: 20px;
-            border-radius: 5px; border: 1px solid #444c5e; width: 90%;
-            max-width: 500px; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-        }
+        #bm-settings-modal { display: none; position: fixed; z-index: 10001; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        .bm-settings-content { background-color: #2c313d; color: #eee; padding: 20px; border-radius: 5px; border: 1px solid #444c5e; width: 90%; max-width: 500px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
         .bm-settings-header { font-size: 1.5em; margin-bottom: 20px; border-bottom: 1px solid #444c5e; padding-bottom: 10px; }
         .bm-settings-body { max-height: 60vh; overflow-y: auto; padding-right: 10px; }
         .bm-settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; align-items: center; margin-bottom: 12px; }
@@ -1119,15 +905,13 @@
             // Klick-Listener für Menü-Link
             document.getElementById('b-m-scriptmanager-link').addEventListener('click', async (e) => {
                 e.preventDefault();
-                window.BMScriptManager._createManagerUI();
+                window.BMScriptManager._createManagerUI(); // Erstellt UI beim ersten Klick
                 const managerContainer = document.getElementById('lss-script-manager-container');
                 const isVisible = managerContainer.classList.toggle('visible');
                 if (isVisible) {
-                    const scriptList = document.getElementById('script-list');
-                    if (!scriptList || scriptList.children.length === 0) {
-                        await window.BMScriptManager.openDatabase();
-                        window.BMScriptManager.loadAndDisplayScripts();
-                    }
+                     // Beim Sichtbarmachen immer neu laden/zeichnen, um den FilterMode korrekt zu berücksichtigen
+                    await window.BMScriptManager.openDatabase();
+                    window.BMScriptManager.loadAndDisplayScripts();
                 }
             });
         }
