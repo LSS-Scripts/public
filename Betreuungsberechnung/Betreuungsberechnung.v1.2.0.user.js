@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS Betreuungsberechnung
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Berechnet und zeigt den benötigten Betreuungsbedarf für Einsätze an, basierend auf Betroffenen und der tatsächlichen Anzahl aller eingesetzten Kräfte, unter Berücksichtigung der Spielmeldung zum Personal-Versorgungsbedarf. Das Skript wird nur bei Einsätzen mit Betreuungsbedarf aktiv. Entwickelt für Greasy Fork.
 // @author       Masklin (in Zusammenarbeit mit Gemini)
 // @match        https://www.leitstellenspiel.de/missions/*
@@ -341,6 +341,13 @@
         "FuStW (DGL)": 2,
         "FüKW (Polizei)": 3,
         "GW-Wasserrettung": 6,
+        "GW TeSi": 5,
+        "LKW Technik (Notstrom)": 6,
+        "MTW TeSi": 7,
+        "Anh TeSi": 0,
+        "LKW 7 Lbw (FGr Log-V)": 2,
+        "MTW-FGr Log-V": 5,
+        "Anh 12 Lbw (FGr Log-V)": 0,
     };
 
     // Die vom Nutzer bereitgestellte Fahrzeug-ID-Liste
@@ -426,6 +433,14 @@
         '168': 'Anh Sonderlöschmittel',
         '169': 'AB-Sonderlöschmittel',
         '170': 'AB-Wasser/Schaum',
+        '171': 'GW TeSi',
+        '172': 'LKW Technik (Notstrom)',
+        '173': 'MTW TeSi',
+        '174': 'Anh TeSi',
+        '175': 'NEA50',
+        '176': 'LKW 7 Lbw (FGr Log-V)',
+        '177': 'MTW-FGr Log-V',
+        '178': 'Anh 12 Lbw (FGr Log-V)',
     };
 
     // Cache für Spaltenindizes, um Neuberechnungen zu vermeiden
@@ -967,7 +982,7 @@
                               (currentAvailableCareHelpers >= allCareResultsGross.totalCareHelpers);
         customContainer.classList.toggle('all-vehicles-ok', allCareNeedsMet);
         const title = allCareNeedsMet ? 'Betreuungsbedarf gedeckt' : 'Betreuungsbedarf';
-        const tableHeader = '<thead><tr><th>Bedarf</th><th>Status</th></tr></thead>';
+        const tableHeader = '';
 
         // 4. Tabelle für Küchen
         let kitchenTableBody = '';
@@ -1006,41 +1021,28 @@
                     <tbody>${helperTableBody}</tbody>
                 </table>
             </div>`;
-        // 6. Info-Bereich für "Zu versorgende Personen" (Stil für "Ecke" angepasst)
-        let personnelInfoHtml = '';
+        // 7. Finales HTML zusammensetzen (NEUE EINZEILIGE TITEL-LOGIK)
+
+        // 7a. Dynamischen Titel erstellen
+        let dynamicTitle = '';
         if (personnelToCareForInGame === 0) {
-             personnelInfoHtml = `
-                Betroffene: <strong style="color: #ccc;">${totalAffectedPeople}</strong><br>
-                Einsatzkräfte: <strong style="color: #ccc;">0</strong>
-            `;
+            // Nur Betroffene anzeigen
+            dynamicTitle = `Betreuungsbedarf für ${totalAffectedPeople} Betroffene`;
         } else {
-             personnelInfoHtml = `
-                Betroffene: <strong style="color: #ccc;">${totalAffectedPeople}</strong><br>
-                Eigene Kräfte: <strong style="color: #ccc;">${totalOwnPersonnel}</strong><br>
-                Fremde Kräfte: <strong style="color: #ccc;">${totalForeignPersonnel}</strong>
-            `;
+            // Alles anzeigen
+            dynamicTitle = `Betreuungsbedarf für ${totalAffectedPeople} Betroffene, ${totalOwnPersonnel} eigene Kräfte & ${totalForeignPersonnel} Fremde Kräfte`;
         }
 
-        // NEUES DESIGN FÜR "IN DER ECKE"
-        const personnelSection = `
-            <div style="float: right; text-align: right; font-size: 0.75em; color: #8892b0; margin-top: 5px; line-height: 1.4;">
-                <div class="personnel-title" style="text-align: right; margin-bottom: 5px;">ZU VERSORGENDE PERSONEN</div>
-                ${personnelInfoHtml}
-            </div>
-        `;
-
-        // 7. Finales HTML zusammensetzen (ANGEPASSTE REIHENFOLGE & STRUKTUR)
+        // 7b. Finales HTML
         customContainer.innerHTML = `
-            <div class="custom-container-title" style="overflow: auto; zoom: 1;">
-                ${personnelSection}
-                ${title}
+            <div class="custom-container-title" style="font-size: 1.1em; margin-bottom: 8px;">
+                ${dynamicTitle}
             </div>
             <div class="tables-flex-wrapper">
                 ${kitchenTable}
                 ${helperTable}
             </div>
         `;
-
         // Alte Log-Meldungen, angepasst
         console.log(`LSS Betreuung: Verfügbar: Küchen ${currentAvailableKitchens}, Helfer ${currentAvailableCareHelpers}.`);
         console.log(`Bedarf (Küchen): Betroffene:${requiredKitchensForAffected} | Eigene:${requiredKitchensForOwnPersonnelDisplay} | Fremde:${requiredKitchensForForeignPersonnelDisplay} | Gesamt:${allCareResultsGross.kitchens}`);
