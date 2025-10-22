@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         LSS Betreuungsberechnung
 // @namespace    http://tampermonkey.net/
-// @version      1.0.4
+// @version      1.1.0
 // @description  Berechnet und zeigt den benötigten Betreuungsbedarf für Einsätze an, basierend auf Betroffenen und der tatsächlichen Anzahl aller eingesetzten Kräfte, unter Berücksichtigung der Spielmeldung zum Personal-Versorgungsbedarf. Das Skript wird nur bei Einsätzen mit Betreuungsbedarf aktiv. Entwickelt für Greasy Fork.
 // @author       Masklin (in Zusammenarbeit mit Gemini)
 // @match        https://www.leitstellenspiel.de/missions/*
-// @grant        none
+// @grant        GM_addStyle
 // @license      MIT
 // @downloadURL https://update.greasyfork.org/scripts/537089/LSS%20Betreuungsberechnung.user.js
 // @updateURL https://update.greasyfork.org/scripts/537089/LSS%20Betreuungsberechnung.meta.js
@@ -14,6 +14,170 @@
 // Zusätzliche IIFE für maximale Scope-Isolation und um Konflikte zu vermeiden
 (function(window) {
     'use strict';
+    GM_addStyle(`
+        /* Hauptcontainer für Betreuungsbedarf */
+        #lss-care-container-custom {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 20px;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #2a2d35, #1f2128);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.4s ease-in-out;
+            flex-wrap: wrap;
+        }
+
+        /* "Alles erledigt"-Zustand mit grünem Leuchten */
+        #lss-care-container-custom.all-vehicles-ok {
+            background: linear-gradient(145deg, #193829, #204b36);
+            border-color: #28a745;
+            box-shadow: 0 0 15px rgba(40, 167, 69, 0.5);
+        }
+
+        /* Titel für den Container */
+        #lss-care-container-custom .custom-container-title {
+            width: 100%;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Flexbox-Wrapper für die Tabellen */
+        #lss-care-container-custom .tables-flex-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        /* Wrapper für eine einzelne Tabelle (flexibel) */
+        #lss-care-container-custom .missing-vehicles-table-wrapper {
+            flex: 1;
+            min-width: 45%; /* Mindestbreite für 2 Spalten-Layout */
+        }
+
+        /* Die Tabelle selbst */
+        #lss-care-container-custom .missing-vehicles-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        /* Tabellenüberschriften */
+        #lss-care-container-custom .missing-vehicles-table th {
+            padding: 10px 15px;
+            text-align: left;
+            font-weight: bold;
+            color: #8892b0;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Tabellenzellen */
+        #lss-care-container-custom .missing-vehicles-table td {
+            padding: 12px 15px;
+            background-color: rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Abgerundete Ecken für die Zeilen */
+        #lss-care-container-custom .missing-vehicles-table td:first-child { border-radius: 8px 0 0 8px; }
+        #lss-care-container-custom .missing-vehicles-table td:last-child { border-radius: 0 8px 8px 0; }
+
+        /* Stil für erfüllte Zeilen */
+        #lss-care-container-custom .missing-vehicles-table tr.vehicle-row-ok td {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: #98e0ab;
+        }
+
+        /* Fortschrittsbalken-Container */
+        #lss-care-container-custom .progress-bar-container {
+            width: 100%;
+            height: 22px;
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Der Fortschrittsbalken selbst */
+        #lss-care-container-custom .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #d9534f, #f0ad4e, #5cb85c);
+            background-size: 300% 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease-out, background-position 0.5s ease-out, background 0.5s ease;
+        }
+
+        /* Text auf dem Fortschrittsbalken */
+        #lss-care-container-custom .progress-bar-text {
+            position: absolute;
+            width: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-weight: bold;
+            font-size: 0.9em;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+            text-align: center;
+        }
+
+        /* Balken wird grün, wenn Zeile "ok" ist */
+        #lss-care-container-custom .missing-vehicles-table tr.vehicle-row-ok .progress-bar {
+            background: linear-gradient(90deg, #2eac53, #28a745);
+        }
+
+        /* Kompakt-Ansicht-Regeln (permanent) */
+        #lss-care-container-custom.compact-view {
+            padding: 12px;
+            gap: 10px;
+        }
+        #lss-care-container-custom.compact-view .custom-container-title {
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+        #lss-care-container-custom.compact-view .missing-vehicles-table {
+            border-spacing: 0 4px;
+        }
+        #lss-care-container-custom.compact-view .missing-vehicles-table td {
+            padding: 7px 12px;
+        }
+        #lss-care-container-custom.compact-view .progress-bar-container {
+            height: 20px;
+        }
+        #lss-care-container-custom.compact-view .progress-bar-text {
+            font-size: 0.8em;
+        }
+
+        /* Bereich für "Personal" (hier für "zu versorgende Personen") */
+        #lss-care-container-custom .personnel-requirements-wrapper {
+            width: 100%;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        #lss-care-container-custom .personnel-title {
+            text-align: center;
+            font-weight: bold;
+            color: #8892b0;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+    `);
 
     // Prüfen, ob das Skript bereits geladen wurde, um doppelte Ausführung zu verhindern
     if (window.LSSPersonnelOverviewLoaded) {
@@ -499,7 +663,7 @@
 
         let finalEffectivePersonnelForCoverage = 0; // Wird am Ende der Schleife den letzten Wert halten
         let finalTotalPeopleForCoverage = 0; // Wird am Ende der Schleife den letzten Wert halten
-        
+
         let kitchenTooltipLog = "Berechnung Küchenbedarf:\n";
         let caregiverTooltipLog = "Berechnung Betreuerbedarf:\n";
         // overallPersonnelTooltipLog bleibt für den Fall, dass es später wieder benötigt wird,
@@ -560,7 +724,7 @@
                 careHelpersForPersonnel = newCareHelpersForPersonnel;
                 changed = true;
             }
-            
+
             // Gesamt benötigte Betreuungshelfer ist die Summe dieser beiden Bedarfe
             const newRequiredCareHelpers = careHelpersForAffected + careHelpersForPersonnel;
 
@@ -660,33 +824,19 @@
      * Diese Funktion wird NUR aufgerufen, wenn ein Betreuungsbedarf erkannt wurde.
      */
     function displayPersonnelOverview() {
-        // console.log("LSS Betreuungsberechnung: Aktualisiere Bedarfsanzeige.");
+        // console.log("LSS Betreuungsberechnung: Aktualisiere Bedarfsanzeige (Neues Design).");
 
         // Selektiert den roten oder grünen Alert-Div im spezifischen Container
         const careDivElement = document.querySelector('div.flex-row.flex-nowrap.justify-between.align-items-center.row > div.alert.alert-danger, div.flex-row.flex-nowrap.justify-between.align-items-center.row > div.alert.alert-success');
-        
+
         if (!careDivElement) {
             return; // Wichtig: Wenn kein Betreuungsbedarf, nichts tun.
         }
 
-        // Finde den .col-md-11 Container, der die relevanten Informationen enthält
-        const colMd11 = careDivElement.querySelector('.col-md-11');
-        if (!colMd11) {
-            // console.warn("LSS Betreuungsberechnung: .col-md-11 innerhalb des Alarm-Divs nicht gefunden. Ausgabe kann nicht platziert werden.");
-            return;
-        }
+        // Das originale Alert-Div verstecken
+        careDivElement.style.display = 'none';
 
-        // --- Original-Elemente ausblenden ---
-        // Finde die direkten div-Kinder des col-md-11 und blende sie aus
-        const originalDivsToHide = colMd11.querySelectorAll('div');
-        originalDivsToHide.forEach(div => {
-            // Nur die divs ausblenden, die NICHT unser eigenes eingefügtes Div sind
-            if (div !== lssCareSummaryOutputDiv) {
-                div.style.display = 'none';
-            }
-        });
-
-        // --- Personalberechnungen ---
+        // --- Personalberechnungen (BLEIBEN GLEICH) ---
         // Eigene Kräfte
         const vehiclesOnSceneDataOwn = parseVehiclesAndPersonnel('mission_vehicle_at_mission', true); // Nur eigene Fahrzeuge
         const totalPersonnelOnSceneOwn = calculateTotalPersonnelFromArray(vehiclesOnSceneDataOwn);
@@ -695,29 +845,8 @@
         const totalPersonnelEnRouteOwn = calculateTotalPersonnelFromArray(vehiclesDrivingDataOwn);
 
         // Ausgewählte Fahrzeuge (immer eigene)
-        const vehiclesSelectedForDispatchData = parseVehiclesAndPersonnel('mission_vehicles_to_send'); 
+        const vehiclesSelectedForDispatchData = parseVehiclesAndPersonnel('mission_vehicles_to_send');
         const totalPersonnelSelectedForDispatch = calculateTotalPersonnelFromArray(vehiclesSelectedForDispatchData);
-
-        // Generiere den Tooltip-Inhalt für die ausgewählten Fahrzeuge (gruppiert)
-        let selectedVehiclesGrouped = {};
-        vehiclesSelectedForDispatchData.forEach(vehicle => {
-            if (!selectedVehiclesGrouped[vehicle.type]) {
-                selectedVehiclesGrouped[vehicle.type] = { count: 0, totalPersonnel: 0 };
-            }
-            selectedVehiclesGrouped[vehicle.type].count++;
-            selectedVehiclesGrouped[vehicle.type].totalPersonnel += vehicle.personnel;
-        });
-
-        let selectedVehiclesTooltip = "Ausgewählte Fahrzeuge:\n";
-        if (Object.keys(selectedVehiclesGrouped).length > 0) {
-            for (const type in selectedVehiclesGrouped) {
-                const data = selectedVehiclesGrouped[type];
-                selectedVehiclesTooltip += `  ${data.count}x ${type} -> ${data.totalPersonnel} Personal\n`;
-            }
-        } else {
-            selectedVehiclesTooltip += "  Keine Fahrzeuge ausgewählt.";
-        }
-
 
         // Gesamtpersonal des Spielers (vor Ort, auf Anfahrt, ausgewählt)
         const totalOwnPersonnel = totalPersonnelOnSceneOwn + totalPersonnelEnRouteOwn + totalPersonnelSelectedForDispatch;
@@ -752,7 +881,6 @@
         window.LSS_Care_CurrentAvailableKitchens = currentAvailableKitchens;
         window.LSS_Care_CurrentAvailableCareHelpers = currentAvailableCareHelpers;
 
-
         // --- Alle Kräfte (eigene + verbündete) ---
         const vehiclesOnSceneDataAll = parseVehiclesAndPersonnel('mission_vehicle_at_mission', false); // ALLE Fahrzeuge vor Ort
         const totalPersonnelOnSceneAll = calculateTotalPersonnelFromArray(vehiclesOnSceneDataAll);
@@ -768,21 +896,16 @@
         const totalPersonnelEnRouteAllied = totalPersonnelEnRouteAll - totalPersonnelEnRouteOwn;
         const totalForeignPersonnel = (totalPersonnelOnSceneAllied + totalPersonnelEnRouteAllied);
 
-
         // Wenn das Spiel 0 Einsatzkräfte zur Versorgung meldet, werden die Personal-basierten Bedarfe auf 0 gesetzt.
         const effectivePersonnelFactor = (personnelToCareForInGame === 0) ? 0 : 1;
 
-
         // --- Berechnung für EIGENE Kräfte + Betroffene (Brutto-Bedarf) ---
         const ownCareResultsGross = window.LSS_Care_calculateGrossCareRequirements(totalAffectedPeople, totalOwnPersonnel, personnelToCareForInGame);
-        
+
         // --- Berechnung für ALLE Kräfte + Betroffene (Brutto-Bedarf) ---
-        // Dies ist der umfassende Bedarf, der alle Gruppen und die iterative Berechnung berücksichtigt.
         const allCareResultsGross = window.LSS_Care_calculateGrossCareRequirements(totalAffectedPeople, totalAllPersonnel, personnelToCareForInGame);
 
-
         // --- Globale Variablen setzen (detaillierte Bedarfe) ---
-        // Eigene Kräfte
         window.LSS_Care_RequiredKitchensForAffectedOwn = ownCareResultsGross.kitchensForAffected;
         window.LSS_Care_RequiredCareHelpersForAffectedOwn = ownCareResultsGross.careHelpersForAffected;
         window.LSS_Care_RequiredKitchensForOwnPersonnel = ownCareResultsGross.kitchensForPersonnel;
@@ -790,95 +913,139 @@
         window.LSS_Care_RequiredKitchensOwnTotal = ownCareResultsGross.kitchens;
         window.LSS_Care_RequiredCareHelpersOwnTotal = ownCareResultsGross.totalCareHelpers;
 
-        // Fremde Kräfte (basierend auf der tatsächlichen Anzahl fremder Kräfte)
-        // Wichtig: Hier wird der Bedarf für fremde Kräfte separat berechnet, da sie nicht Teil der "eigenen" Gesamtberechnung sind.
         const requiredKitchensForForeignPersonnelCalculated = Math.ceil(totalForeignPersonnel * effectivePersonnelFactor / 250);
         const requiredCareHelpersForForeignPersonnelCalculated = Math.ceil(totalForeignPersonnel * effectivePersonnelFactor / 25);
         window.LSS_Care_RequiredKitchensForForeignPersonnel = requiredKitchensForForeignPersonnelCalculated;
         window.LSS_Care_RequiredCareHelpersForForeignPersonnel = requiredCareHelpersForForeignPersonnelCalculated;
 
-        // Gesamt (Alle Kräfte)
         window.LSS_Care_RequiredKitchensOverall = allCareResultsGross.kitchens;
         window.LSS_Care_RequiredCareHelpersOverall = allCareResultsGross.totalCareHelpers;
 
-
-        // --- Formatierte Ausgaben für die Anzeige ---
-        // Bedarf für Betroffene (immer basierend auf totalAffectedPeople)
+        // --- Bedarfs-Werte für die Anzeige ---
         const requiredKitchensForAffected = Math.ceil(totalAffectedPeople / 250);
         const requiredCareHelpersForAffected = Math.ceil(totalAffectedPeople / 10);
-
-        // Bedarf für Eigene Kräfte (ohne Betreuungsfahrzeuge, basierend auf totalOwnPersonnel)
         const requiredKitchensForOwnPersonnelDisplay = Math.ceil(totalOwnPersonnel * effectivePersonnelFactor / 250);
         const requiredCareHelpersForOwnPersonnelDisplay = Math.ceil(totalOwnPersonnel * effectivePersonnelFactor / 25);
-
-        // Bedarf für Fremde Kräfte (ohne Betreuungsfahrzeuge)
         const requiredKitchensForForeignPersonnelDisplay = Math.ceil(totalForeignPersonnel * effectivePersonnelFactor / 250);
         const requiredCareHelpersForForeignPersonnelDisplay = Math.ceil(totalForeignPersonnel * effectivePersonnelFactor / 25);
 
 
-        const displayKitchensForAffectedHtml = formatOutput(currentAvailableKitchens, requiredKitchensForAffected);
-        const displayKitchensForOwnPersonnelHtml = formatOutput(currentAvailableKitchens, requiredKitchensForOwnPersonnelDisplay);
-        const displayKitchensForForeignPersonnelHtml = formatOutput(currentAvailableKitchens, requiredKitchensForForeignPersonnelDisplay);
-        // Tooltip für Gesamtbedarf Küchen
-        const displayTotalKitchensHtml = formatOutput(currentAvailableKitchens, allCareResultsGross.kitchens, allCareResultsGross.kitchenTooltipLog, '*');
+        // --- NEUE HTML-ERZEUGUNG ---
 
-        const displayCareHelpersForAffectedHtml = formatOutput(currentAvailableCareHelpers, requiredCareHelpersForAffected);
-        const displayCareHelpersForOwnPersonnelHtml = formatOutput(currentAvailableCareHelpers, requiredCareHelpersForOwnPersonnelDisplay);
-        const displayCareHelpersForForeignPersonnelHtml = formatOutput(currentAvailableCareHelpers, requiredCareHelpersForForeignPersonnelDisplay);
-        // Tooltip für Gesamtbedarf Betreuer
-        const displayTotalCareHelpersHtml = formatOutput(currentAvailableCareHelpers, allCareResultsGross.totalCareHelpers, allCareResultsGross.caregiverTooltipLog, '*');
+        // 1. Neuen Container erstellen (falls nicht vorhanden)
+        const newContainerId = 'lss-care-container-custom';
+        let customContainer = document.getElementById(newContainerId);
 
-
-        // Prüfen, ob das Ausgabe-Div bereits existiert, anstatt es immer zu entfernen und neu zu erstellen
-        if (!lssCareSummaryOutputDiv) {
-            lssCareSummaryOutputDiv = document.createElement('div');
-            lssCareSummaryOutputDiv.id = 'lss_care_summary_output';
-            // Stil beibehalten: keine top-margins/paddings, aber den border-top behalten
-            lssCareSummaryOutputDiv.style.cssText = "border-top: 1px dashed rgba(255,255,255,0.3); font-size: 0.95em; line-height: 1.4;";
-            colMd11.appendChild(lssCareSummaryOutputDiv); // Füge es einmalig hinzu
+        if (!customContainer) {
+            customContainer = document.createElement('div');
+            customContainer.id = newContainerId;
+            // Nach dem (jetzt versteckten) originalen Alert-Div einfügen
+            careDivElement.parentNode.insertBefore(customContainer, careDivElement.nextSibling);
         }
-        
-        // Erstelle den HTML-String für die "zu Versorgen"-Zeile basierend auf personnelToCareForInGame
-        let zuVersorgenHtml;
-        // Wenn das Spiel 0 Einsatzkräfte zur Versorgung meldet, werden die Personalzahlen in der "zu Versorgen"-Zeile auf 0 gesetzt,
-        // da sie für den Bedarf nicht relevant sind. Die Betroffenen werden immer angezeigt.
+        customContainer.classList.add('compact-view'); // Immer kompakte Ansicht
+
+        // 2. Helfer-Funktion zum Erstellen einer Tabellenzeile mit Fortschrittsbalken
+        function generateRowHtml(name, fulfilled, needed, tooltip = '') {
+            const isMet = fulfilled >= needed;
+            const progress = needed > 0 ? Math.min((fulfilled / needed) * 100, 100) : 100;
+            const backgroundPosition = 100 - progress;
+            // Tooltip-Text escapen
+            const tooltipAttr = tooltip ? `title="${tooltip.replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" style="cursor: help;"` : '';
+            return `<tr class="${isMet ? 'vehicle-row-ok' : ''}" ${tooltipAttr}>
+                        <td>${name}</td>
+                        <td>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" style="width: ${progress}%; background-position: ${backgroundPosition}% 0;"></div>
+                                <div class="progress-bar-text">${fulfilled} / ${needed}</div>
+                            </div>
+                        </td>
+                    </tr>`;
+        }
+
+        // 3. Status und Titel festlegen
+        const allCareNeedsMet = (currentAvailableKitchens >= allCareResultsGross.kitchens) &&
+                              (currentAvailableCareHelpers >= allCareResultsGross.totalCareHelpers);
+        customContainer.classList.toggle('all-vehicles-ok', allCareNeedsMet);
+        const title = allCareNeedsMet ? 'Betreuungsbedarf gedeckt' : 'Betreuungsbedarf';
+        const tableHeader = '<thead><tr><th>Bedarf</th><th>Status</th></tr></thead>';
+
+        // 4. Tabelle für Küchen
+        let kitchenTableBody = '';
+        kitchenTableBody += generateRowHtml('Gesamtbedarf Küchen *', currentAvailableKitchens, allCareResultsGross.kitchens, allCareResultsGross.kitchenTooltipLog);
+        kitchenTableBody += generateRowHtml('... für Betroffene', currentAvailableKitchens, requiredKitchensForAffected);
+
+        // HINZUGEFÜGT: Zeige Personal-Zeilen nur, wenn Personal auch versorgt werden muss
+        if (personnelToCareForInGame !== 0) {
+            kitchenTableBody += generateRowHtml('... für eigene Kräfte', currentAvailableKitchens, requiredKitchensForOwnPersonnelDisplay);
+            kitchenTableBody += generateRowHtml('... für fremde Kräfte', currentAvailableKitchens, requiredKitchensForForeignPersonnelDisplay);
+        }
+
+        const kitchenTable = `
+            <div class="missing-vehicles-table-wrapper">
+                <table class="missing-vehicles-table">
+                    ${tableHeader}
+                    <tbody>${kitchenTableBody}</tbody>
+                </table>
+            </div>`;
+
+        // 5. Tabelle für Betreuer
+        let helperTableBody = '';
+        helperTableBody += generateRowHtml('Gesamtbedarf Betreuer *', currentAvailableCareHelpers, allCareResultsGross.totalCareHelpers, allCareResultsGross.caregiverTooltipLog);
+        helperTableBody += generateRowHtml('... für Betroffene', currentAvailableCareHelpers, requiredCareHelpersForAffected);
+
+        // HINZUGEFÜGT: Zeige Personal-Zeilen nur, wenn Personal auch versorgt werden muss
+        if (personnelToCareForInGame !== 0) {
+            helperTableBody += generateRowHtml('... für eigene Kräfte', currentAvailableCareHelpers, requiredCareHelpersForOwnPersonnelDisplay);
+            helperTableBody += generateRowHtml('... für fremde Kräfte', currentAvailableCareHelpers, requiredCareHelpersForForeignPersonnelDisplay);
+        }
+
+        const helperTable = `
+            <div class="missing-vehicles-table-wrapper">
+                <table class="missing-vehicles-table">
+                    ${tableHeader}
+                    <tbody>${helperTableBody}</tbody>
+                </table>
+            </div>`;
+        // 6. Info-Bereich für "Zu versorgende Personen" (Stil für "Ecke" angepasst)
+        let personnelInfoHtml = '';
         if (personnelToCareForInGame === 0) {
-            zuVersorgenHtml = `
-                Betroffene: ${formatBold(totalAffectedPeople)}<br>
-                Einsatzkräfte: vor Ort: ${formatBold(0)} eigene, ${formatBold(0)} fremde | auf Anfahrt: ${formatBold(0)} eigene, ${formatBold(0)} fremde | <span title="${selectedVehiclesTooltip.replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" style="cursor: help;">ausgewählt (geschätzt): ${formatBold(0)}*</span>
+             personnelInfoHtml = `
+                Betroffene: <strong style="color: #ccc;">${totalAffectedPeople}</strong><br>
+                Einsatzkräfte: <strong style="color: #ccc;">0</strong>
             `;
         } else {
-            zuVersorgenHtml = `
-                Betroffene: ${formatBold(totalAffectedPeople)}<br>
-                Einsatzkräfte: vor Ort: ${formatBold(totalPersonnelOnSceneOwn)} eigene, ${formatBold(totalPersonnelOnSceneAllied)} fremde | auf Anfahrt: ${formatBold(totalPersonnelEnRouteOwn)} eigene, ${formatBold(totalPersonnelEnRouteAllied)} fremde | <span title="${selectedVehiclesTooltip.replace(/"/g, '&quot;').replace(/\n/g, '&#10;')}" style="cursor: help;">ausgewählt (geschätzt): ${formatBold(totalPersonnelSelectedForDispatch)}*</span>
+             personnelInfoHtml = `
+                Betroffene: <strong style="color: #ccc;">${totalAffectedPeople}</strong><br>
+                Eigene Kräfte: <strong style="color: #ccc;">${totalOwnPersonnel}</strong><br>
+                Fremde Kräfte: <strong style="color: #ccc;">${totalForeignPersonnel}</strong>
             `;
         }
 
-
-        // Aktualisiere den innerHTML des vorhandenen Elements
-        lssCareSummaryOutputDiv.innerHTML = `
-            <p style="margin-bottom: 4px; color: inherit;">
-                ${zuVersorgenHtml}
-            </p>
-            <p style="margin-bottom: 0; color: inherit;">
-                <span style="font-weight: bold;">Bedarf:</span><br>
-                <span style="font-weight: bold;">Küchen</span><br>
-                für Betroffene: ${displayKitchensForAffectedHtml} | für eigene Kräfte: ${displayKitchensForOwnPersonnelHtml} | für fremde Kräfte: ${displayKitchensForForeignPersonnelHtml} | Gesamtbedarf: ${displayTotalKitchensHtml}<br>
-                <span style="font-weight: bold;">Betreuer</span><br>
-                für Betroffene: ${displayCareHelpersForAffectedHtml} | für eigene Kräfte: ${displayKitchensForOwnPersonnelHtml} | für fremde Kräfte: ${displayCareHelpersForForeignPersonnelHtml} | Gesamtbedarf: ${displayTotalCareHelpersHtml}
-            </p>
+        // NEUES DESIGN FÜR "IN DER ECKE"
+        const personnelSection = `
+            <div style="float: right; text-align: right; font-size: 0.75em; color: #8892b0; margin-top: 5px; line-height: 1.4;">
+                <div class="personnel-title" style="text-align: right; margin-bottom: 5px;">ZU VERSORGENDE PERSONEN</div>
+                ${personnelInfoHtml}
+            </div>
         `;
 
-        // Neuer prägnanter Log-Eintrag
+        // 7. Finales HTML zusammensetzen (ANGEPASSTE REIHENFOLGE & STRUKTUR)
+        customContainer.innerHTML = `
+            <div class="custom-container-title" style="overflow: auto; zoom: 1;">
+                ${personnelSection}
+                ${title}
+            </div>
+            <div class="tables-flex-wrapper">
+                ${kitchenTable}
+                ${helperTable}
+            </div>
+        `;
+
+        // Alte Log-Meldungen, angepasst
         console.log(`LSS Betreuung: Verfügbar: Küchen ${currentAvailableKitchens}, Helfer ${currentAvailableCareHelpers}.`);
         console.log(`Bedarf (Küchen): Betroffene:${requiredKitchensForAffected} | Eigene:${requiredKitchensForOwnPersonnelDisplay} | Fremde:${requiredKitchensForForeignPersonnelDisplay} | Gesamt:${allCareResultsGross.kitchens}`);
         console.log(`Bedarf (Betreuer): Betroffene:${requiredCareHelpersForAffected} | Eigene:${requiredCareHelpersForOwnPersonnelDisplay} | Fremde:${requiredCareHelpersForForeignPersonnelDisplay} | Gesamt:${allCareResultsGross.totalCareHelpers}`);
     }
-
-    /**
-     * Fügt Event-Listener zu allen Checkboxen in 'vehicle_show_table_all' hinzu, die noch keinen haben.
-     * Stellt sicher, dass Listener nur einmal pro Checkbox angehängt werden.
-     */
     function attachCheckboxListeners() {
         const checkboxes = document.querySelectorAll('#vehicle_show_table_all .vehicle_checkbox');
         checkboxes.forEach(checkbox => {
