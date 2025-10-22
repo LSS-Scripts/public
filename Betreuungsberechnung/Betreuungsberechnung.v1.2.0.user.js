@@ -7,8 +7,6 @@
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM_addStyle
 // @license      MIT
-// @downloadURL https://update.greasyfork.org/scripts/537089/LSS%20Betreuungsberechnung.user.js
-// @updateURL https://update.greasyfork.org/scripts/537089/LSS%20Betreuungsberechnung.meta.js
 // ==/UserScript==
 
 // Zusätzliche IIFE für maximale Scope-Isolation und um Konflikte zu vermeiden
