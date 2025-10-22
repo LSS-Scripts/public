@@ -41,8 +41,8 @@
   },
   {
     "name": "Betreuungsberechnung",
-    "version": "1.1.0",
-    "fileName": "Betreuungsberechnung.v1.1.0.user.js",
+    "version": "1.2.0",
+    "fileName": "Betreuungsberechnung.v1.2.0.user.js",
     "description": "Hier ist dein neuer, unfehlbarer Betreuungs-Rechner. Er weiß genau, wie viele Küchen und Helfer du brauchst. Meistens. Also, wahrscheinlich.<br><br>Achtung, Beta: Das Skript ist noch nicht fertig und erkennt eventuell noch nicht alle Fahrzeuge korrekt. Keine Gewähr, falls deine Einsatzkräfte am Ende trotzdem hungrig bleiben!",
     "changelog": "",
     "categories": ["Alarmierung"]
