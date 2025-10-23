@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.3.7
+// @version      18.3.8
 // @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
@@ -303,7 +303,7 @@
         'radlader':['43'],'radlader-(brmg-r)':['43'],'rettung':['29','31'],'rettungshundefahrzeug':['91','92'],'rettungshundestaffel':['91','92'],
         'rettungshundestaffel/n':['91','92'],'rettungshundestaffeln':['91','92'],'rettungstreppe':['76'],'rettungstreppen':['76'],'rettungswache':['38','74'],
         'rth':['31','157'],'rtw':['28'],'rtw-oder-ktw-oder-ktw-b':['28','38','58','73'],'rtw-oder-ktw-typ-b':['28','58'],'rtw,-ktw':['28','38'],
-        'rtw,-naw':['28','74'],'rw':['4','30','47','90'],'rüstwagen':['4','30','47','90'],'rüstwagen-oder-hlf':['4','30','47','90'],
+        'rtw,-naw':['28','74'],'rw':['4','30','47','90'],'rüstwagen':['4','30','39','47','90'],'rüstwagen-oder-hlf':['4','30','47','90'],
         'hlf-20':['30','4','47','90'],'hlf':['30','4','47','90'],'hlf-10':['30','4','47','90'],'schlauchwagen':['11','13','14','15','16','62','101','102'],
         'schlauchwagen-(gw-l2-wasser,-sw-1000,-sw-2000-oder-ähnliches)':['11','13','14','15','16','62','101','102'],
         'schlauchwagen-(gw-l2-wasser-oder-sw)':['11','13','14','15','16','62','101','102'],'schlauchwagen-(gw-l-wasser-oder-sw)':['11','13','14','15','16','62','101','102'],
