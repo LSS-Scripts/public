@@ -184,6 +184,14 @@
     "categories": ["Lehrgänge"]
   },
   {
+    "name": "Lehrgänge - Wachen nach Personal sortieren",
+    "version": "1.5.0",
+    "fileName": "Lehrgänge - Wachen nach Personal sortieren.v1.5.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
     "version": "1.5.1",
     "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.5.1.user.js",
