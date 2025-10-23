@@ -88,6 +88,14 @@
     "categories": ["Gebäude"]
   },
   {
+    "name": "Event-Dauerleuchten-Exorzist",
+    "version": "2.1.0",
+    "fileName": "Event-Dauerleuchten-Exorzist.v2.1.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
