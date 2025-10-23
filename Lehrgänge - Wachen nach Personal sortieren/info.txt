@@ -1,0 +1,1 @@
+Sortiert die Wachen in der Lehrgangsübersicht nach Personalanzahl
