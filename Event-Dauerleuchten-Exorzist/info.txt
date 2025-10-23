@@ -1,0 +1,1 @@
+Dieses Skript unterdrückt die irreführende visuelle Benachrichtigung (grünes Leuchten) am Profil-Menü, die ausschließlich durch das aktive saisonale Event (z.B. Halloween) ausgelöst wird. Benachrichtigungen für tatsächliche neue Aufgaben oder Belohnungen bleiben davon unberührt, wodurch die Funktionalität des Menüs klarer wird.
