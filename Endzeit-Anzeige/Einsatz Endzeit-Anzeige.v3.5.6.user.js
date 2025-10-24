@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Einsatz Endzeit-Anzeige
 // @namespace    HendrikStaufenbiel
-// @version      3.5.5
+// @version      3.5.6
 // @description  
 // @inspiration  Die Funktion zur Fahrzeughervorhebung basiert auf einem Script von Jan (jxn_30).
 // @author       Hendrik, Masklin (Modifiziert durch KI & Community-Feedback)
@@ -181,6 +181,7 @@ function bereinigeAlteEinsaetze() {
     let anzahlGeloescht = 0;
     let aenderungenAnAllianceData = false;
     let aenderungenAnOwnData = false;
+    let aenderungenAmTypeCache = false; // << NEU
 
     // 1. Verbandseinsätze (`allianceMissionData`) bereinigen
     const allianceKeys = Object.keys(allianceMissionData);
@@ -189,6 +190,10 @@ function bereinigeAlteEinsaetze() {
         // Löschen, wenn 'lastSeen' fehlt (um alte Daten ohne Zeitstempel zu erfassen) oder der Zeitstempel zu alt ist
         if (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT)) {
             delete allianceMissionData[missionId];
+            if (missionTypeCache[missionId]) { // << NEU
+                delete missionTypeCache[missionId]; // << NEU
+                aenderungenAmTypeCache = true; // << NEU
+            } // << NEU
             anzahlGeloescht++;
             aenderungenAnAllianceData = true;
         }
@@ -201,6 +206,10 @@ function bereinigeAlteEinsaetze() {
         // Prüfen ob es ein Objekt ist und ob 'lastSeen' fehlt oder zu alt ist
         if (typeof mission === 'object' && mission !== null && (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT))) {
             delete ownMissionFixedEndTimes[missionId];
+            if (missionTypeCache[missionId]) { // << NEU
+                delete missionTypeCache[missionId]; // << NEU
+                aenderungenAmTypeCache = true; // << NEU
+            } // << NEU
             anzahlGeloescht++;
             aenderungenAnOwnData = true;
         }
@@ -211,6 +220,7 @@ function bereinigeAlteEinsaetze() {
         // Nur speichern, wenn sich auch etwas geändert hat
         if (aenderungenAnAllianceData) saveAllianceMissionData();
         if (aenderungenAnOwnData) saveOwnMissionFixedEndTimes();
+        if (aenderungenAmTypeCache) saveMissionTypeCache(); // << NEU
     }
 
     // Zeitstempel für die letzte durchgeführte Bereinigung aktualisieren
