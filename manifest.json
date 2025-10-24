@@ -65,8 +65,8 @@
   },
   {
     "name": "Endzeit-Anzeige",
-    "version": "3.5.6",
-    "fileName": "Einsatz Endzeit-Anzeige.v3.5.6.user.js",
+    "version": "3.5.7",
+    "fileName": "Einsatz Endzeit-Anzeige.v3.5.7.user.js",
     "description": "Zeigt bei Verbands- und geteilten Einsätzen das früheste Zufahrts-Ende und bietet erweiterte Konfigurationsmöglichkeiten. Inklusive GSL- und RD-Gesperrt-Anzeige. (Modifizierte Version mit API-Abfrage für eigene Einsätze)",
     "changelog": "",
     "categories": ["Optik","Verbands-Tools"]
