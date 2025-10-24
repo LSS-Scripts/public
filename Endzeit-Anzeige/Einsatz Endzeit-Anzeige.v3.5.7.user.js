@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Einsatz Endzeit-Anzeige
 // @namespace    HendrikStaufenbiel
-// @version      3.5.6
+// @version      3.5.7
 // @description  
 // @inspiration  Die Funktion zur Fahrzeughervorhebung basiert auf einem Script von Jan (jxn_30).
 // @author       Hendrik, Masklin (Modifiziert durch KI & Community-Feedback)
@@ -179,21 +179,22 @@ function bereinigeAlteEinsaetze() {
 
     logDebug("Führe geplante Bereinigung alter Einsatzdaten durch...");
     let anzahlGeloescht = 0;
+    let anzahlVerwaisterGeloescht = 0;
     let aenderungenAnAllianceData = false;
     let aenderungenAnOwnData = false;
-    let aenderungenAmTypeCache = false; // << NEU
+    let aenderungenAmTypeCache = false; 
 
     // 1. Verbandseinsätze (`allianceMissionData`) bereinigen
     const allianceKeys = Object.keys(allianceMissionData);
     for (const missionId of allianceKeys) {
         const mission = allianceMissionData[missionId];
-        // Löschen, wenn 'lastSeen' fehlt (um alte Daten ohne Zeitstempel zu erfassen) oder der Zeitstempel zu alt ist
+        // Löschen, wenn 'lastSeen' fehlt oder der Zeitstempel zu alt ist
         if (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT)) {
             delete allianceMissionData[missionId];
-            if (missionTypeCache[missionId]) { // << NEU
-                delete missionTypeCache[missionId]; // << NEU
-                aenderungenAmTypeCache = true; // << NEU
-            } // << NEU
+            if (missionTypeCache[missionId]) { 
+                delete missionTypeCache[missionId]; 
+                aenderungenAmTypeCache = true; 
+            } 
             anzahlGeloescht++;
             aenderungenAnAllianceData = true;
         }
@@ -206,21 +207,40 @@ function bereinigeAlteEinsaetze() {
         // Prüfen ob es ein Objekt ist und ob 'lastSeen' fehlt oder zu alt ist
         if (typeof mission === 'object' && mission !== null && (!mission.lastSeen || (jetzt - mission.lastSeen > ABLAUFZEIT))) {
             delete ownMissionFixedEndTimes[missionId];
-            if (missionTypeCache[missionId]) { // << NEU
-                delete missionTypeCache[missionId]; // << NEU
-                aenderungenAmTypeCache = true; // << NEU
-            } // << NEU
+            if (missionTypeCache[missionId]) { 
+                delete missionTypeCache[missionId]; 
+                aenderungenAmTypeCache = true; 
+            } 
             anzahlGeloescht++;
             aenderungenAnOwnData = true;
         }
     }
 
-    if (anzahlGeloescht > 0) {
-        logDebug(`${anzahlGeloescht} veraltete Einsätze entfernt.`);
+    // 3. Verwaiste Einträge im missionTypeCache bereinigen (NEU & WICHTIG)
+    //    Dieser Block fängt alle Einträge ab, die in Schritt 1 & 2 nicht erwischt wurden
+    //    (z.B. weil sie in den Hauptlisten gar nicht mehr existieren)
+    const typeCacheKeys = Object.keys(missionTypeCache);
+    for (const missionId of typeCacheKeys) {
+        const inAllianceData = allianceMissionData.hasOwnProperty(missionId);
+        const inOwnData = ownMissionFixedEndTimes.hasOwnProperty(missionId);
+
+        // Wenn der Eintrag in KEINER der Listen mehr existiert, ist er verwaist
+        if (!inAllianceData && !inOwnData) {
+            delete missionTypeCache[missionId];
+            anzahlVerwaisterGeloescht++;
+            aenderungenAmTypeCache = true;
+        }
+    }
+    // << ENDE NEUER BLOCK
+
+    if (anzahlGeloescht > 0 || anzahlVerwaisterGeloescht > 0) {
+        logDebug(`${anzahlGeloescht} veraltete Einsätze (aus Hauptlisten) entfernt.`);
+        logDebug(`${anzahlVerwaisterGeloescht} verwaiste Cache-Einträge entfernt.`);
+        
         // Nur speichern, wenn sich auch etwas geändert hat
         if (aenderungenAnAllianceData) saveAllianceMissionData();
         if (aenderungenAnOwnData) saveOwnMissionFixedEndTimes();
-        if (aenderungenAmTypeCache) saveMissionTypeCache(); // << NEU
+        if (aenderungenAmTypeCache) saveMissionTypeCache(); 
     }
 
     // Zeitstempel für die letzte durchgeführte Bereinigung aktualisieren
