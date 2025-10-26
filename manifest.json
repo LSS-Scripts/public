@@ -193,8 +193,8 @@
   },
   {
     "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
-    "version": "1.6.0",
-    "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.6.0.user.js",
+    "version": "1.6.1",
+    "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.6.1.user.js",
     "description": "Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.",
     "changelog": "",
     "categories": ["Lehrgänge","Verbands-Tools"]
