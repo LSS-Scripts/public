@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.5.1
+// @version      1.6.0
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M (mit Anpassungen)
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -78,6 +78,56 @@
         #multiSchoolingList p {
             font-size: 1.1em;
         }
+        /* --------------------------------- */
+        /* --- NEU: Stile für Preis-Button & Anzeige --- */
+        /* --------------------------------- */
+        
+        /* Sorgt dafür, dass der Header-Text und der Button nebeneinander passen */
+        .msc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Stil für den neuen "Preise laden"-Button */
+        #msc-fetch-costs-btn {
+            font-size: 0.8em; /* Etwas kleiner als der Header-Text */
+            padding: 4px 8px;
+            /* Neutrale Farben, die auf beiden Themes funktionieren */
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #212529; /* Dunkler Text */
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #msc-fetch-costs-btn:hover {
+            background-color: #e9ecef;
+        }
+        #msc-fetch-costs-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: #f8f9fa; /* Farbe im deaktivierten Zustand beibehalten */
+        }
+
+        /* Stile für die Kostenanzeige bei jedem Lehrgang */
+        .msc-course-cost {
+            font-weight: bold;
+            margin-left: 10px;
+            font-size: 1.0em;
+        }
+        /* Lade-Spinner für die Kosten */
+        .msc-course-cost img {
+            height: 14px;
+            width: 14px;
+            vertical-align: text-bottom;
+            margin-left: 5px;
+        }
+        
+        /* Die von dir gewünschten Farbregeln */
+        .msc-cost-green { color: #28a745 !important; } /* Helles Grün */
+        .msc-cost-orange { color: #fd7e14 !important; } /* Helles Orange */
+        .msc-cost-red { color: #dc3545 !important; } /* Helles Rot */
     `;
     document.head.appendChild(style);
         // *** KORRIGIERTER SELEKTOR ***
@@ -100,7 +150,10 @@
         container.style.marginTop = '20px';
         container.innerHTML = `
             <div class="msc-header">
-                🎓 Massen-Zuweisung für identische Lehrgänge
+                <span>🎓 Massen-Zuweisung für identische Lehrgänge</span>
+                <button id="msc-fetch-costs-btn" title="Kosten für alle gelisteten Lehrgänge abrufen">
+                    Preise laden
+                </button>
             </div>
             <div class="msc-body" id="multiSchoolingList">
                 <p>Suche nach identischen Lehrgängen mit freien Plätzen...</p>
@@ -152,16 +205,89 @@
                         <input class="form-check-input multi-schooling-checkbox" type="checkbox" value="${course.id}" id="course-${course.id}" data-spaces="${course.open_spaces}">
                         <label class="form-check-label" for="course-${course.id}" style="cursor:pointer; width: 100%;">
                             ID: ${course.id} | Freie Plätze: <strong>${course.open_spaces}</strong> | Start: ${new Date(course.finish_time).toLocaleString('de-DE')}
+                            <span class="msc-course-cost" id="cost-for-${course.id}"></span>
                         </label>
                     </div>
                 `).join('');
-
                 // NEU: Wrapper für das Grid-Layout (Wunsch 1)
                 const coursesContainerHTML = `<div id="msc-course-grid">${coursesHTML}</div>`;
 
                 // GEÄNDERT: Füge Zusammenfassung, "Alle auswählen" und das Grid zusammen
                 listElement.innerHTML = summaryHTML + selectAllHTML + coursesContainerHTML;
 
+                const fetchCostsButton = document.getElementById('msc-fetch-costs-btn');
+                if (fetchCostsButton) {
+                    
+                    // Hilfsfunktion, um die Kosten von einer einzelnen Lehrgangsseite zu holen
+                    const getCourseCost = async (courseId) => {
+                        try {
+                            // Die normale HTML-Seite des Lehrgangs abrufen
+                            const response = await fetch(`/schoolings/${courseId}`);
+                            if (!response.ok) return null;
+
+                            const text = await response.text();
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(text, 'text/html');
+
+                            // Die Info-Box finden
+                            const infoDiv = doc.querySelector('.alert.alert-info');
+                            if (!infoDiv) return null;
+
+                            const infoText = infoDiv.innerText;
+                            // Regex, um "XXX Credits" zu finden
+                            const costMatch = infoText.match(/Die Kosten betragen (\d+) Credits/);
+
+                            if (costMatch && costMatch[1]) {
+                                return parseInt(costMatch[1], 10);
+                            }
+                            return null; // Nichts gefunden
+                        } catch (err) {
+                            console.error(`Fehler beim Abrufen der Kosten für ID ${courseId}:`, err);
+                            return null;
+                        }
+                    };
+
+                    // Event-Listener an den Button hängen
+                    fetchCostsButton.addEventListener('click', async () => {
+                        fetchCostsButton.disabled = true;
+                        fetchCostsButton.textContent = 'Lade Preise...';
+
+                        // Durch alle angezeigten, ähnlichen Kurse iterieren
+                        for (const course of similarCourses) {
+                            const costSpan = document.getElementById(`cost-for-${course.id}`);
+                            if (!costSpan) continue;
+
+                            // Lade-Spinner anzeigen
+                            costSpan.innerHTML = `<img src="/images/ajax-loader.gif" alt="lädt...">`;
+
+                            const cost = await getCourseCost(course.id);
+                            // Kurze Pause, um den Server nicht zu überlasten
+                            await sleep(100); 
+
+                            if (cost !== null) {
+                                // Kosten gefunden -> Farbe bestimmen
+                                let costClass = '';
+                                if (cost <= 200) {
+                                    costClass = 'msc-cost-green';
+                                } else if (cost <= 400) {
+                                    costClass = 'msc-cost-orange';
+                                } else { // Bis 500 (und alles darüber)
+                                    costClass = 'msc-cost-red';
+                                }
+                                costSpan.className = `msc-course-cost ${costClass}`;
+                                costSpan.textContent = `(${cost} C)`;
+                            } else {
+                                // Fehler oder Preis nicht gefunden
+                                costSpan.className = 'msc-course-cost msc-cost-red';
+                                costSpan.textContent = '(Preis?)';
+                            }
+                        }
+
+                        fetchCostsButton.textContent = 'Preise geladen';
+                    });
+                }
+                // --- ENDE: NEUER Code zum Abrufen der Lehrgangskosten ---
+                
                 // --- ANFANG: Code für Zählung der freien Plätze ---
 
                 // Das Element finden, das die Zahl anzeigt
