@@ -294,5 +294,13 @@
     "description": "Prüft anhand eines ZUVOR erstellten Wachenbauplans die Personalstärke, die Erweiterungen und bietet ggf. an diese zu bauen oder das Personal auszubilden (In freigegebenen Lehrgängen) oder die entpsrechende Anzahl über den verbandschat anzufragen. ",
     "changelog": "",
     "categories": ["Gebäude","Lehrgänge"]
+  },
+  {
+    "name": "Zentrale Einstellungen",
+    "version": "2025.07.24",
+    "fileName": "Zentrale Einstellungen.v2025.07.24.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
   }
 ]
