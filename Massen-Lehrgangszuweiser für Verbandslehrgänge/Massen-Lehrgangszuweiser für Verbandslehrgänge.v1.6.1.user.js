@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Massen-Lehrgangszuweiser für Verbandslehrgänge
 // @namespace    B&M
-// @version      1.6.0
+// @version      1.6.1
 // @description  Ermöglicht die Zuweisung von Personal zu mehreren identischen Verbandslehrgängen gleichzeitig.
 // @author       B&M (mit Anpassungen)
 // @match        https://www.leitstellenspiel.de/schoolings/*
@@ -128,6 +128,33 @@
         .msc-cost-green { color: #28a745 !important; } /* Helles Grün */
         .msc-cost-orange { color: #fd7e14 !important; } /* Helles Orange */
         .msc-cost-red { color: #dc3545 !important; } /* Helles Rot */
+        /* ------------------------------------------- */
+        /* --- NEU: Hintergrundfarben für Kurs-Items --- */
+        /* ------------------------------------------- */
+
+        /* Wir verwenden RGBA-Farben (mit Transparenz), 
+           damit sie auf hellen & dunklen Themes funktionieren. */
+
+        .msc-item-green {
+            background-color: rgba(40, 167, 69, 0.15) !important;
+        }
+        .msc-item-green:hover {
+            background-color: rgba(40, 167, 69, 0.3) !important;
+        }
+
+        .msc-item-orange {
+            background-color: rgba(253, 126, 20, 0.15) !important;
+        }
+        .msc-item-orange:hover {
+            background-color: rgba(253, 126, 20, 0.3) !important;
+        }
+
+        .msc-item-red {
+            background-color: rgba(220, 53, 69, 0.15) !important;
+        }
+        .msc-item-red:hover {
+            background-color: rgba(220, 53, 69, 0.3) !important;
+        }
     `;
     document.head.appendChild(style);
         // *** KORRIGIERTER SELEKTOR ***
@@ -264,22 +291,40 @@
                             // Kurze Pause, um den Server nicht zu überlasten
                             await sleep(100); 
 
+                            const courseItemElement = costSpan.closest('.msc-course-item');
+
                             if (cost !== null) {
                                 // Kosten gefunden -> Farbe bestimmen
                                 let costClass = '';
+                                let itemCostClass = ''; // NEUE Variable für die Hintergrund-Klasse
+
                                 if (cost <= 200) {
                                     costClass = 'msc-cost-green';
+                                    itemCostClass = 'msc-item-green'; // NEU
                                 } else if (cost <= 400) {
                                     costClass = 'msc-cost-orange';
+                                    itemCostClass = 'msc-item-orange'; // NEU
                                 } else { // Bis 500 (und alles darüber)
                                     costClass = 'msc-cost-red';
+                                    itemCostClass = 'msc-item-red'; // NEU
                                 }
+                                
                                 costSpan.className = `msc-course-cost ${costClass}`;
                                 costSpan.textContent = `(${cost} C)`;
+                                
+                                // NEU: Dem ganzen Element die Hintergrund-Klasse geben
+                                if (courseItemElement) {
+                                    courseItemElement.classList.add(itemCostClass);
+                                }
                             } else {
                                 // Fehler oder Preis nicht gefunden
                                 costSpan.className = 'msc-course-cost msc-cost-red';
                                 costSpan.textContent = '(Preis?)';
+
+                                // NEU: Dem ganzen Element die rote Hintergrund-Klasse geben
+                                if (courseItemElement) {
+                                    courseItemElement.classList.add('msc-item-red');
+                                }
                             }
                         }
 
