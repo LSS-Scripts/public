@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel - Wachen-Namen-Manager (Massen-Umbenennung)
 // @namespace    http://tampermonkey.net/
-// @version      13.6
+// @version      13.6.2
 // @description  Fügt einen Button hinzu, um sichtbare Wachen per Suchen & Ersetzen (mit Platzhaltern und fortlaufender Nummerierung) umzubenennen.
 // @author       Gemini & Community
 // @match        https://www.leitstellenspiel.de/*
@@ -81,9 +81,21 @@
             if (!useRegex && originalValue === searchTerm) {
                 newValue = currentReplaceTerm;
             } else {
-                newValue = useRegex
-                    ? originalValue.replace(regex, currentReplaceTerm)
-                    : originalValue.replaceAll(searchTerm, currentReplaceTerm);
+newValue = useRegex
+  ? originalValue.replace(regex, (...m) => {
+      const full = m[0];
+      const groups = m.slice(1); // [\1, \2, ...]
+      let out = currentReplaceTerm;
+
+      // Unterstütze $1, $2, ... und zusätzlich {1}, {2}, ...
+      out = out.replace(/\$(\d+)/g, (_, n) => groups[n - 1] ?? '');
+      out = out.replace(/\{(\d+)\}/g, (_, n) => groups[n - 1] ?? '');
+      // $& = kompletter Match
+      out = out.replace(/\$&/g, full);
+
+      return out;
+    })
+  : originalValue.replaceAll(searchTerm, currentReplaceTerm);
             }
 
             if (originalValue !== newValue) {
