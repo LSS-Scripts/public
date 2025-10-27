@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Leitstellenspiel Globaler Online-Status (v4.2 - Verbesserte Profil-Bubble)
+// @name         Leitstellenspiel Globaler Online-Status (v4.3 - Navbar-Ausnahme)
 // @namespace    http://tampermonkey.net/
-// @version      4.2
-// @description  Zeigt den Online-Status von Spielern überall an UND ersetzt das Icon auf der Profilseite selbst (verbesserte Optik).
+// @version      4.3
+// @description  Zeigt den Online-Status von Spielern überall an (ignoriert den eigenen Profil-Link in der Navbar).
 // @author       DeinName (angepasst von Gemini)
 // @match        https://*.leitstellenspiel.de/*
 // @grant        GM_xmlhttpRequest
@@ -116,7 +116,7 @@
             });
         }
     }
-
+    
     function jobFinished(profileId) {
         activeRequests--;
         pendingRequests.delete(profileId);
@@ -125,6 +125,9 @@
 
     function updateAllBubblesForId(profileId, status) {
         document.querySelectorAll(`a[href="/profile/${profileId}"]`).forEach(userLink => {
+            // NEUE PRÜFUNG: Auch hier sicherstellen, dass wir nicht den Navbar-Link erwischen
+            if(userLink.id === 'navbar_profile_link') return;
+            
             let bubble = userLink.previousSibling;
             if (bubble && bubble.nodeType === Node.ELEMENT_NODE && bubble.classList.contains('chat-status-checking')) {
                 bubble.className = `chat-status-bubble chat-status-${status}`;
@@ -139,32 +142,24 @@
     // 3. Skript-Hauptlogik
     // ====================================================================
 
-    // CSS-Stile hinzufügen
+    // CSS-Stile hinzufügen (Unverändert)
     GM_addStyle(`
         /* Kleiner Bubble für Links */
         .chat-status-bubble {
-            display: inline-block;
-            width: 10px; height: 10px;
-            border-radius: 50%;
-            margin-right: 5px;
-            vertical-align: middle; /* Wichtig für die Ausrichtung */
-            border: 1px solid #555;
-            pointer-events: none;
+            display: inline-block; width: 10px; height: 10px;
+            border-radius: 50%; margin-right: 5px; vertical-align: middle;
+            border: 1px solid #555; pointer-events: none; 
         }
         .chat-status-online { background-color: #28a745; border-color: #1e7e34; }
         .chat-status-offline { background-color: #dc3545; border-color: #b21f2d; }
         .chat-status-checking { background-color: #ffc107; border-color: #d39e00; }
-
-        /* NEU & VERBESSERT: Größerer Bubble für die Profilseite selbst */
+        
+        /* Größerer Bubble für die Profilseite selbst */
         .profile-page-status-bubble {
-            width: 18px; /* Etwas größer als vorher */
-            height: 18px;
-            margin-right: 10px; /* Mehr Abstand zum Namen */
-            border-width: 2px;
-            /* Ausrichtung feinjustieren: 'middle' funktioniert oft gut mit Text. */
-            vertical-align: middle;
-            /* Manchmal hilft ein leichter negativer margin-top, um es optisch zu heben. */
-            margin-top: -2px;
+            width: 18px; height: 18px;
+            margin-right: 10px; border-width: 2px;
+            vertical-align: middle; 
+            margin-top: -2px; 
         }
     `);
 
@@ -175,39 +170,40 @@
         bubble.title = status === 'online' ? 'Online' : (status === 'offline' ? 'Offline' : 'Prüfe Status...');
         return bubble;
     }
-
-    // Funktion zum Ersetzen des Icons auf der Profilseite
+    
+    // Funktion zum Ersetzen des Icons auf der Profilseite (Unverändert)
     function handleProfilePageIcon() {
         if (window.location.pathname.startsWith('/profile/')) {
             const onlineIcon = document.querySelector('img.online_icon[src*="user_"]');
-
-            if (!onlineIcon) {
-                return;
-            }
-
+            if (!onlineIcon) return;
             let status = 'offline';
             if (onlineIcon.src.includes('user_green.png')) {
                 status = 'online';
             }
-
             const largeBubble = document.createElement('span');
-            // Die 'profile-page-status-bubble' Klasse wird die Größe und Ausrichtung überschreiben.
+createStatusBubble
             largeBubble.className = `chat-status-bubble profile-page-status-bubble chat-status-${status}`;
             largeBubble.title = onlineIcon.title;
-
-            // Das Icon durch unseren neuen Bubble ersetzen
             onlineIcon.parentNode.replaceChild(largeBubble, onlineIcon);
         }
     }
-
+    
     // --- Start des Skripts ---
+    handleProfilePageIcon();
+    await CacheDB.init();
+    let statusCache = await CacheDB.loadAll();
 
-    handleProfilePageIcon(); // Profilseiten-Funktion sofort ausführen
-
-    await CacheDB.init(); // Datenbank initialisieren
-    let statusCache = await CacheDB.loadAll(); // Cache aus DB laden
-
+    /**
+     * Kernfunktion: Prüft einen einzelnen Link
+     */
     function checkUserStatus(userLink) {
+        
+        // NEU: Ausnahme für den Profil-Link in der Navbar
+        if (userLink.id === 'navbar_profile_link') {
+            userLink.dataset.statusChecked = 'ignored_navbar_link';
+            return; // Hier abbrechen, keinen Bubble hinzufügen
+        }
+        
         if (userLink.dataset.statusChecked) return;
 
         const profileHref = userLink.getAttribute('href');
@@ -219,7 +215,7 @@
         if (!/^\d+$/.test(profileId)) {
             userLink.dataset.statusChecked = 'not_profile_id'; return;
         }
-
+        
         userLink.dataset.statusChecked = 'pending';
 
         if (statusCache[profileId]) {
@@ -245,23 +241,28 @@
         processQueue();
     }
 
+    /**
+     * Verarbeitet alle Links in einem neuen Knoten (Unverändert)
+     */
     function processLinksInNode(node) {
         if (node.nodeType !== Node.ELEMENT_NODE) return;
-
+        
         const links = node.querySelectorAll('a[href^="/profile/"]');
         links.forEach(checkUserStatus);
-
+        
         if (node.matches('a[href^="/profile/"]')) {
              checkUserStatus(node);
         }
     }
 
+    // Globaler MutationObserver (Unverändert)
     const globalObserver = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             mutation.addedNodes.forEach(processLinksInNode);
         });
     });
 
+    // Starte das Skript (Unverändert)
     try {
         processLinksInNode(document.body);
     } catch (e) {
