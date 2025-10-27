@@ -248,6 +248,14 @@
     "categories": ["Sonstiges"]
   },
   {
+    "name": "User-Status-Check",
+    "version": "4.0.0",
+    "fileName": "User-Stauts-Check.v4.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "VA - Verbandsmitgliedschaft prüfen",
     "version": "0.9.6",
     "fileName": "VA - Verbandsmitgliedschaft prüfen.v0.9.6.user.js",
