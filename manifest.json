@@ -253,7 +253,7 @@
     "fileName": "User-Stauts-Check.v4.0.0.user.js",
     "description": "Löst das dringendste Problem der Menschheit: Nicht zu wissen, ob 'Masklin' online ist. Dieses Skript stalkt effizient Profile im Hintergrund, damit du deinem Verband beim Online-Sein zusehen kannst. Die revolutionärste Erfindung seit... roten Punkten.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Verbands-Tools","Sonstiges"]
   },
   {
     "name": "VA - Verbandsmitgliedschaft prüfen",
