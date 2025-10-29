@@ -56,6 +56,14 @@
     "categories": ["Optik","Verbands-Tools"]
   },
   {
+    "name": "Chat-Tool",
+    "version": "4.3.4",
+    "fileName": "Chat-Tool.v4.3.4.user.js",
+    "description": "Dein persönliches Chat-Rundum-Sorglos-Paket. Blendet Nervensägen aus (außer Admins, die sind heilig!), macht den Verlauf dunkel & kompakt und killt die nervige Blätterei. Quasi LSS Chat Pro.",
+    "changelog": "",
+    "categories": ["Optik","Verbands-Tools"]
+  },
+  {
     "name": "Einsätze einklappen",
     "version": "5.0.0",
     "fileName": "Einsätze einklappe.v5.0.0.user.js",
