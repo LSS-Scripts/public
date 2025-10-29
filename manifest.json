@@ -89,8 +89,8 @@
   },
   {
     "name": "Event-Dauerleuchten-Exorzist",
-    "version": "2.1.0",
-    "fileName": "Event-Dauerleuchten-Exorzist.v2.1.0.user.js",
+    "version": "2.2.0",
+    "fileName": "Event-Dauerleuchten-Exorzist.v2.2.0.user.js",
     "description": "Dieses Skript unterdrückt die irreführende visuelle Benachrichtigung (grünes Leuchten) am Profil-Menü, die ausschließlich durch das aktive saisonale Event (z.B. Halloween) ausgelöst wird. Benachrichtigungen für tatsächliche neue Aufgaben oder Belohnungen bleiben davon unberührt, wodurch die Funktionalität des Menüs klarer wird.",
     "changelog": "",
     "categories": ["Optik"]
