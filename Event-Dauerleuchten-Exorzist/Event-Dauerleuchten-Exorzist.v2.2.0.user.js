@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Event-Dauerleuchten-Exorzist
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Entfernt das grüne Leuchten vom Profil-Button UND vom Event-Menüpunkt, wenn NUR das saisonale Event neu ist.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
@@ -27,12 +27,12 @@
         const eventItem = document.getElementById(EVENT_NAVBAR_ID);
         const tasksCounter = document.getElementById(TASKS_COUNTER_ID);
 
-        // Finde das übergeordnete <li>-Element des Profil-Buttons
-        // (Das ist das Element, das fälschlicherweise leuchtet)
-        const profileDropdown = profileMenu ? profileMenu.closest('li.dropdown') : null;
+        // HINWEIS: 'profileDropdown' wird nicht mehr für die Logik benötigt,
+        // da das Leuchten direkt auf 'profileMenu' liegt.
 
         // Wenn eines der Elemente noch nicht da ist, beenden und auf nächsten Durchlauf warten.
-        if (!profileDropdown || !eventItem || !tasksCounter) {
+        // 'profileDropdown' aus der Prüfung entfernt.
+        if (!profileMenu || !eventItem || !tasksCounter) { // GEÄNDERT
             return;
         }
 
@@ -42,14 +42,16 @@
         }
 
         // 2. Logik für das Leuchten des Profil-Buttons prüfen
-        const isProfileGlowing = profileDropdown.classList.contains(GLOW_CLASS);
+        // Wir prüfen 'profileMenu' statt 'profileDropdown'
+        const isProfileGlowing = profileMenu.classList.contains(GLOW_CLASS); // GEÄNDERT
         const areTasksNew = !tasksCounter.classList.contains(HIDDEN_CLASS);
 
         // 3. Fallunterscheidung:
         // WENN das Profil leuchtet, ABER keine neuen Aufgaben da sind...
         if (isProfileGlowing && !areTasksNew) {
             // ...dann MUSS das Leuchten ja vom Event kommen. Also entfernen wir es.
-            profileDropdown.classList.remove(GLOW_CLASS);
+            // Wir entfernen es von 'profileMenu' statt 'profileDropdown'
+            profileMenu.classList.remove(GLOW_CLASS); // GEÄNDERT
         }
 
         // WENN das Profil leuchtet UND neue Aufgaben da sind -> alles korrekt, nichts tun.
