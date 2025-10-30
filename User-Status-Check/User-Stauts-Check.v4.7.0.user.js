@@ -118,10 +118,10 @@
     // ====================================================================
 
     GM_addStyle(`
-        .chat-status-bubble { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid #555; pointer-events: none; box-shadow: none !important; outline: none !important; }
-        .chat-status-online { background-color: #28a745; border-color: #1e7e34; }
-        .chat-status-offline { background-color: #dc3545; border-color: #b21f2d; }
-        .chat-status-checking { background-color: #ffc107; border-color: #d39e00; }
+        .chat-status-bubble { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid #555; pointer-events: none; }
+        .chat-status-online { background-color: #28a745; border-color: #1e7e34; box-shadow: 0 0 7px #28a745; }
+        .chat-status-offline { background-color: #dc3545; border-color: #b21f2d; box-shadow: 0 0 7px #dc3545; }
+        .chat-status-checking { background-color: #ffc107; border-color: #d39e00; box-shadow: 0 0 7px #ffc107; }
         .profile-page-status-bubble { width: 18px; height: 18px; margin-right: 10px; border-width: 2px; vertical-align: middle; margin-top: -2px; }
     `);
 
