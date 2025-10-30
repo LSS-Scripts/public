@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel Globaler Online-Status (v4.5 - Entkoppelt)
 // @namespace    http://tampermonkey.net/
-// @version      4.6
+// @version      4.7
 // @description  Zeigt den Online-Status von Spielern überall auf der Seite an (ignoriert versteckte Elemente).
 // @author       Masklin
 // @match        https://*.leitstellenspiel.de/*
