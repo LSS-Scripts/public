@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Leitstellenspiel Globaler Online-Status (v4.5 - Entkoppelt)
 // @namespace    http://tampermonkey.net/
-// @version      4.7
+// @version      4.8
 // @description  Zeigt den Online-Status von Spielern überall auf der Seite an (ignoriert versteckte Elemente).
 // @author       Masklin
 // @match        https://*.leitstellenspiel.de/*
@@ -119,9 +119,9 @@
 
     GM_addStyle(`
         .chat-status-bubble { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; border: 1px solid #555; pointer-events: none; }
-        .chat-status-online { background-color: #28a745; border-color: #1e7e34; box-shadow: 0 0 7px #28a745; }
-        .chat-status-offline { background-color: #dc3545; border-color: #b21f2d; box-shadow: 0 0 7px #dc3545; }
-        .chat-status-checking { background-color: #ffc107; border-color: #d39e00; box-shadow: 0 0 7px #ffc107; }
+        .chat-status-online { background-color: #28a745 !important; border-color: #1e7e34 !important; box-shadow: 0 0 7px #28a745 !important; }
+        .chat-status-offline { background-color: #dc3545 !important; border-color: #b21f2d !important; box-shadow: 0 0 7px #dc3545 !important; }
+        .chat-status-checking { background-color: #ffc107 !important; border-color: #d39e00 !important; box-shadow: 0 0 7px #ffc107 !important; }
         .profile-page-status-bubble { width: 18px; height: 18px; margin-right: 10px; border-width: 2px; vertical-align: middle; margin-top: -2px; }
     `);
 
