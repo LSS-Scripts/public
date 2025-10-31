@@ -1,3 +1,5 @@
-Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)
+Ach, du wolltest deinen Samstag damit verbringen, Hunderte von Fahrzeugen einzeln zu bemannen und mühselig nach Hause zu klicken? Tja, dieses Skript hat andere Pläne für dich.
 
-NEU NEU NEU: jetzt auch als standalone-tool über die API. 
+Es ist für alle, die den "Spaß" am Mikromanagement einfach überspringen wollen. Es verwandelt deine mühsamen Klick-Orgien in einen einzigen, fast schon verdächtig effizienten Knopfdruck.
+
+Besonders die Verschrotten-Funktion ist ein echtes Highlight: Endlich kannst du deine Fehlkäufe mit der kalten Effizienz einer industriellen Schrottpresse beseitigen. Weil "Spielen" doch eigentlich nur ein anderes Wort für "optimierter Workflow" ist, oder?
