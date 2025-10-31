@@ -115,7 +115,7 @@
     "name": "Fahrzeug-Tool",
     "version": "17.3.5",
     "fileName": "Fahrzeug-Tool.v17.3.5.user.js",
-    "description": "Ach, du wolltest deinen Samstag damit verbringen, Hunderte von Fahrzeugen einzeln zu bemannen und mühselig nach Hause zu klicken? Tja, dieses Skript hat andere Pläne für dich.<br><br>Es ist für alle, die den \"Spaß\" am Mikromanagement einfach überspringen wollen. Es verwandelt deine mühsamen Klick-Orgien in einen einzigen, fast schon verdächtig effizienten Knopfdruck.<br><br>Besonders die Verschrotten-Funktion ist ein echtes Highlight: Endlich kannst du deine Fehlkäufe mit der kalten Effizienz einer industriellen Schrottpresse beseitigen. Weil \"Spielen\" doch eigentlich nur ein anderes Wort für \"optimierter Workflow\" ist, oder?",
+    "description": "Ach, du spielst das hier noch? Wie niedlich. Du klickst wirklich jedes deiner 1.000 Fahrzeuge einzeln an, um es heimzuschicken oder mühsam aufzurüsten?<br><br>Dieses Skript ist für die Effizienten unter uns. Für alle, die verstanden haben, dass \"Management\" nur ein Euphemismus für \"seelenlose Klickarbeit\" ist.<br><br>Warum Hunderte von Fahrzeugen managen, wenn du sie auch abfertigen kannst? Ein Klick rüstet die ganze Flotte auf MAX um. Ein Klick schickt die komplette Armada nach Hause. Ein Klick schaltet Tausende auf FMS 2 oder 6.<br><br>Und der herrlichste, reinigendste Klick von allen: VERSCHROTTEN.<br><br>Beseitige deine Fehlkäufe im industriellen Maßstab, mit der kalten, unpersönlichen Effizienz einer Bilanzkorrektur. Das hier ist keine Simulation mehr. Das ist Flottenbereinigung.",
     "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert <br>16.0.0 -> MAX-Refitting erweitert",
     "categories": ["Fahrzeuge"]
   },
