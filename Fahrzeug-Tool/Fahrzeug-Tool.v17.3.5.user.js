@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Fahrzeug-Tool (Besatzung, FMS, Rückalarm, Refit & Verschrotten)
 // @namespace    http://tampermonkey.net/
-// @version      17.3.2
-// @description  Standalone-Tool filtert jetzt sofort und zeigt die exakte Anzahl umrüstbarer Fahrzeuge direkt auf den Buttons an.
+// @version      17.3.5
+// @description  Standalone-Tool filtert jetzt sofort. Wachen-Tool mit Checkboxen. Endlosschleife in v17.3.4 behoben.
 // @author       Masklin, Gemini & Community-Feedback
 // @match        https://*.leitstellenspiel.de/*
 // @match        https://*.missionchief.com/*
@@ -13,7 +13,7 @@
     'use strict';
 
     // =================================================================================
-    // --- 1. KERN-LOGIK & KONFIGURATION ---
+    // --- 1. KERN-LOGIK & KONFIGURATION --- (Unverändert)
     // =================================================================================
     const SCRIPT_PREFIX = '[Fahrzeug-Tool]';
     const VEHICLE_TYPE_MAP = {0:'LF 20',1:'LF 10',2:'DLK 23',3:'ELW 1',4:'RW',5:'GW-A',6:'LF 8/6',7:'LF 20/16',8:'LF 10/6',9:'LF 16-TS',10:'GW-Öl',11:'GW-L2-Wasser',12:'GW-Messtechnik',13:'SW 1000',14:'SW 2000',15:'SW 2000-Tr',16:'SW Kats',17:'TLF 2000',18:'TLF 3000',19:'TLF 8/8',20:'TLF 8/18',21:'TLF 16/24-Tr',22:'TLF 16/25',23:'TLF 16/45',24:'TLF 20/40',25:'TLF 20/40-SL',26:'TLF 16',27:'GW-Gefahrgut',28:'RTW',29:'NEF',30:'HLF 20',31:'RTH',32:'FuStW',33:'GW-Höhenrettung',34:'ELW 2',35:'leBefKw',36:'MTW',37:'TSF-W',38:'KTW',39:'GKW',40:'MTW-TZ',41:'MzGW (FGr N)',42:'LKW K 9',43:'BRmG R',44:'Anh DLE',45:'MLW 5',46:'WLF',47:'AB-Rüst',48:'AB-Atemschutz',49:'AB-Öl',50:'GruKw',51:'FüKW (Polizei)',52:'GefKw',53:'Dekon-P',54:'AB-Dekon-P',55:'KdoW-LNA',56:'KdoW-OrgL',57:'FwK',58:'KTW Typ B',59:'ELW 1 (SEG)',60:'GW-San',61:'Polizeihubschrauber',62:'AB-Schlauch',63:'GW-Taucher',64:'GW-Wasserrettung',65:'LKW 7 Lkr 19 tm',66:'Anh MzB',67:'Anh SchlB',68:'Anh MzAB',69:'Tauchkraftwagen',70:'MZB',71:'AB-MZB',72:'WaWe 10',73:'GRTW',74:'NAW',75:'FLF',76:'Rettungstreppe',77:'AB-Gefahrgut',78:'AB-Einsatzleitung',79:'SEK - ZF',80:'SEK - MTF',81:'MEK - ZF',82:'MEK - MTF',83:'GW-Werkfeuerwehr',84:'ULF mit Löscharm',85:'TM 50',86:'Turbolöscher',87:'TLF 4000',88:'KLF',89:'MLF',90:'HLF 10',91:'Rettungshundefahrzeug',92:'Anh Hund',93:'MTW-O',94:'DHuFüKW',95:'Polizeimotorrad',96:'Außenlastbehälter (allgemein)',97:'ITW',98:'Zivilstreifenwagen',100:'MLW 4',101:'Anh SwPu',102:'Anh 7',103:'FuStW (DGL)',104:'GW-L1',105:'GW-L2',106:'MTF-L',107:'LF-L',108:'AB-L',109:'MzGW SB',110:'NEA50',111:'NEA50',112:'NEA200',113:'NEA200',114:'GW-Lüfter',115:'Anh Lüfter',116:'AB-Lüfter',117:'AB-Tank',118:'Kleintankwagen',119:'AB-Lösch',120:'Tankwagen',121:'GTLF',122:'LKW 7 Lbw (FGr E)',123:'LKW 7 Lbw (FGr WP)',124:'MTW-OV',125:'MTW-Tr UL',126:'MTF Drohne',127:'GW UAS',128:'ELW Drohne',129:'ELW2 Drohne',130:'GW-Bt',131:'Bt-Kombi',132:'FKH',133:'Bt LKW',134:'Pferdetransporter klein',135:'Pferdetransporter groß',136:'Anh Pferdetransport',137:'Zugfahrzeug Pferdetransport',138:'GW-Verpflegung',139:'GW-Küche',140:'MTW-Verpflegung',141:'FKH',142:'AB-Küche',143:'Anh Schlauch',144:'FüKW (THW)',145:'FüKomKW',146:'Anh FüLa',147:'FmKW',148:'MTW-FGr K',149:'GW-Bergrettung (NEF)',150:'GW-Bergrettung',151:'ELW Bergrettung',152:'ATV',153:'Hundestaffel (Bergrettung)',154:'Schneefahrzeug',155:'Anh Höhenrettung (Bergrettung)',156:'Polizeihubschrauber mit verbauter Winde',157:'RTH Winde',158:'GW-Höhenrettung (Bergrettung)',159:'Seenotrettungskreuzer',160:'Seenotrettungsboot',161:'Hubschrauber (Seenotrettung)',162:'RW-Schiene',163:'HLF Schiene',164:'AB-Schiene',165:'LauKw',166:'PTLF 4000',167:'SLF',168:'Anh Sonderlöschmittel',169:'AB-Sonderlöschmittel',170:'AB-Wasser/Schaum',171:'GW TeSi',172:'LKW Technik (Notstrom)',173:'MTW TeSi',174:'Anh TeSi',175:'NEA50',};
@@ -171,7 +171,7 @@
         }
     }
 
-    // ========== HELFERFUNKTIONEN ==========
+    // ========== HELFERFUNKTIONEN ========== (Unverändert)
     function shuffleArray(array) {
         let currentIndex = array.length, randomIndex;
         while (currentIndex !== 0) {
@@ -294,9 +294,50 @@
     // ===========================================
 
     // =================================================================================
-    // --- 2. IN-PAGE-MODUL ---
+    // --- 2. IN-PAGE-MODUL --- (ANGEPASST)
     // =================================================================================
     function initializeInPageTool() {
+
+        // NEU: Den Observer im Scope von initializeInPageTool definieren
+        const observer = new MutationObserver(runInPage);
+
+        // Fügt Checkboxen zur Tabelle hinzu (unverändert)
+        function addVehicleCheckboxes() {
+            const vehicleTable = document.getElementById('vehicle_table');
+            if (!vehicleTable) return;
+
+            // 1. "Alle auswählen"-Checkbox im Header hinzufügen
+            const headerRow = vehicleTable.querySelector('thead tr');
+            if (headerRow && !headerRow.querySelector('#lss-marker-select-all-th')) {
+                const th = document.createElement('th');
+                th.id = 'lss-marker-select-all-th'; // ID zur Prüfung, ob schon vorhanden
+                th.style.width = '20px';
+                th.innerHTML = '<input type="checkbox" id="lss-marker-select-all" title="Alle sichtbaren auswählen">';
+                headerRow.prepend(th);
+
+                // Event Listener für "Alle auswählen"
+                document.getElementById('lss-marker-select-all').addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    getVisibleVehicleRowsInPage().forEach(row => {
+                        const cb = row.querySelector('.lss-vehicle-marker');
+                        if (cb) cb.checked = isChecked;
+                    });
+                });
+            }
+
+            // 2. Checkboxen zu jeder Fahrzeug-Zeile hinzufügen
+            vehicleTable.querySelectorAll('tbody tr').forEach(row => {
+                if (row.querySelector('.lss-vehicle-marker-td')) return; // Zelle bereits vorhanden
+
+                const td = document.createElement('td');
+                td.className = 'lss-vehicle-marker-td';
+                td.style.textAlign = 'center';
+                td.innerHTML = '<input type="checkbox" class="lss-vehicle-marker" style="margin-top:0;">';
+                row.prepend(td);
+            });
+        }
+
+        // Helferfunktionen (unverändert)
         const getVehicleDataFromRow = (row) => {
             const link = row.querySelector('td a[href*="/vehicles/"]');
             if (!link) return null;
@@ -315,15 +356,23 @@
             return { id, name: combinedName, typeId, fms };
         };
         const getVisibleVehicleRowsInPage = () => Array.from(document.querySelectorAll('#vehicle_table tbody tr')).filter(row => row.style.display !== 'none');
-        const getVehiclesFromTable = (filterFunc = () => true) => getVisibleVehicleRowsInPage().map(getVehicleDataFromRow).filter(Boolean).filter(filterFunc);
 
+        const getVehiclesFromTable = (filterFunc = () => true, ignoreSelection = false) => {
+            const allVisibleRows = getVisibleVehicleRowsInPage();
+            const checkedRows = allVisibleRows.filter(row => row.querySelector('.lss-vehicle-marker')?.checked);
+            const rowsToProcess = (checkedRows.length > 0 && !ignoreSelection) ? checkedRows : allVisibleRows;
+            return rowsToProcess.map(getVehicleDataFromRow).filter(Boolean).filter(filterFunc);
+        };
+
+        // Handler-Funktionen (refitHandler, handleInPageScrap, etc. - alle unverändert)
         const refitHandler = async (typeId) => {
+            const selectedCount = getVisibleVehicleRowsInPage().filter(row => row.querySelector('.lss-vehicle-marker')?.checked).length;
             const vehicleTypeName = VEHICLE_TYPE_MAP[typeId] || `Fahrzeugtyp ${typeId}`;
             const templateName = `MAX ${vehicleTypeName}`;
             const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes(templateName.toLowerCase()));
 
             if (vehiclesToRefit.length === 0) {
-                alert(`Keine umrüstbaren "${vehicleTypeName}" in Status 2 gefunden.`);
+                alert(selectedCount > 0 ? `Keine der ausgewählten Fahrzeuge sind umrüstbare "${vehicleTypeName}" in Status 2.` : `Keine umrüstbaren "${vehicleTypeName}" in Status 2 gefunden.`);
                 return;
             }
 
@@ -384,27 +433,41 @@
         };
 
         const handleInPageScrap = () => {
+            const selectedCount = getVisibleVehicleRowsInPage().filter(row => row.querySelector('.lss-vehicle-marker')?.checked).length;
             const vehicles = getVehiclesFromTable();
             if (vehicles.length === 0) { alert('Keine Fahrzeuge zum Verschrotten gefunden.'); return; }
-            if (!confirm(`ACHTUNG! Sollen wirklich ${vehicles.length} Fahrzeuge VERSCHROTTET werden?`)) return;
+            const contextMessage = selectedCount > 0 ? `die ${selectedCount} ausgewählten` : `alle ${vehicles.length} sichtbaren`;
+            if (!confirm(`ACHTUNG! Sollen wirklich ${contextMessage} Fahrzeuge VERSCHROTTET werden?`)) return;
             processWithProgress(vehicles, vehicleActions.scrap);
         };
         const handleInPageCrew = () => {
+            const selectedCount = getVisibleVehicleRowsInPage().filter(row => row.querySelector('.lss-vehicle-marker')?.checked).length;
             const vehicles = getVehiclesFromTable();
             if (vehicles.length === 0) { alert('Keine Fahrzeuge gefunden.'); return; }
-            if (!confirm(`Sollen für ${vehicles.length} Fahrzeuge die max. Besatzung eingestellt werden?`)) return;
+            const contextMessage = selectedCount > 0 ? `die ${selectedCount} ausgewählten` : `alle ${vehicles.length} sichtbaren`;
+            if (!confirm(`Sollen für ${contextMessage} Fahrzeuge die max. Besatzung eingestellt werden?`)) return;
             processWithProgress(vehicles, vehicleActions.setCrew);
         };
         const handleInPageBackalarm = () => {
+            const selectedCount = getVisibleVehicleRowsInPage().filter(row => row.querySelector('.lss-vehicle-marker')?.checked).length;
             const vehicles = getVehiclesFromTable(v => v.fms && !['1', '2', '6'].includes(v.fms));
-            if (vehicles.length === 0) { alert('Keine Fahrzeuge zum Rückalarmieren gefunden.'); return; }
-            if (!confirm(`Sollen ${vehicles.length} Fahrzeuge zur Wache zurückalarmiert werden?`)) return;
+            if (vehicles.length === 0) {
+                 alert(selectedCount > 0 ? 'Keine der ausgewählten Fahrzeuge können rückalarmiert werden.' : 'Keine Fahrzeuge zum Rückalarmieren gefunden.');
+                 return;
+            }
+            const contextMessage = selectedCount > 0 ? `${vehicles.length} der ausgewählten` : `alle ${vehicles.length} sichtbaren`;
+            if (!confirm(`Sollen ${contextMessage} Fahrzeuge zur Wache zurückalarmiert werden?`)) return;
             processWithProgress(vehicles, vehicleActions.backalarm);
         };
         const handleInPageSetFms = (targetStatus, currentStatusFilter) => {
+            const selectedCount = getVisibleVehicleRowsInPage().filter(row => row.querySelector('.lss-vehicle-marker')?.checked).length;
             const vehicles = getVehiclesFromTable(v => v.fms === currentStatusFilter);
-            if (vehicles.length === 0) { alert(`Keine Fahrzeuge mit Status ${currentStatusFilter} gefunden.`); return; }
-            if (!confirm(`Sollen ${vehicles.length} Fahrzeuge von Status ${currentStatusFilter} auf ${targetStatus} gesetzt werden?`)) return;
+            if (vehicles.length === 0) {
+                alert(selectedCount > 0 ? `Keine der ausgewählten Fahrzeuge hat Status ${currentStatusFilter}.` : `Keine Fahrzeuge mit Status ${currentStatusFilter} gefunden.`);
+                return;
+            }
+            const contextMessage = selectedCount > 0 ? `${vehicles.length} der ausgewählten` : `alle ${vehicles.length} sichtbaren`;
+            if (!confirm(`Sollen ${contextMessage} Fahrzeuge von Status ${currentStatusFilter} auf ${targetStatus} gesetzt werden?`)) return;
             processWithProgress(vehicles, vehicleActions.setFms, { targetStatus });
         };
         function buildInPageControls() {
@@ -433,7 +496,7 @@
                 const vehicleTypeName = VEHICLE_TYPE_MAP[typeId];
                 if (!vehicleTypeName) return;
                 const templateName = `MAX ${vehicleTypeName}`;
-                const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes(templateName.toLowerCase()));
+                const vehiclesToRefit = getVehiclesFromTable(v => v.typeId === typeId && v.fms === '2' && !v.name.toLowerCase().includes(templateName.toLowerCase()), true); // <-- ignoreSelection = true
                 if (vehiclesToRefit.length > 0) {
                     refitActionsGroup.appendChild(createButton(`MAX ${vehicleTypeName} (${vehiclesToRefit.length})`, 'btn-primary', () => refitHandler(typeId), 'wrench'));
                 }
@@ -458,27 +521,75 @@
             mainContainer.appendChild(panelBody);
             return mainContainer;
         }
+
+        // --- ANGEPASSTE OBSERVER-LOGIK ---
+
         function runInPage() {
+            // 1. Beobachtung SOFORT anhalten, um Schleifen zu verhindern
+            observer.disconnect();
+
             const vehicleTable = document.getElementById('vehicle_table');
-            if (!vehicleTable || document.getElementById('lssToolContainer')) return;
+            if (!vehicleTable) {
+                // Tabelle nicht (mehr) da. Beobachte den body, bis sie wieder auftaucht.
+                observer.observe(document.body, { childList: true, subtree: true });
+                return;
+            }
+
+            // 2. DOM-Arbeit ausführen: Checkboxen hinzufügen
+            addVehicleCheckboxes();
+
+            // 3. DOM-Arbeit ausführen: Alte Container entfernen, um sie neu zu bauen
             document.getElementById('lssToolContainer')?.remove();
+            document.getElementById('lssToolLogContainer')?.remove();
+            document.getElementById('lssToolProgressContainer')?.remove();
+
+            // 4. DOM-Arbeit ausführen: Neue Container erstellen und einfügen
             const controls = buildInPageControls();
             const logContainer = document.createElement('div');
             logContainer.id = 'lssToolLogContainer';
             logContainer.style.marginBottom = '10px';
             const progressContainer = document.createElement('div');
             progressContainer.id = 'lssToolProgressContainer';
+
             vehicleTable.parentNode.insertBefore(controls, vehicleTable);
             vehicleTable.parentNode.insertBefore(logContainer, vehicleTable);
             vehicleTable.parentNode.insertBefore(progressContainer, vehicleTable);
+
+            // 5. Beobachtung wieder aufnehmen, aber SPEZIFISCH auf den Tabellen-Body
+            const targetNode = vehicleTable.tBodies[0];
+            if(targetNode) {
+                observer.observe(targetNode, { childList: true }); // Nur auf Zeilen-Änderungen (Filterung) lauschen
+            } else {
+                // Fallback, falls tbody nicht da ist
+                 observer.observe(vehicleTable, { childList: true, subtree: true });
+            }
         }
-        const observer = new MutationObserver(runInPage);
-        observer.observe(document.body, { childList: true, subtree: true });
-        setTimeout(runInPage, 500);
+
+        // 3. Die alte Startlogik ERSETZEN
+        // Alt:
+        // const observer = new MutationObserver(runInPage);
+        // observer.observe(document.body, { childList: true, subtree: true });
+        // setTimeout(runInPage, 500); // Initialer Aufruf
+
+        // Neu:
+        // Eine Funktion, die wartet, bis die Tabelle da ist, und DANN den Observer startet
+        function initialStart() {
+            const vehicleTable = document.getElementById('vehicle_table');
+            if (vehicleTable && vehicleTable.tBodies[0]) {
+                // Tabelle ist da. Führe die DOM-Setup-Funktion EINMAL aus.
+                // Diese Funktion (runInPage) startet am Ende selbst den Observer.
+                runInPage();
+            } else {
+                // Tabelle noch nicht geladen, 100ms warten
+                setTimeout(initialStart, 100);
+            }
+        }
+
+        initialStart(); // Ersten Start auslösen
     }
 
     // =================================================================================
-    // --- 3. STANDALONE-MODUL ---
+    // --- 3. STANDALONE-MODUL --- (Unverändert)
     // =================================================================================
     function initializeStandaloneTool() {
         const settingsLi = document.querySelector('ul.dropdown-menu[aria-labelledby="menu_profile"] a[href="/settings/index"]')?.parentNode;
@@ -775,7 +886,7 @@
     }
 
     // =================================================================================
-    // --- 4. HAUPTROUTER ---
+    // --- 4. HAUPTROUTER --- (Unverändert)
     // =================================================================================
     if (window.location.pathname.startsWith('/buildings/')) {
         initializeInPageTool();
