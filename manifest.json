@@ -115,7 +115,7 @@
     "name": "Fahrzeug-Tool",
     "version": "17.3.5",
     "fileName": "Fahrzeug-Tool.v17.3.5.user.js",
-    "description": "Ein Tool, dass Fahrzeuge gebündelt bearbeiten kann (FMS-Status, Rückalarmieren, verschrotten und NEU: Refit auf MAXIMALE Ausstattung der LF´s)<br><br>NEU NEU NEU: jetzt auch als standalone-tool über die API. ",
+    "description": "Ach, du wolltest deinen Samstag damit verbringen, Hunderte von Fahrzeugen einzeln zu bemannen und mühselig nach Hause zu klicken? Tja, dieses Skript hat andere Pläne für dich.<br><br>Es ist für alle, die den \"Spaß\" am Mikromanagement einfach überspringen wollen. Es verwandelt deine mühsamen Klick-Orgien in einen einzigen, fast schon verdächtig effizienten Knopfdruck.<br><br>Besonders die Verschrotten-Funktion ist ein echtes Highlight: Endlich kannst du deine Fehlkäufe mit der kalten Effizienz einer industriellen Schrottpresse beseitigen. Weil \"Spielen\" doch eigentlich nur ein anderes Wort für \"optimierter Workflow\" ist, oder?",
     "changelog": "17.2.0 -> Erkennung für bereituns umgebaute (maximierte) Fahrzeuge erheblich verfeinert <br>16.0.0 -> MAX-Refitting erweitert",
     "categories": ["Fahrzeuge"]
   },
