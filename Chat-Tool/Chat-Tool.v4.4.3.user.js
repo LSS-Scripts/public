@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.4.2
+// @version      4.4.3
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). Inkl. Schnellschalter & sichtbarem Ausblend-Zähler (Fix 3).
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -1127,9 +1127,9 @@
         /* === BLOCKER-UI STYLES === */
         .lss-switch { position: relative; display: inline-block; width: 50px; height: 24px; vertical-align: middle; }
         .lss-switch input { opacity: 0; width: 0; height: 0; }
-        .lss-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #777; transition: .4s; border-radius: 24px; }
+        .lss-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #777 !important; transition: .4s; border-radius: 24px; }
         .lss-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .lss-slider { background-color: #28a745; }
+        input:checked + .lss-slider { background-color: #28a745 !important; }
         input:checked + .lss-slider:before { transform: translateX(26px); }
         .lss-switch.lss-switch-xs { width: 34px; height: 20px; }
         .lss-switch.lss-switch-xs .lss-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
