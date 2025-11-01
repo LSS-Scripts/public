@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.4.0
+// @version      4.4.1
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). Inkl. Schnellschalter & sichtbarem Ausblend-Zähler (Fix 3).
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -32,6 +32,7 @@
     let isDark = false;
     let currentSettings = {};
     let modalElement = null;
+    let proChatTextarea = null;
 
     // --- Blocker-Variablen ---
     let isBlockerEnabled = false;
@@ -960,50 +961,103 @@
 
         console.log("[ChatPro] Ersetze Input-Feld durch Auto-Grow Textarea...");
 
-        const textarea = document.createElement('textarea');
+        // 1. Erstelle BEIDE neuen Elemente (Textarea und Whisper-Anzeige)
+        proChatTextarea = document.createElement('textarea');
+        const whisperTargetDisplay = document.createElement('div');
+        whisperTargetDisplay.id = 'pro_chat_whisper_target';
+        whisperTargetDisplay.style.display = 'none'; // Standardmäßig ausblenden
+        whisperTargetDisplay.style.paddingBottom = '5px';
 
-        // Wichtige Attribute vom alten Input übernehmen
-        textarea.id = inputElement.id;
-        textarea.className = inputElement.className;
-        textarea.name = inputElement.name;
-        textarea.style.cssText = inputElement.style.cssText; // Übernimmt "width:100%;"
+        // 2. Wichtige Attribute vom alten Input übernehmen
+        proChatTextarea.id = inputElement.id;
+        proChatTextarea.className = inputElement.className;
+        proChatTextarea.name = inputElement.name;
+        proChatTextarea.style.cssText = inputElement.style.cssText; // Übernimmt "width:100%;"
 
-        // Textarea-spezifische Stile und Verhalten
-        textarea.style.resize = 'none'; // Verhindert manuelles Vergrößern durch den User
-        textarea.style.overflowY = 'hidden'; // Versteckt die Scrollbar (wird von autoGrow gemanagt)
-        textarea.rows = 1; // Startet mit einer Zeile
-        textarea.placeholder = "Nachricht (Enter = Senden, Shift+Enter = Zeilenumbruch)";
+        // 3. Textarea-spezifische Stile und Verhalten
+        proChatTextarea.style.resize = 'none'; // Verhindert manuelles Vergrößern durch den User
+        proChatTextarea.style.overflowY = 'hidden'; // Versteckt die Scrollbar (wird von autoGrow gemanagt)
+        proChatTextarea.rows = 1; // Startet mit einer Zeile
+        proChatTextarea.placeholder = "Nachricht (Enter = Senden, Shift+Enter = Zeilenumbruch)";
 
-        // Event-Listener für das automatische Wachsen
+        // 4. Event-Listener für das automatische Wachsen
         const autoGrow = (el) => {
             el.style.height = 'auto'; // Wichtig: Zurücksetzen, um Verkleinern zu ermöglichen
             el.style.height = (el.scrollHeight) + 'px';
         };
 
-        textarea.addEventListener('input', () => autoGrow(textarea));
+        // 5. Input-Listener (AutoGrow + Whisper-Anzeige)
+        proChatTextarea.addEventListener('input', () => {
+            autoGrow(proChatTextarea);
 
-        // Ersetze das alte Element
-        inputElement.parentNode.replaceChild(textarea, inputElement);
+            // --- NEUE LOGIK FÜR FLÜSTER-ANZEIGE (MIT /w UND @) ---
+            const text = proChatTextarea.value;
+            let targetName = null;
 
-        // Senden mit Enter, Zeilenumbruch mit Shift+Enter
-        textarea.addEventListener('keydown', (e) => {
+            // Suche nach "/w Name" (auch wenn mehr Text folgt)
+            const whisperMatch = text.match(/^\/w\s+([a-zA-Z0-9_-]+)/);
+            // Suche nach "@Name" (auch wenn mehr Text folgt)
+            const atMatch = text.match(/^@([a-zA-Z0-9_-]+)/);
+
+            if (whisperMatch && whisperMatch[1]) {
+                targetName = whisperMatch[1];
+            } else if (atMatch && atMatch[1]) {
+                targetName = atMatch[1];
+            }
+
+            // --- ANZEIGE STEUERN ---
+            if (targetName) {
+                // Name gefunden, Anzeige einblenden
+                // Nutze die CSS-Klasse "whisper-label" aus dem Skript-Stil
+                whisperTargetDisplay.innerHTML = `Flüstern an: <span class="whisper-label">${targetName}</span>`;
+
+                // Wende die korrekten Farben je nach Modus an
+                const label = whisperTargetDisplay.querySelector('span');
+                if (document.body.classList.contains('dark')) {
+                    label.style.backgroundColor = 'var(--color-dark-whisper-label-bg, #f0ad4e)';
+                    label.style.color = 'var(--color-dark-whisper-label-fg, #ffffff)';
+                } else {
+                    label.style.backgroundColor = 'var(--color-light-whisper-label-bg, #f0ad4e)';
+                    label.style.color = 'var(--color-light-whisper-label-fg, #ffffff)';
+                }
+
+                whisperTargetDisplay.style.display = 'block'; // Anzeigen
+            } else {
+                // Nichts gefunden, Anzeige ausblenden
+                whisperTargetDisplay.style.display = 'none'; // Ausblenden
+            }
+            // --- ENDE NEUE LOGIK ---
+        });
+
+        // 6. Keydown-Listener (Senden)
+        proChatTextarea.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault(); // Verhindert den Zeilenumbruch
-                const form = textarea.closest('form');
+                const form = proChatTextarea.closest('form');
                 if (form) {
                     // Löst das 'submit'-Event aus, damit der AJAX-Handler des Spiels es fängt
-                    // (Ein einfaches form.submit() würde die Seite neu laden)
                     const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
                     form.dispatchEvent(submitEvent);
 
+                    // *** KORREKTER ORT FÜR DAS AUSBLENDEN ***
+                    whisperTargetDisplay.style.display = 'none';
+
                     // Nach dem Senden das Textfeld leeren und zurücksetzen
                     setTimeout(() => {
-                         textarea.value = '';
-                         autoGrow(textarea);
+                         proChatTextarea.value = '';
+                         autoGrow(proChatTextarea);
                     }, 50); // Kurze Verzögerung, damit der Submit-Wert noch gelesen werden kann
                 }
             }
         });
+
+        // 7. Elemente ZUM DOM HINZUFÜGEN (IN KORREKTER REIHENFOLGE)
+        // Zuerst die Whisper-Anzeige VOR das Formular-Element
+        inputElement.closest('form').prepend(whisperTargetDisplay);
+        // Dann das Input-Feld mit der Textarea ERSETZEN (DIESE ZEILE HAT GEFEHLT)
+        inputElement.parentNode.replaceChild(proChatTextarea, inputElement);
+
+        // 8. Label zum Papierflieger machen
         const labelElement = document.querySelector('label[for="alliance_chat_message"]');
         if (labelElement) {
             // Ersetze "* Nachricht" durch ein Sende-Icon
@@ -1011,10 +1065,11 @@
             // Optional: Vertikale Zentrierung des Icons verbessern
             labelElement.style.paddingTop = '0';
             labelElement.style.paddingBottom = '0';
-            labelElement.style.lineHeight = `${textarea.style.minHeight || '38px'}`;
+            labelElement.style.lineHeight = `${proChatTextarea.style.minHeight || '38px'}`;
         }
-        // Initial einmal die Größe anpassen (falls Text vom Browser vorgeladen wird)
-        setTimeout(() => autoGrow(textarea), 100);
+
+        // 9. Initial einmal Größe anpassen
+        setTimeout(() => autoGrow(proChatTextarea), 100);
     }
 
     // === STYLES (KOMBINIERT v4.3.4 - Zähler-CSS-Fix 3) ===
@@ -1371,6 +1426,21 @@
     } catch (e) {
         console.error("[ChatPro] Error starting global observer:", e); // DEBUG ERROR
     }
+    // 8. Globalen Klick-Listener für Flüster-Icons hinzufügen
+    document.addEventListener('click', (e) => {
+        // Prüfe, ob auf ein Whisper-Icon geklickt wurde
+        const link = e.target.closest('a.alliance_chat_private_username');
+
+        // Prüfe auch, ob unser Textfeld schon existiert
+        if (link && proChatTextarea) {
+            // Warte 50ms, damit das Spiel-Skript das /w... einfügen kann
+            setTimeout(() => {
+                // Erzwinge ein 'input'-Event auf unserem Textfeld.
+                // Das löst unsere Logik in 'replaceInputWithTextarea' aus.
+                proChatTextarea.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            }, 50);
+        }
+    });
 
     console.log("[ChatPro] Script initialized."); // DEBUG END
 
