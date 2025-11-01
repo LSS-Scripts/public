@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.3.4
+// @version      4.4.0
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). Inkl. Schnellschalter & sichtbarem Ausblend-Zähler (Fix 3).
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -952,6 +952,70 @@
         if(pagination.parentNode) pagination.parentNode.insertBefore(loadContainer, pagination.nextSibling);
     } // Ende setupMultiPageLoader
 
+    // === NEUE FUNKTION: Eingabefeld zu Textarea umwandeln ===
+    function replaceInputWithTextarea() {
+        const inputElement = document.getElementById('alliance_chat_message');
+        // Prüfen, ob das Element existiert und noch nicht umgewandelt wurde
+        if (!inputElement || inputElement.tagName === 'TEXTAREA') return;
+
+        console.log("[ChatPro] Ersetze Input-Feld durch Auto-Grow Textarea...");
+
+        const textarea = document.createElement('textarea');
+
+        // Wichtige Attribute vom alten Input übernehmen
+        textarea.id = inputElement.id;
+        textarea.className = inputElement.className;
+        textarea.name = inputElement.name;
+        textarea.style.cssText = inputElement.style.cssText; // Übernimmt "width:100%;"
+
+        // Textarea-spezifische Stile und Verhalten
+        textarea.style.resize = 'none'; // Verhindert manuelles Vergrößern durch den User
+        textarea.style.overflowY = 'hidden'; // Versteckt die Scrollbar (wird von autoGrow gemanagt)
+        textarea.rows = 1; // Startet mit einer Zeile
+        textarea.placeholder = "Nachricht (Enter = Senden, Shift+Enter = Zeilenumbruch)";
+
+        // Event-Listener für das automatische Wachsen
+        const autoGrow = (el) => {
+            el.style.height = 'auto'; // Wichtig: Zurücksetzen, um Verkleinern zu ermöglichen
+            el.style.height = (el.scrollHeight) + 'px';
+        };
+
+        textarea.addEventListener('input', () => autoGrow(textarea));
+
+        // Ersetze das alte Element
+        inputElement.parentNode.replaceChild(textarea, inputElement);
+
+        // Senden mit Enter, Zeilenumbruch mit Shift+Enter
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); // Verhindert den Zeilenumbruch
+                const form = textarea.closest('form');
+                if (form) {
+                    // Löst das 'submit'-Event aus, damit der AJAX-Handler des Spiels es fängt
+                    // (Ein einfaches form.submit() würde die Seite neu laden)
+                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                    form.dispatchEvent(submitEvent);
+
+                    // Nach dem Senden das Textfeld leeren und zurücksetzen
+                    setTimeout(() => {
+                         textarea.value = '';
+                         autoGrow(textarea);
+                    }, 50); // Kurze Verzögerung, damit der Submit-Wert noch gelesen werden kann
+                }
+            }
+        });
+        const labelElement = document.querySelector('label[for="alliance_chat_message"]');
+        if (labelElement) {
+            // Ersetze "* Nachricht" durch ein Sende-Icon
+            labelElement.innerHTML = '<span class="glyphicon glyphicon-send" style="font-size: 1.2em;"></span>';
+            // Optional: Vertikale Zentrierung des Icons verbessern
+            labelElement.style.paddingTop = '0';
+            labelElement.style.paddingBottom = '0';
+            labelElement.style.lineHeight = `${textarea.style.minHeight || '38px'}`;
+        }
+        // Initial einmal die Größe anpassen (falls Text vom Browser vorgeladen wird)
+        setTimeout(() => autoGrow(textarea), 100);
+    }
 
     // === STYLES (KOMBINIERT v4.3.4 - Zähler-CSS-Fix 3) ===
     const mergedStyles = `
@@ -1112,7 +1176,7 @@
         .well[data-message-time] strong { margin: 0; }
 
         /* === DARK MODE STYLES === */
-        .dark #chat_panel_heading { background-color: var(--color-dark-header-bg, #2c2f33) !important; color: var(--color-dark-header-fg, #f0f0f0) !important; border-bottom: 1px solid var(--color-dark-header-border, #40444b); font-weight: bold; padding: 10px 15px; }
+        .dark #chat_panel_heading { background-image: none !important; background-color: var(--color-dark-header-bg, #2c2f33) !important; color: var(--color-dark-header-fg, #f0f0f0) !important; border-bottom: 1px solid var(--color-dark-header-border, #40444b); font-weight: bold; padding: 10px 15px; }
         .dark #chat_panel_heading .btn-default { background-color: var(--color-dark-header-border, #40444b); border: none; color: var(--color-dark-header-fg, #f0f0f0); opacity: 0.7; transition: all 0.2s ease; }
         .dark #chat_panel_heading .btn-default:hover { opacity: 1; background-color: var(--color-dark-scrollbar-thumb-hover, #555a63); }
         .dark #chat_panel_heading .dropdown-menu { background-color: var(--color-dark-header-bg, #2c2f33); border: 1px solid var(--color-dark-header-border, #40444b); }
@@ -1132,7 +1196,7 @@
         .dark .chat-message-other, .dark .well.chat-message-other { background-color: var(--color-dark-other-bubble-bg, #36393f) !important; color: var(--color-dark-other-bubble-fg, #dcddde) !important; }
         .dark #mission_chat_messages li.chatWhisper { background-color: var(--color-dark-whisper-bg) !important; border-left: 4px solid var(--color-dark-whisper-border) !important; padding-left: 10px !important; color: var(--color-dark-whisper-fg) !important; }
         .dark #mission_chat_messages li.chatWhisper.chat-message-own { background-color: var(--color-dark-my-whisper-bg) !important; color: var(--color-dark-my-whisper-fg) !important; }
-        .dark .whisper-label { background-color: var(--color-dark-whisper-label-bg) !important; color: var(--color-dark-whisper_label-fg) !important; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin: 0 4px; font-size: 0.9em; }
+        .dark .whisper-label { background-color: var(--color-dark-whisper-label-bg) !important; color: var(--color-dark-whisper-label-fg) !important; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin: 0 4px; font-size: 0.9em; }
         .dark #mission_chat_messages li.chatToSelf:not(.chatWhisper) { background-color: var(--color-dark-my-mention-bubble-bg) !important; border-left: 4px solid var(--color-dark-my-mention-bubble-border) !important; padding-left: 10px !important; color: var(--color-dark-my-mention-bubble-fg) !important; }
         .dark .chat-mention { background-color: var(--color-dark-mention-bg, #f0ad4e); color: var(--color-dark-mention-fg, #332b1f); }
         .dark #new_alliance_chat { padding: 10px; background-color: var(--color-dark-body-bg, #2c2f33); border-top: 1px solid var(--color-dark-chat-border, #40444b); }
@@ -1153,14 +1217,45 @@
         .dark .btn.pull-right[href="/alliance_chats"]:hover { background-color: var(--color-dark-scrollbar-thumb-hover, #555a63); color: var(--color-dark-my-bubble-fg, #ffffff); }
 
         /* === LIGHT MODE STYLES === */
-        body:not(.dark) #chat_panel_heading { background-color: var(--color-light-header-bg, #f9f9f9) !important; color: var(--color-light-header-fg, #333333) !important; border-bottom: 1px solid var(--color-light-header-border, #dce1e6); font-weight: bold; padding: 10px 15px; }
+        body:not(.dark) #chat_panel_heading { background-image: none !important; background-color: var(--color-light-header-bg, #f9f9f9) !important; color: var(--color-light-header-fg, #333333) !important; border-bottom: 1px solid var(--color-light-header-border, #dce1e6); font-weight: bold; padding: 10px 15px; }
         body:not(.dark) #chat_panel_heading .btn-default { background-color: var(--color-light-body-bg, #f0f4f7); border: 1px solid var(--color-light-header-border, #dce1e6); color: var(--color-light-header-fg, #333333); opacity: 0.8; transition: all 0.2s ease; }
         body:not(.dark) #chat_panel_heading .btn-default:hover { opacity: 1; background-color: var(--color-light-chat-bg, #e5eef3); }
         /* ... (restliche Light Mode Regeln, inklusive Whisper/Mention Fix) ... */
         body:not(.dark) #mission_chat_messages li.chatWhisper { background-color: var(--color-light-whisper-bg) !important; border-left: 4px solid var(--color-light-whisper-border) !important; padding-left: 10px !important; color: var(--color-light-whisper-fg) !important; }
         body:not(.dark) #mission_chat_messages li.chatWhisper.chat-message-own { background-color: var(--color-light-my-whisper-bg) !important; color: var(--color-light-my-whisper-fg) !important; }
         body:not(.dark) #mission_chat_messages li.chatToSelf:not(.chatWhisper) { background-color: var(--color-light-my-mention-bubble-bg) !important; border-left: 4px solid var(--color-light-my-mention-bubble-border) !important; padding-left: 10px !important; color: var(--color-light-my-mention-bubble-fg) !important; }
+        /* === ANPASSUNG FÜR MEHRZEILIGES EINGABEFELD === */
 
+        /* Light Mode Styling für das neue Textarea-Feld */
+        body:not(.dark) #new_alliance_chat .input-group-addon {
+            background-color: var(--color-light-input-addon-bg, #007bff);
+            border: 1px solid var(--color-light-input-border, #dce1e6);
+            color: var(--color-light-input-addon-fg, #ffffff);
+            border-radius: 20px 0 0 20px;
+            font-weight: bold;
+        }
+        body:not(.dark) #alliance_chat_message {
+            background-color: var(--color-light-input-bg, #ffffff);
+            border: 1px solid var(--color-light-input-border, #dce1e6);
+            color: var(--color-light-input-fg, #333333);
+            border-radius: 0 20px 20px 0 !important;
+            padding: 10px 15px;
+            height: auto; /* Wichtig für Auto-Grow */
+            min-height: 38px; /* Start-Höhe */
+            transition: all 0.2s ease;
+            resize: none;
+        }
+        body:not(.dark) #alliance_chat_message:focus {
+            border-color: var(--color-light-input-focus-border, #007bff);
+            box-shadow: 0 0 8px var(--color-light-input-focus-shadow, rgba(0, 123, 255, 0.5));
+            outline: none;
+        }
+
+        /* Dark Mode: Stelle sicher, dass resize 'none' ist und setze min-height */
+        .dark #alliance_chat_message {
+            min-height: 44px; /* Start-Höhe (war schon 44px durch padding) */
+            resize: none;
+        }
 
         /* === PAGE-LOADER STYLES === */
         #lss_load_more_container { text-align: center; padding: 20px 0; }
@@ -1230,11 +1325,14 @@
         try {
             createSettingsUI();
             console.log("[ChatPro] Settings UI created."); // DEBUG
+
+            // HIER DIE NEUE FUNKTION AUFRUFEN
+            replaceInputWithTextarea();
+
         } catch (e) {
              console.error("[ChatPro] Error creating Settings UI:", e); // DEBUG ERROR
         }
     }, 1000);
-
     // 4. Globale Variablen setzen
     myUsername = getMyUsername();
     isDark = document.body.classList.contains('dark');
