@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.4.1
+// @version      4.4.2
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). Inkl. Schnellschalter & sichtbarem Ausblend-Zähler (Fix 3).
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -990,40 +990,67 @@
         proChatTextarea.addEventListener('input', () => {
             autoGrow(proChatTextarea);
 
-            // --- NEUE LOGIK FÜR FLÜSTER-ANZEIGE (MIT /w UND @) ---
+            // --- NEUE LOGIK FÜR FLÜSTER/MENTION-ANZEIGE (v4.4.2) ---
             const text = proChatTextarea.value;
-            let targetName = null;
+            const whisperTargetDisplay = document.getElementById('pro_chat_whisper_target');
+            if (!whisperTargetDisplay) return;
 
-            // Suche nach "/w Name" (auch wenn mehr Text folgt)
+            // Suche nach "/w Name"
             const whisperMatch = text.match(/^\/w\s+([a-zA-Z0-9_-]+)/);
-            // Suche nach "@Name" (auch wenn mehr Text folgt)
+            // Suche nach "@Name"
             const atMatch = text.match(/^@([a-zA-Z0-9_-]+)/);
 
+            let targetName = null;
+            let displayHTML = '';
+            let labelClass = '';
+
             if (whisperMatch && whisperMatch[1]) {
+                // --- FALL 1: FLÜSTERN (/w) ---
                 targetName = whisperMatch[1];
+                labelClass = 'whisper-label';
+                displayHTML = `Mit <span class="${labelClass}">${targetName}</span> flüstern`;
+
             } else if (atMatch && atMatch[1]) {
+                // --- FALL 2: ERWÄHNUNG (@) ---
                 targetName = atMatch[1];
+                // Wir nutzen die existierende CSS-Klasse 'chat-mention' für den @Namen
+                labelClass = 'chat-mention';
+                displayHTML = `<span class="${labelClass}">${targetName}</span> erwähnt`;
             }
 
             // --- ANZEIGE STEUERN ---
             if (targetName) {
                 // Name gefunden, Anzeige einblenden
-                // Nutze die CSS-Klasse "whisper-label" aus dem Skript-Stil
-                whisperTargetDisplay.innerHTML = `Flüstern an: <span class="whisper-label">${targetName}</span>`;
+                whisperTargetDisplay.innerHTML = displayHTML;
 
                 // Wende die korrekten Farben je nach Modus an
                 const label = whisperTargetDisplay.querySelector('span');
-                if (document.body.classList.contains('dark')) {
-                    label.style.backgroundColor = 'var(--color-dark-whisper-label-bg, #f0ad4e)';
-                    label.style.color = 'var(--color-dark-whisper-label-fg, #ffffff)';
-                } else {
-                    label.style.backgroundColor = 'var(--color-light-whisper-label-bg, #f0ad4e)';
-                    label.style.color = 'var(--color-light-whisper-label-fg, #ffffff)';
+                if (label) {
+                    if (label.classList.contains('whisper-label')) {
+                        // Style für .whisper-label (Gelb)
+                        if (document.body.classList.contains('dark')) {
+                            label.style.backgroundColor = 'var(--color-dark-whisper-label-bg, #f0ad4e)';
+                            label.style.color = 'var(--color-dark-whisper-label-fg, #ffffff)';
+                        } else {
+                            label.style.backgroundColor = 'var(--color-light-whisper-label-bg, #f0ad4e)';
+                            label.style.color = 'var(--color-light-whisper-label-fg, #ffffff)';
+                        }
+                    } else if (label.classList.contains('chat-mention')) {
+                        // Style für .chat-mention (wird bei @ genutzt)
+                        if (document.body.classList.contains('dark')) {
+                            label.style.backgroundColor = 'var(--color-dark-mention-bg, #f0ad4e)';
+                            label.style.color = 'var(--color-dark-mention-fg, #332b1f)';
+                        } else {
+                            label.style.backgroundColor = 'var(--color-light-mention-bg, #fff4cc)';
+                            label.style.color = 'var(--color-light-mention-fg, #664d03)';
+                            label.style.border = '1px solid var(--color-light-mention-border, #ffe69c)';
+                        }
+                    }
                 }
-
                 whisperTargetDisplay.style.display = 'block'; // Anzeigen
             } else {
                 // Nichts gefunden, Anzeige ausblenden
+                whisperTargetDisplay.innerHTML = '';
                 whisperTargetDisplay.style.display = 'none'; // Ausblenden
             }
             // --- ENDE NEUE LOGIK ---
@@ -1426,19 +1453,22 @@
     } catch (e) {
         console.error("[ChatPro] Error starting global observer:", e); // DEBUG ERROR
     }
-    // 8. Globalen Klick-Listener für Flüster-Icons hinzufügen
+    // 8. Globalen Klick-Listener für Flüster- & Reply-Icons hinzufügen
     document.addEventListener('click', (e) => {
-        // Prüfe, ob auf ein Whisper-Icon geklickt wurde
-        const link = e.target.closest('a.alliance_chat_private_username');
+        // Prüfe, ob auf ein Whisper-Icon (<a> oder <img>) ODER ein Reply-Icon (<img>) geklickt wurde
+        // (Das Spiel nutzt 'a.alliance_chat_private_username' und 'img.alliance_chat_copy_username')
+        const whisperIcon = e.target.closest('a.alliance_chat_private_username, img.alliance_chat_private_username');
+        const replyIcon = e.target.closest('img.alliance_chat_copy_username');
 
         // Prüfe auch, ob unser Textfeld schon existiert
-        if (link && proChatTextarea) {
-            // Warte 50ms, damit das Spiel-Skript das /w... einfügen kann
+        if ((whisperIcon || replyIcon) && proChatTextarea) {
+
+            // Warte 50ms, damit das Spiel-Skript das /w... oder @... in das Feld einfügen kann
             setTimeout(() => {
                 // Erzwinge ein 'input'-Event auf unserem Textfeld.
-                // Das löst unsere Logik in 'replaceInputWithTextarea' aus.
+                // Das löst unsere neue Logik im input-Listener (von Änderung 1) aus.
                 proChatTextarea.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            }, 50);
+            }, 50); // 50ms ist meist ausreichend
         }
     });
 
