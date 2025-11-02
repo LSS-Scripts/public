@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.4.3
+// @version      4.4.4
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). Inkl. Schnellschalter & sichtbarem Ausblend-Zähler (Fix 3).
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -55,6 +55,11 @@
         'dark_input_addon_bg': '#7289da', 'dark_input_addon_fg': '#ffffff', 'dark_scrollbar_track': '#23272a',
         'dark_scrollbar_thumb': '#40444b', 'dark_scrollbar_thumb_hover': '#555a63', 'dark_ban_bg': '#d9534f', 'dark_ban_fg': '#ffffff',
         'dark_icon_bg_hover': '#40444b',
+        // NEU: Einsatz-Hervorhebung
+        'dark_mission_bg': '#5865f2', // Discord-Lila/Blau
+        'dark_mission_fg': '#ffffff',
+        'dark_mission_border': '#4e5bd0',
+        'dark_mission_icon_fg': '#ffffff',
         // --- Light Mode Farben ---
         'light_header_bg': '#f9f9f9', 'light_header_fg': '#333333', 'light_header_border': '#dce1e6',
         'light_body_bg': '#f0f4f7', 'light_body_fg': '#111111', 'light_chat_bg': '#e5eef3', 'light_chat_border': '#dce1e6',
@@ -68,6 +73,11 @@
         'light_input_focus_shadow': 'rgba(0, 123, 255, 0.5)', 'light_input_addon_bg': '#007bff', 'light_input_addon_fg': '#ffffff',
         'light_scrollbar_track': '#e5eef3', 'light_scrollbar_thumb': '#b0c0ce', 'light_scrollbar_thumb_hover': '#98a9b9',
         'light_ban_bg': '#f2dede', 'light_ban_fg': '#a94442', 'light_ban_border': '#ebccd1', 'light_icon_bg_hover': '#dce1e6',
+        // NEU: Einsatz-Hervorhebung
+        'light_mission_bg': '#e6f0ff', // Helles Blau
+        'light_mission_fg': '#0056b3',
+        'light_mission_border': '#b3d1ff',
+        'light_mission_icon_fg': '#007bff',
     };
 
     // === EINSTELLUNGS-FUNKTIONEN ===
@@ -244,6 +254,10 @@
                 { key: 'dark_whisper_label_fg', label: 'Flüstern-Label (Text)' }, { key: 'dark_my_mention_bubble_bg', label: 'Eigene @-Blase (Hintergrund)' },
                 { key: 'dark_my_mention_bubble_fg', label: 'Eigene @-Blase (Text)' }, { key: 'dark_my_mention_bubble_border', label: 'Eigene @-Blase (Rand)' },
                 { key: 'dark_mention_bg', label: 'Text-Mention (Hintergrund)' }, { key: 'dark_mention_fg', label: 'Text-Mention (Text)' },
+                { key: 'dark_mission_bg', label: 'Einsatz-Link (Hintergrund)' },
+                { key: 'dark_mission_fg', label: 'Einsatz-Link (Text)' },
+                { key: 'dark_mission_border', label: 'Einsatz-Link (Rand)' },
+                { key: 'dark_mission_icon_fg', label: 'Einsatz-Link (Icon)' },
             ],
             'settings-group-dark-input': [
                 { key: 'dark_input_bg', label: 'Eingabefeld (Hintergrund)' }, { key: 'dark_input_fg', label: 'Eingabefeld (Text)' },
@@ -269,6 +283,10 @@
                 { key: 'light_whisper_label_fg', label: 'Flüstern-Label (Text)' }, { key: 'light_my_mention_bubble_bg', label: 'Eigene @-Blase (Hintergrund)' },
                 { key: 'light_my_mention_bubble_fg', label: 'Eigene @-Blase (Text)' }, { key: 'light_my_mention_bubble_border', label: 'Eigene @-Blase (Rand)' },
                 { key: 'light_mention_bg', label: 'Text-Mention (Hintergrund)' }, { key: 'light_mention_fg', label: 'Text-Mention (Text)' }, { key: 'light_mention_border', label: 'Text-Mention (Rand)' },
+                { key: 'light_mission_bg', label: 'Einsatz-Link (Hintergrund)' },
+                { key: 'light_mission_fg', label: 'Einsatz-Link (Text)' },
+                { key: 'light_mission_border', label: 'Einsatz-Link (Rand)' },
+                { key: 'light_mission_icon_fg', label: 'Einsatz-Link (Icon)' },
             ],
             'settings-group-light-input': [
                 { key: 'light_input_bg', label: 'Eingabefeld (Hintergrund)' }, { key: 'light_input_fg', label: 'Eingabefeld (Text)' }, { key: 'light_input_border', label: 'Eingabefeld (Rand)' },
@@ -686,6 +704,20 @@
                 firstMentionSpan.remove();
             }
         }
+        // 7. NEU: Einsatz-Links hervorheben
+        node.querySelectorAll('a[href^="/missions/"]').forEach(missionLink => {
+            // Prüfen, ob es ein "echter" Einsatzlink ist (mit Icon)
+            const icon = missionLink.querySelector('span.glyphicon');
+            if (icon) {
+                missionLink.classList.add('pro-chat-mission-link');
+
+                // NEU: Text-Span finden und Klammern entfernen
+                const textSpan = missionLink.querySelector('span:not(.glyphicon)');
+                if (textSpan && textSpan.textContent) {
+                    textSpan.textContent = textSpan.textContent.replace(/[\[\]]/g, '');
+                }
+            }
+        });
         node.dataset.proChatFormatted = 'true';
     }
 
@@ -747,6 +779,19 @@
                         }
                     });
                     child.replaceWith(fragment);
+          // 4. NEU: Einsatz-Links hervorheben
+          p.querySelectorAll('a[href^="/missions/"]').forEach(missionLink => {
+            const icon = missionLink.querySelector('span.glyphicon');
+            if (icon) {
+                missionLink.classList.add('pro-chat-mission-link');
+
+                // NEU: Text-Span finden und Klammern entfernen
+                const textSpan = missionLink.querySelector('span:not(.glyphicon)');
+                if (textSpan && textSpan.textContent) {
+                    textSpan.textContent = textSpan.textContent.replace(/[\[\]]/g, '');
+                }
+            }
+        });
                 }
             }
         }
@@ -1127,9 +1172,9 @@
         /* === BLOCKER-UI STYLES === */
         .lss-switch { position: relative; display: inline-block; width: 50px; height: 24px; vertical-align: middle; }
         .lss-switch input { opacity: 0; width: 0; height: 0; }
-        .lss-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #777 !important; transition: .4s; border-radius: 24px; }
+        .lss-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #777; transition: .4s; border-radius: 24px; }
         .lss-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .lss-slider { background-color: #28a745 !important; }
+        input:checked + .lss-slider { background-color: #28a745; }
         input:checked + .lss-slider:before { transform: translateX(26px); }
         .lss-switch.lss-switch-xs { width: 34px; height: 20px; }
         .lss-switch.lss-switch-xs .lss-slider:before { height: 14px; width: 14px; left: 3px; bottom: 3px; }
@@ -1302,10 +1347,83 @@
         body:not(.dark) #chat_panel_heading { background-image: none !important; background-color: var(--color-light-header-bg, #f9f9f9) !important; color: var(--color-light-header-fg, #333333) !important; border-bottom: 1px solid var(--color-light-header-border, #dce1e6); font-weight: bold; padding: 10px 15px; }
         body:not(.dark) #chat_panel_heading .btn-default { background-color: var(--color-light-body-bg, #f0f4f7); border: 1px solid var(--color-light-header-border, #dce1e6); color: var(--color-light-header-fg, #333333); opacity: 0.8; transition: all 0.2s ease; }
         body:not(.dark) #chat_panel_heading .btn-default:hover { opacity: 1; background-color: var(--color-light-chat-bg, #e5eef3); }
-        /* ... (restliche Light Mode Regeln, inklusive Whisper/Mention Fix) ... */
+        body:not(.dark) #chat_panel_heading .dropdown-menu { background-color: var(--color-light-header-bg, #f9f9f9); border: 1px solid var(--color-light-header-border, #dce1e6); }
+        body:not(.dark) #chat_panel_heading .dropdown-menu > li > a { color: var(--color-light-header-fg, #333333); }
+        body:not(.dark) #chat_panel_heading .dropdown-menu > li > a:hover { background-color: var(--color-light-my-bubble-bg, #007bff); color: var(--color-light-my-bubble-fg, #ffffff); }
+        body:not(.dark) #chat_panel_body, body:not(.dark) #alliance_chat { background-color: var(--color-light-body-bg, #f0f4f7) !important; color: var(--color-light-body-fg, #111111) !important; border: none !important; }
+        body:not(.dark) body[pathname^="/alliance_chats"] #missions-board-body > .container-fluid > .row:first-child > .col-md-9 { background-color: var(--color-light-chat-bg, #e5eef3); border-top: 1px solid var(--color-light-chat-border, #dce1e6); }
+        body:not(.dark) #mission_chat_messages { background-color: var(--color-light-chat-bg, #e5eef3); border-top: 1px solid var(--color-light-chat-border, #dce1e6); }
+        body:not(.dark) .mission_chat_message_username { font-weight: bold; display: block; margin-bottom: 4px; color: var(--color-light-username-fg, #111111); }
+        body:not(.dark) .mission_chat_message_username .chat-username { text-decoration: none; transition: all 0.2s ease; }
+        body:not(.dark) .mission_chat_message_username .chat-username:hover { text-decoration: underline; filter: brightness(0.8); }
+        body:not(.dark) .chat-message-own:not(.chatWhisper):not(.chatToSelf) .mission_chat_message_username .chat-username,
+        body:not(.dark) .well.chat-message-own .mission_chat_message_username .chat-username { color: var(--color-light-my-bubble-fg, #ffffff) !important; }
+        body:not(.dark) .chat-timestamp-bubble { background-color: var(--color-light-timestamp-bg, #dce1e6); color: var(--color-light-timestamp-fg, #555555); }
+        body:not(.dark) .chat-whisper-divider { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 448 512' fill='%23777777'%3E%3Cpath d='M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z'/%3E%3C/svg%3E"); }
+        body:not(.dark) .chat-message-own, body:not(.dark) .well.chat-message-own { background-color: var(--color-light-my-bubble-bg, #007bff) !important; color: var(--color-light-my-bubble-fg, #ffffff) !important; }
+        body:not(.dark) .chat-message-other, body:not(.dark) .well.chat-message-other { background-color: var(--color-light-other-bubble-bg, #ffffff) !important; color: var(--color-light-other-bubble_fg, #222222) !important; }
         body:not(.dark) #mission_chat_messages li.chatWhisper { background-color: var(--color-light-whisper-bg) !important; border-left: 4px solid var(--color-light-whisper-border) !important; padding-left: 10px !important; color: var(--color-light-whisper-fg) !important; }
         body:not(.dark) #mission_chat_messages li.chatWhisper.chat-message-own { background-color: var(--color-light-my-whisper-bg) !important; color: var(--color-light-my-whisper-fg) !important; }
+        body:not(.dark) .whisper-label { background-color: var(--color-light-whisper-label-bg) !important; color: var(--color-light-whisper-label-fg) !important; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin: 0 4px; font-size: 0.9em; }
         body:not(.dark) #mission_chat_messages li.chatToSelf:not(.chatWhisper) { background-color: var(--color-light-my-mention-bubble-bg) !important; border-left: 4px solid var(--color-light-my-mention-bubble-border) !important; padding-left: 10px !important; color: var(--color-light-my-mention-bubble-fg) !important; }
+        body:not(.dark) .chat-mention { background-color: var(--color-light-mention-bg, #fff4cc); color: var(--color-light-mention-fg, #664d03); border: 1px solid var(--color-light-mention-border, #ffe69c); }
+        body:not(.dark) #new_alliance_chat { padding: 10px; background-color: var(--color-light-body-bg, #f0f4f7); border-top: 1px solid var(--color-light-chat-border, #dce1e6); }
+        body:not(.dark) #new_alliance_chat .input-group-addon { background-color: var(--color-light-input-addon-bg, #007bff); border: 1px solid var(--color-light-input-border, #dce1e6); color: var(--color-light-input-addon-fg, #ffffff); border-radius: 20px 0 0 20px; font-weight: bold; }
+        body:not(.dark) #alliance_chat_message { background-color: var(--color-light-input-bg, #ffffff); border: 1px solid var(--color-light-input-border, #dce1e6); color: var(--color-light-input-fg, #333333); border-radius: 0 20px 20px 0 !important; padding: 10px 15px; height: auto; min-height: 38px; transition: all 0.2s ease; resize: none; }
+        body:not(.dark) #alliance_chat_message:focus { background-color: var(--color-light-input-bg, #ffffff); border-color: var(--color-light-input-focus-border, #007bff); box-shadow: 0 0 8px var(--color-light-input-focus-shadow, rgba(0, 123, 255, 0.5)); outline: none; }
+        body:not(.dark) img.alliance_chat_copy_username { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640' fill='%23777777'%3E%3Cpath d='M115.9 448.9C83.3 408.6 64 358.4 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304C576 436.5 461.4 544 320 544C283.5 544 248.8 536.8 217.4 524L101 573.9C97.3 575.5 93.5 576 89.5 576C75.4 576 64 564.6 64 550.5C64 546.2 65.1 542 67.1 538.3L115.9 448.9zM153.2 418.7C165.4 433.8 167.3 454.8 158 471.9L140 505L198.5 479.9C210.3 474.8 223.7 474.7 235.6 479.6C261.3 490.1 289.8 496 319.9 496C437.7 496 527.9 407.2 527.9 304C527.9 200.8 437.8 112 320 112C202.2 112 112 200.8 112 304C112 346.8 127.1 386.4 153.2 418.7z'/%3E%3C/svg%3E"); }
+        body:not(.dark) img.alliance_chat_private_username { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640' fill='%23777777'%3E%3Cpath d='M405.5 349.6C439.2 349.6 487.8 342.7 487.8 302.6C488 295.9 488.7 300.8 466.9 206.4C462.3 187.3 458.2 178.6 424.6 161.8C398.5 148.5 341.7 126.4 324.9 126.4C309.2 126.4 304.7 146.6 286 146.6C268 146.6 254.7 131.5 237.9 131.5C221.8 131.5 211.2 142.5 203.1 165.1C175.6 242.7 176.8 239.4 177 243.4C177 268.2 274.6 349.5 405.5 349.5zM493 318.8C497.7 340.8 497.7 343.1 497.7 346C497.7 383.7 455.4 404.6 399.7 404.6C274 404.7 163.8 331 163.8 282.3C163.8 275.5 165.2 268.8 167.9 262.6C122.7 264.9 64.1 272.9 64.1 324.6C64.1 409.3 264.7 513.6 423.6 513.6C545.4 513.6 576.1 458.5 576.1 415C576.1 380.8 546.5 342 493.2 318.8z'/%3E%3C/svg%3E"); }
+        body:not(.dark) img.alliance_chat_copy_username:hover { background-color: var(--color-light-icon-bg-hover, #dce1e6); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640' fill='%23000000'%3E%3Cpath d='M115.9 448.9C83.3 408.6 64 358.4 64 304C64 171.5 178.6 64 320 64C461.4 64 576 171.5 576 304C576 436.5 461.4 544 320 544C283.5 544 248.8 536.8 217.4 524L101 573.9C97.3 575.5 93.5 576 89.5 576C75.4 576 64 564.6 64 550.5C64 546.2 65.1 542 67.1 538.3L115.9 448.9zM153.2 418.7C165.4 433.8 167.3 454.8 158 471.9L140 505L198.5 479.9C210.3 474.8 223.7 474.7 235.6 479.6C261.3 490.1 289.8 496 319.9 496C437.7 496 527.9 407.2 527.9 304C527.9 200.8 437.8 112 320 112C202.2 112 112 200.8 112 304C112 346.8 127.1 386.4 153.2 418.7z'/%3E%3C/svg%3E"); }
+        body:not(.dark) img.alliance_chat_private_username:hover { background-color: var(--color-light-icon-bg-hover, #dce1e6); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 640 640' fill='%23000000'%3E%3Cpath d='M405.5 349.6C439.2 349.6 487.8 342.7 487.8 302.6C488 295.9 488.7 300.8 466.9 206.4C462.3 187.3 458.2 178.6 424.6 161.8C398.5 148.5 341.7 126.4 324.9 126.4C309.2 126.4 304.7 146.6 286 146.6C268 146.6 254.7 131.5 237.9 131.5C221.8 131.5 211.2 142.5 203.1 165.1C175.6 242.7 176.8 239.4 177 243.4C177 268.2 274.6 349.5 405.5 349.5zM493 318.8C497.7 340.8 497.7 343.1 497.7 346C497.7 383.7 455.4 404.6 399.7 404.6C274 404.7 163.8 331 163.8 282.3C163.8 275.5 165.2 268.8 167.9 262.6C122.7 264.9 64.1 272.9 64.1 324.6C64.1 409.3 264.7 513.6 423.6 513.6C545.4 513.6 576.1 458.5 576.1 415C576.1 380.8 546.5 342 493.2 318.8z'/%3E%3C/svg%3E"); }
+        body:not(.dark) .chat-status-bubble { box-shadow: 0 0 4px #45a12d; }
+        body:not(.dark) #mission_chat_messages::-webkit-scrollbar, body:not(.dark) body[pathname^="/alliance_chats"] #missions-board-body > .container-fluid > .row:first-child > .col-md-9::-webkit-scrollbar { width: 8px; }
+        body:not(.dark) #mission_chat_messages::-webkit-scrollbar-track, body:not(.dark) body[pathname^="/alliance_chats"] #missions-board-body > .container-fluid > .row:first-child > .col-md-9::-webkit-scrollbar-track { background: var(--color-light-scrollbar-track, #e5eef3); border-radius: 4px; }
+        body:not(.dark) #mission_chat_messages::-webkit-scrollbar-thumb, body:not(.dark) body[pathname^="/alliance_chats"] #missions-board-body > .container-fluid > .row:first-child > .col-md-9::-webkit-scrollbar-thumb { background-color: var(--color-light-scrollbar-thumb, #b0c0ce); border-radius: 4px; border: 2px solid var(--color-light-scrollbar-track, #e5eef3); }
+        body:not(.dark) #mission_chat_messages::-webkit-scrollbar-thumb:hover, body:not(.dark) body[pathname^="/alliance_chats"] #missions-board-body > .container-fluid > .row:first-child > .col-md-9::-webkit-scrollbar-thumb:hover { background-color: var(--color-light-scrollbar-thumb-hover, #98a9b9); }
+        body:not(.dark) #mission_chat_ban_message { background-color: var(--color-light-ban-bg, #f2dede); color: var(--color-light-ban-fg, #a94442); border: 1px solid var(--color-light-ban-border, #ebccd1); }
+        body:not(.dark) .btn.pull-right[href="/alliance_chats"] { margin: 10px; background-color: var(--color-light-header-bg, #f9f9f9); border: 1px solid var(--color-light-header-border, #dce1e6); color: var(--color-light-header-fg, #333333); border-radius: 20px; }
+        body:not(.dark) .btn.pull-right[href="/alliance_chats"]:hover { background-color: var(--color-light-chat-bg, #e5eef3); color: var(--color-light-my-bubble-bg, #007bff); }
+        /* === NEU: Einsatz-Hervorhebung === */
+        .pro-chat-mission-link {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            text-decoration: none !important;
+            margin: 2px 0;
+            transition: all 0.2s ease;
+            font-weight: bold;
+            border: 1px solid transparent; /* Wichtig für Layout-Stabilität */
+        }
+        .pro-chat-mission-link .glyphicon {
+            margin-right: 5px;
+            font-size: 0.9em;
+        }
+        /* Dark Mode */
+        .dark .pro-chat-mission-link {
+            background-color: var(--color-dark-mission-bg);
+            color: var(--color-dark-mission-fg) !important;
+            border-color: var(--color-dark-mission-border);
+        }
+        .dark .pro-chat-mission-link .glyphicon {
+            color: var(--color-dark-mission-icon-fg);
+        }
+        .dark .pro-chat-mission-link:hover {
+            filter: brightness(1.2);
+            text-decoration: none !important;
+        }
+        /* Light Mode */
+        body:not(.dark) .pro-chat-mission-link {
+            background-color: var(--color-light-mission-bg);
+            color: var(--color-light-mission-fg) !important;
+            border-color: var(--color-light-mission-border);
+        }
+        body:not(.dark) .pro-chat-mission-link .glyphicon {
+            color: var(--color-light-mission-icon-fg);
+        }
+        body:not(.dark) .pro-chat-mission-link:hover {
+            filter: brightness(0.95);
+            text-decoration: none !important;
+        }
         /* === ANPASSUNG FÜR MEHRZEILIGES EINGABEFELD === */
 
         /* Light Mode Styling für das neue Textarea-Feld */
