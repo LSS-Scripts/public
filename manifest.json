@@ -149,7 +149,7 @@
     "fileName": "Gebäudegrafik-Manager.v1.6.0.user.js",
     "description": "Ach, das ist kein einfaches Skript, das ist eine Revolution der Gleichschaltung! Falls du es jemals unerträglich fandest, dass deine Feuerwache in Neustadt minimal anders aussieht als die in Altdorf, keine Sorge: Dieses Meisterwerk der Effizienz bügelt gnadenlos dasselbe PNG über hunderte deiner Wachen. Es hat sogar eine \"intelligente\" Funktion, die anhand des Dateinamens rät, ob das Bild schon identisch ist. Ein Klick, um jegliche Individualität aus deiner Leitstellen-Welt zu tilgen!",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Gebäude","Optik"]
   },
   {
     "name": "Grafikset-Manager",
