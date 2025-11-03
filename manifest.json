@@ -144,6 +144,14 @@
     "categories": ["Alarmierung","Fahrzeuge"]
   },
   {
+    "name": "Gebäudegrafik-Manager",
+    "version": "1.6.0",
+    "fileName": "Gebäudegrafik-Manager.v1.6.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Grafikset-Manager",
     "version": "9.1.0",
     "fileName": "Grafikset-Manager.v9.1.0.user.js",
