@@ -233,8 +233,8 @@
   },
   {
     "name": "Reale Gebäudeliste",
-    "version": "1.2.6",
-    "fileName": "Reale Gebäudeliste.v1.2.6.user.js",
+    "version": "0.5.0",
+    "fileName": "Reale Gebäudeliste.v0.5.0.user.js",
     "description": "BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA <br><br>holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. <br><br>Nicht auf dunkles Design gemappt!",
     "changelog": "",
     "categories": ["Gebäude"]
