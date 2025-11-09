@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Leitstellenspiel Gebäude- & Personalstatistik (V9.2)
+// @name         Leitstellenspiel Gebäude- & Personalstatistik (V9.6)
 // @namespace    http://tampermonkey.net/
 // @version      9.6
 // @description  Zählt Personal, Wachen pro Leitstelle (mit % und Aktiv/Inaktiv-Status), inkl. Deaktivierungs-Aktion (Blaues Theme)
