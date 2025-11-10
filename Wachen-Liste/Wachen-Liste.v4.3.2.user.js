@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel Wachen-Übersicht (Dark-Mode-Design) [Angepasst für B&M Manager]
 // @namespace    http://tampermonkey.net/
-// @version      4.3.1
-// @description  Korrekte Stellplatz-Berechnung für Rettungswachen (+10 für Großwache). Lädt Abhängigkeiten selbst.
+// @version      4.3.2-PERF-OPTIMIZED
+// @description  Korrekte Stellplatz-Berechnung für Rettungswachen (+10 für Großwache). Lädt Abhängigkeiten selbst. Performance-Optimierung by Gemini.
 // @author       Masklin / Anpassung von Gemini
 // @match        https://www.leitstellenspiel.de/
 // @grant        GM_addStyle
@@ -83,6 +83,19 @@
         6: 'Polizeiwache'
     };
 
+    // ### NEU: Performance-Optimierungen ###
+    let filterDebounceTimer = null;
+    // Dieses Objekt wird die aktuellen Filtereinstellungen speichern (Cache)
+    let currentFilters = {
+        activeTypes: [],
+        name: '',
+        minLevel: 0,
+        maxLevel: 0,
+        extensionRules: []
+    };
+    // ### ENDE NEU ###
+
+
     function formatDate(isoString) { return new Date(isoString).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' Uhr'; }
 
     function closeModal() {
@@ -96,6 +109,32 @@
             modal.remove();
         }
     }
+
+    // ### NEU: Liest alle Filter aus dem DOM und speichert sie im 'currentFilters'-Objekt
+    function updateCachedFilters() {
+        currentFilters.activeTypes = Array.from(document.querySelectorAll('.building-type-filter.active')).map(el => parseInt(el.dataset.type, 10));
+        currentFilters.name = $('#nameFilter').val().toLowerCase();
+        currentFilters.minLevel = parseInt($('#levelFilterMin').val(), 10);
+        currentFilters.maxLevel = parseInt($('#levelFilterMax').val(), 10);
+
+        currentFilters.extensionRules = Array.from(document.querySelectorAll('#extensionFiltersContainer .filter-row')).map(row => {
+            const condition = row.querySelector('.condition-select').value;
+            const extName = row.querySelector('.extension-select').value;
+            return { condition, extName };
+        });
+    }
+
+    // ### NEU: Funktion, die das Filtern auslöst (mit Debouncing)
+    function triggerFilteredDraw() {
+        clearTimeout(filterDebounceTimer);
+        filterDebounceTimer = setTimeout(() => {
+            updateCachedFilters(); // Filterwerte 1x lesen
+            if (wachenTableInstance) {
+                wachenTableInstance.draw(); // Tabelle neu zeichnen (Filterfunktion wird aufgerufen)
+            }
+        }, 300); // 300ms Verzögerung
+    }
+
 
     async function showWachenModal() {
         if (document.getElementById('wachenUebersichtModal')) return;
@@ -140,6 +179,7 @@
             modalContent.querySelector('.lss-modal-close').addEventListener('click', closeModal);
 
             const updateExtensionFilterOptions = () => {
+                // ### GEÄNDERT: Liest Typen aus dem DOM, da dies VOR dem Caching passiert
                 const activeTypes = Array.from(document.querySelectorAll('.building-type-filter.active')).map(el => parseInt(el.dataset.type, 10));
                 const relevantExtensions = new Set();
                 allBuildings
@@ -150,10 +190,11 @@
                 document.querySelectorAll('#extensionFiltersContainer .extension-select').forEach(sel => sel.innerHTML = newOptions);
             };
 
+            // ### GEÄNDERT: Alle 'draw()' Aufrufe durch 'triggerFilteredDraw()' ersetzt ###
             $('.building-type-filter').on('click', function() {
                 $(this).toggleClass('active');
                 updateExtensionFilterOptions();
-                wachenTableInstance.draw();
+                triggerFilteredDraw(); // GEÄNDERT
             });
 
             const addFilterRowFunc = () => {
@@ -162,37 +203,72 @@
                 newRow.innerHTML = `<select class="condition-select"><option value="has">Hat Erweiterung</option><option value="not_has">Hat NICHT</option><option value="is_building">im Bau</option></select><select class="extension-select"></select><button class="remove-filter-btn">&times;</button>`;
                 $('#extensionFiltersContainer').append(newRow);
                 updateExtensionFilterOptions();
-                wachenTableInstance.draw();
             };
 
-            $('#addExtensionFilterBtn').on('click', addFilterRowFunc);
-            $('#extensionFiltersContainer').on('click', '.remove-filter-btn', function() { $(this).closest('.filter-row').remove(); wachenTableInstance.draw(); });
-            $('#extensionFiltersContainer').on('change', 'select', () => wachenTableInstance.draw());
+            $('#addExtensionFilterBtn').on('click', () => { // GEÄNDERT (Funktion ausgelagert, damit wir draw aufrufen können)
+                 addFilterRowFunc();
+                 triggerFilteredDraw(); // GEÄNDERT
+            });
+            $('#extensionFiltersContainer').on('click', '.remove-filter-btn', function() { $(this).closest('.filter-row').remove(); triggerFilteredDraw(); }); // GEÄNDERT
+            $('#extensionFiltersContainer').on('change', 'select', triggerFilteredDraw); // GEÄNDERT
 
+            // ### GEÄNDERT: tableData enthält jetzt Rohdaten für schnelles Sortieren
             const tableData = relevantBuildings.map(station => {
                 let stellplaetze = station.level + 1;
-                // ### NEU: Stellplatzlogik für Großwache um Rettungswachen erweitert ###
                 if ([0, 2, 6].includes(station.building_type) && station.extensions.some(e => e.caption === 'Großwache')) {
                     stellplaetze += 10;
                 }
 
                 const belegt = vehicleCounts[station.id] || 0;
                 const frei = stellplaetze - belegt;
-                const extensionsList = station.extensions.length > 0 ? station.extensions.map(ext => {
-                    let status = ext.available_at ? ` (im Bau bis ${formatDate(ext.available_at)})` : '';
-                    return `&bull; ${ext.caption}${status}`;
-                }).join('<br>') : 'Keine Erweiterungen';
-                const tooltipTitle = `Erweiterungen:\n${extensionsList.replace(/<br>/g, '\n').replace(/&bull; /g, '• ')}`;
-                const stationLink = `<a href="/buildings/${station.id}" target="_blank" rel="noopener noreferrer" title="${tooltipTitle}">${station.caption}</a>`;
 
-                return [stationLink, buildingTypeNames[station.building_type], station.personal_count, stellplaetze, belegt, frei];
+                // Wir übergeben die Rohdaten. Das HTML wird später von 'render' erzeugt.
+                return [
+                    station.caption, // Spalte 0 (für Sortierung)
+                    buildingTypeNames[station.building_type], // Spalte 1
+                    station.personal_count, // Spalte 2
+                    stellplaetze, // Spalte 3
+                    belegt, // Spalte 4
+                    frei, // Spalte 5
+                    { id: station.id, extensions: station.extensions } // Spalte 6 (Metadaten für 'render')
+                ];
             });
 
             wachenTableInstance = $('#wachenTable').DataTable({
                 data: tableData,
-                columns: [ { title: "Name" }, { title: "Typ" }, { title: "Personal" }, { title: "Stellplätze" }, { title: "Belegt" }, { title: "Frei" } ],
+                // ### NEU: Optimierung 4 - Nur sichtbare Zeilen im DOM erstellen
+                deferRender: true,
+                columns: [
+                    // ### GEÄNDERT: Optimierung 3 - 'render' Funktion zur HTML-Erstellung
+                    {
+                        title: "Name",
+                        data: 0, // Nimm Daten aus Spalte 0 (caption)
+                        render: function(data, type, row) {
+                            // 'data' ist der Inhalt von Spalte 0 (caption)
+                            // 'row' ist das ganze Array für die Zeile
+                            const caption = data;
+                            const stationMeta = row[6]; // Nimm Metadaten aus Spalte 6
+
+                            // Baue den Tooltip nur bei Bedarf (beim Rendern)
+                            const extensionsList = stationMeta.extensions.length > 0 ? stationMeta.extensions.map(ext => {
+                                let status = ext.available_at ? ` (im Bau bis ${formatDate(ext.available_at)})` : '';
+                                return `&bull; ${ext.caption}${status}`;
+                            }).join('<br>') : 'Keine Erweiterungen';
+                            const tooltipTitle = `Erweiterungen:\n${extensionsList.replace(/<br>/g, '\n').replace(/&bull; /g, '• ')}`;
+
+                            return `<a href="/buildings/${stationMeta.id}" target="_blank" rel="noopener noreferrer" title="${tooltipTitle}">${caption}</a>`;
+                        }
+                    },
+                    { title: "Typ", data: 1 },
+                    { title: "Personal", data: 2 },
+                    { title: "Stellplätze", data: 3 },
+                    { title: "Belegt", data: 4 },
+                    { title: "Frei", data: 5 },
+                    { data: 6, visible: false } // Spalte 6 (Metadaten) ausblenden
+                ],
                 dom: 'lrtip',
                 createdRow: (row, data) => {
+                    // data[5] ist der Wert 'frei'
                     const freiCell = $('td:eq(5)', row);
                     freiCell.css('font-weight', 'bold').css('color', data[5] > 0 ? '#52d68a' : (data[5] < 0 ? '#e03c31' : ''));
                 },
@@ -200,39 +276,55 @@
                 language: { lengthMenu: "_MENU_ Einträge", info: "Zeige _START_ bis _END_ von _TOTAL_", infoEmpty: "Nichts gefunden", infoFiltered: "(gefiltert aus _MAX_)", paginate: { previous: "Zurück", next: "Weiter" } }
             });
 
-            $('#nameFilter').on('keyup', () => wachenTableInstance.draw());
+            // ### GEÄNDERT: Alle 'draw()' Aufrufe durch 'triggerFilteredDraw()' ersetzt ###
+            $('#nameFilter').on('keyup', triggerFilteredDraw); // GEÄNDERT
             $('#levelFilterMin, #levelFilterMax').on('input', function() {
                 $(`#levelValue${$(this).attr('id').replace('levelFilter', '')}`).text($(this).val());
-                wachenTableInstance.draw();
+                triggerFilteredDraw(); // GEÄNDERT
             });
 
+            // ### GEÄNDERT: Filterfunktion greift jetzt auf den schnellen 'currentFilters' Cache zu
             customFilterFunction = function(settings, data, dataIndex) {
                 const station = relevantBuildings[dataIndex];
                 if (!station) return false;
-                const activeTypes = Array.from(document.querySelectorAll('.building-type-filter.active')).map(el => parseInt(el.dataset.type, 10));
-                if (!activeTypes.includes(station.building_type)) return false;
-                const nameFilter = $('#nameFilter').val().toLowerCase();
-                if (nameFilter && !station.caption.toLowerCase().includes(nameFilter)) return false;
-                const minLevel = parseInt($('#levelFilterMin').val(), 10);
-                const maxLevel = parseInt($('#levelFilterMax').val(), 10);
-                if (station.level < minLevel || station.level > maxLevel) return false;
+
+                // 1. Prüfe Typ (schnell, aus Cache)
+                if (!currentFilters.activeTypes.includes(station.building_type)) return false;
+
+                // 2. Prüfe Name (schnell, aus Cache)
+                if (currentFilters.name && !station.caption.toLowerCase().includes(currentFilters.name)) return false;
+
+                // 3. Prüfe Level (schnell, aus Cache)
+                if (station.level < currentFilters.minLevel || station.level > currentFilters.maxLevel) return false;
+
+                // 4. Prüfe Erweiterungen (schnell, aus Cache)
                 let allRulesMet = true;
-                document.querySelectorAll('#extensionFiltersContainer .filter-row').forEach(row => {
-                    if (!allRulesMet) return;
-                    const condition = row.querySelector('.condition-select').value;
-                    const extName = row.querySelector('.extension-select').value;
-                    if (!extName) return;
-                    switch (condition) {
-                        case 'has': if (!station.extensions.some(e => e.caption === extName && e.enabled)) allRulesMet = false; break;
-                        case 'not_has': if (station.extensions.some(e => e.caption === extName)) allRulesMet = false; break;
-                        case 'is_building': if (!station.extensions.some(e => e.caption === extName && e.available_at)) allRulesMet = false; break;
+                for (const rule of currentFilters.extensionRules) {
+                    if (!rule.extName) continue;
+                    let ruleMet = false;
+                    switch (rule.condition) {
+                        case 'has':
+                            if (station.extensions.some(e => e.caption === rule.extName && e.enabled)) ruleMet = true;
+                            break;
+                        case 'not_has':
+                            if (!station.extensions.some(e => e.caption === rule.extName)) ruleMet = true;
+                            break;
+                        case 'is_building':
+                            if (station.extensions.some(e => e.caption === rule.extName && e.available_at)) ruleMet = true;
+                            break;
                     }
-                });
+                    if (!ruleMet) {
+                        allRulesMet = false;
+                        break; // Breche die 'for' Schleife ab, eine Regel wurde nicht erfüllt
+                    }
+                }
                 return allRulesMet;
             };
             $.fn.dataTable.ext.search.push(customFilterFunction);
 
             updateExtensionFilterOptions();
+            // ### NEU: Filter-Cache einmal initial füllen und Tabelle zeichnen
+            updateCachedFilters();
             wachenTableInstance.draw();
 
         } catch (error) {
