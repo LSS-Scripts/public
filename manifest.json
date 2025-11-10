@@ -297,8 +297,8 @@
   },
   {
     "name": "Wachen-Liste",
-    "version": "4.3.1",
-    "fileName": "Wachen-Liste.v4.3.1.user.js",
+    "version": "4.3.2",
+    "fileName": "Wachen-Liste.v4.3.2.user.js",
     "description": "Stellt eine Wachenliste (Name, Personal, Stellplätze, FREIE Stellplätze) bereit, filter- und sortierbar.<br><br>Aktuell NUR für Feuerwachen, Rettungswachen dun Polizeiwachen. Weitere Wachentypen werden folgen... Stay tuned.<br><br>NOCH werden die Erweiterungen nicht korrekt bewertet!!!",
     "changelog": "",
     "categories": ["Statistik"]
