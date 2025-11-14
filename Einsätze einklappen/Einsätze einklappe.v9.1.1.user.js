@@ -1,43 +1,63 @@
 // ==UserScript==
-// @name         Einsätze einklappen (Finale LSSM-Logik)
+// @name         Einsätze einklappen (Finale LSSM-Logik) - GM_Storage_FIX
 // @namespace    http://tampermonkey.net/
-// @version      9.1.0
-// @description  Klappt Einsätze exakt nach der Logik des LSS-Managers ein und speichert den Zustand. Reagiert auf LSSM-Änderungen.
+// @version      9.1.1
+// @description  Klappt Einsätze exakt nach der Logik des LSS-Managers ein und speichert den Zustand. Reagiert auf LSSM-Änderungen. (Nutzt GM_Storage statt localStorage)
 // @author       Masklin & Gemini & Hendrik
 // @match        https://www.leitstellenspiel.de/
 // @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
 // @run-at       document-start
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // --- Speicherfunktionen ---
+    // --- Speicherfunktionen (UMGEBAUT AUF GM_STORAGE) ---
     const STORAGE_KEY = 'tm_collapsed_missions';
 
-    const getCollapsedMissions = () => {
+    // Wir brauchen eine globale Variable, um den Zustand im Speicher zu halten
+    let collapsedMissionsSet = new Set();
+
+    // Funktion, um den Zustand einmalig beim Start zu laden
+    const initializeStorage = async () => {
         try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            return stored ? new Set(JSON.parse(stored)) : new Set();
+            const stored = await GM_getValue(STORAGE_KEY, null);
+            if (stored) {
+                collapsedMissionsSet = new Set(JSON.parse(stored));
+            } else {
+                collapsedMissionsSet = new Set();
+            }
         } catch (e) {
-            console.error('[Einklapp-Skript] Fehler beim LESEN des localStorage:', e);
+            console.error('[Einklapp-Skript] Fehler beim LESEN des GM_Storage:', e);
             console.error('[Einklapp-Skript] Setze Speicher zurück, um Fehler zu beheben.');
-            localStorage.removeItem(STORAGE_KEY); // Bei korrupten Daten zurücksetzen
-            return new Set();
+            await GM_deleteValue(STORAGE_KEY); // Bei korrupten Daten zurücksetzen
+            collapsedMissionsSet = new Set();
         }
     };
 
-    const saveCollapsedMissions = (missionIdsSet) => {
+    // Gibt einfach den aktuellen In-Memory-Zustand zurück (schnell!)
+    const getCollapsedMissions = () => {
+        return collapsedMissionsSet;
+    };
+
+    // Speichert den Zustand asynchron im Hintergrund
+    const saveCollapsedMissions = async (missionIdsSet) => {
+        // Aktualisiere zuerst den In-Memory-Zustand
+        collapsedMissionsSet = missionIdsSet;
         try {
             const dataToSave = JSON.stringify([...missionIdsSet]);
-            localStorage.setItem(STORAGE_KEY, dataToSave);
+            await GM_setValue(STORAGE_KEY, dataToSave);
             // Fürs Debugging kannst du die nächste Zeile einkommentieren:
-            // console.log('[Einklapp-Skript] Erfolgreich gespeichert:', dataToSave);
+            // console.log('[Einklapp-Skript] Erfolgreich in GM_Storage gespeichert:', dataToSave);
         } catch (e) {
-            console.error('[Einklapp-Skript] FEHLER beim SPEICHERN im localStorage:', e);
-            alert('Tampermonkey-Skript "Einsätze einklappen" konnte den Zustand nicht speichern. Ist der Speicher voll oder blockiert (z.B. privater Modus)?');
+            // Wir entfernen den nervigen Alert. Ein Fehler in der Konsole reicht.
+            console.error('[Einklapp-Skript] FEHLER beim SPEICHERN im GM_Storage:', e);
         }
     };
+
     // 1. CSS-Stile
     GM_addStyle(`
         .mission-collapsed-tm .panel-body { display: none !important; }
@@ -82,10 +102,13 @@
             Object.values(placeholders).forEach(p => p?.remove());
         }
         if (!skipSave) {
-            const collapsedMissions = getCollapsedMissions();
-            if (shouldCollapse) collapsedMissions.add(missionId);
-            else collapsedMissions.delete(missionId);
-            saveCollapsedMissions(collapsedMissions);
+            // Diese Funktion ist jetzt synchron, da sie nur das In-Memory-Set liest
+            const currentCollapsedMissions = getCollapsedMissions();
+            if (shouldCollapse) currentCollapsedMissions.add(missionId);
+            else currentCollapsedMissions.delete(missionId);
+            
+            // Diese Funktion speichert im Hintergrund, ohne das Skript zu blockieren
+            saveCollapsedMissions(currentCollapsedMissions);
         }
     };
 
@@ -115,14 +138,17 @@
             e.preventDefault(); e.stopPropagation();
             const missions = document.querySelectorAll('#mission_list > .missionSideBarEntry');
             const shouldCollapse = Array.from(missions).some(m => !m.classList.contains('mission-collapsed-tm'));
-            missions.forEach(node => toggleMissionLSSMStyle(node, shouldCollapse, true));
+            // Wichtig: toggleMissionLSSMStyle (mit skipSave=true) ist synchron
+            missions.forEach(node => toggleMissionLSSMStyle(node, shouldCollapse, true)); 
+            
+            // Jetzt den neuen Zustand final im Hintergrund speichern
             const missionIds = shouldCollapse ? new Set(Array.from(missions).map(n => n.getAttribute('mission_id')).filter(Boolean)) : new Set();
             saveCollapsedMissions(missionIds);
         });
         filterControl.before(toggleAllBtn);
     };
     const cleanupStorage = () => {
-        // 1. Hole alle IDs, die wir gespeichert haben
+        // 1. Hole alle IDs, die wir gespeichert haben (aus dem In-Memory-Set)
         const storedMissions = getCollapsedMissions();
         if (storedMissions.size === 0) return; // Nichts zu tun
 
@@ -135,7 +161,6 @@
         });
 
         // 3. Erstelle einen neuen, sauberen Satz
-        // Wir behalten nur die IDs, die WIRKLICH noch auf der Seite sind
         const cleanedMissions = new Set();
         for (const storedId of storedMissions) {
             if (visibleMissionIds.has(storedId)) {
@@ -143,8 +168,7 @@
             }
         }
 
-        // 4. Speichere den sauberen Satz
-        // Nur speichern, wenn sich was geändert hat
+        // 4. Speichere den sauberen Satz (nur wenn nötig)
         if (cleanedMissions.size !== storedMissions.size) {
             console.log(`[Einklapp-Skript] Speicher bereinigt. ${storedMissions.size - cleanedMissions.size} alte Einträge entfernt.`);
             saveCollapsedMissions(cleanedMissions);
@@ -152,13 +176,13 @@
     };
 
     // --- INITIALISIERUNG UND OBSERVER ---
-    const initialCollapsedMissions = getCollapsedMissions();
     const processNode = (node) => {
         if (!node.matches || !node.matches('.missionSideBarEntry:not([data-collapse-processed-tm])')) return;
 
         addCollapseButton(node);
         node.setAttribute('data-collapse-processed-tm', 'true');
         const missionId = node.getAttribute('mission_id');
+        // getCollapsedMissions() ist jetzt synchron und schnell
         if (missionId && getCollapsedMissions().has(missionId)) {
             toggleMissionLSSMStyle(node, true, true);
         }
@@ -186,14 +210,24 @@
         }
     });
 
-    // --- KORRIGIERTER SCRIPT-START ---
-   // 1. Initialer Durchlauf für alle Elemente, die beim Start des Scripts bereits da sind.
-    addToggleAllButton();
-    document.querySelectorAll('.missionSideBarEntry').forEach(processNode);
+    // --- HAUPTFUNKTION (async) ---
+    // Wir packen den Start in eine async-Funktion, damit wir auf den Speicher warten können
+    const main = async () => {
+        // 1. Zuerst den Speicher laden
+        await initializeStorage();
 
-    // NEU: Speicher einmalig beim Laden bereinigen
-    cleanupStorage();
+        // 2. Initialer Durchlauf für alle Elemente, die beim Start des Scripts bereits da sind.
+        addToggleAllButton();
+        document.querySelectorAll('.missionSideBarEntry').forEach(processNode);
 
-    // 2. Observer starten, um auf zukünftige, dynamische Änderungen zu lauschen.
-    observer.observe(document.body, { childList: true, subtree: true });
+        // 3. Speicher einmalig beim Laden bereinigen
+        cleanupStorage();
+
+        // 4. Observer starten, um auf zukünftige, dynamische Änderungen zu lauschen.
+        observer.observe(document.body, { childList: true, subtree: true });
+    };
+
+    // Skript starten
+    main();
+
 })();
