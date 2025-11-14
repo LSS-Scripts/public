@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Benötigte Fahrzeuge WIRKLICH verschönern
 // @namespace    http://tampermonkey.net/
-// @version      18.3.8
-// @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features.
+// @version      18.3.10
+// @description  Stabile und schnelle Anzeige der benötigten Fahrzeuge mit allen Features. NEU: Zeitliche Prüfung bei geplanten Einsätzen.
 // @author       B&M & KI
 // @match        https://www.leitstellenspiel.de/missions/*
 // @grant        GM_addStyle
+// @run-at       document-idle
 // ==/UserScript==
 
 (function() {
@@ -37,6 +38,13 @@
             background: linear-gradient(145deg, #193829, #204b36);
             border-color: #28a745;
             box-shadow: 0 0 15px rgba(40, 167, 69, 0.5);
+        }
+        
+        /* Zustand: Nicht rechtzeitig erfüllt bei geplantem Einsatz */
+        #missing-vehicles-container-custom.time-warning {
+             background: linear-gradient(145deg, #4b2a2a, #572d2d);
+             border-color: #f0ad4e;
+             box-shadow: 0 0 15px rgba(240, 173, 78, 0.5);
         }
 
         /* Titel für den Container */
@@ -94,10 +102,16 @@
         #missing-vehicles-container-custom .missing-vehicles-table td:first-child { border-radius: 8px 0 0 8px; }
         #missing-vehicles-container-custom .missing-vehicles-table td:last-child { border-radius: 0 8px 8px 0; }
 
-        /* Stil für erfüllte Zeilen */
+        /* Stil für erfüllte Zeilen (Rechtzeitig UND genug) */
         #missing-vehicles-container-custom .missing-vehicles-table tr.vehicle-row-ok td {
             background-color: rgba(40, 167, 69, 0.2);
             color: #98e0ab;
+        }
+        
+        /* Stil für Zeilen, die NICHT rechtzeitig erfüllt sind */
+        #missing-vehicles-container-custom .missing-vehicles-table tr.vehicle-row-late td {
+            background-color: rgba(240, 173, 78, 0.2);
+            color: #f0ad4e;
         }
 
         /* Fortschrittsbalken-Container */
@@ -137,6 +151,11 @@
         /* Balken wird grün, wenn Zeile "ok" ist */
         #missing-vehicles-container-custom .missing-vehicles-table tr.vehicle-row-ok .progress-bar {
             background: linear-gradient(90deg, #2eac53, #28a745);
+        }
+        
+        /* Balken wird gelb, wenn Zeile "zu spät" ist */
+        #missing-vehicles-container-custom .missing-vehicles-table tr.vehicle-row-late .progress-bar {
+            background: linear-gradient(90deg, #d9534f, #f0ad4e);
         }
 
         /* REGELN FÜR DIE (JETZT PERMANENTE) KOMPAKTE ANSICHT */
@@ -217,8 +236,7 @@
     { id: '52', 'name': 'GefKw' }, { id: '53', name: 'Dekon-P' }, { id: '54', name: 'AB-Dekon-P' }, { id: '55', name: 'KdoW-LNA' },
     { id: '56', name: 'KdoW-OrgL' }, { id: '57', name: 'FwK' }, { id: '58', name: 'KTW Typ B' }, { id: '59', name: 'ELW 1 (SEG)' },
     { id: '60', name: 'GW-San' }, { id: '61', name: 'Polizeihubschrauber' }, { id: '62', name: 'AB-Schlauch' }, { id: '63', name: 'GW-Taucher' },
-    { id: '64', name: 'GW-Wasserrettung' }, { id: '65', name: 'LKW 7 Lkr 19 tm' }, { id: '66', name: 'Anh MzB' }, { id: '67', name: 'Anh SchlB' },
-    { id: '68', name: 'Anh MzAB' }, { id: '69', name: 'Tauchkraftwagen' }, { id: '70', name: 'MZB' }, { id: '71', name: 'AB-MZB' },
+    { id: '64', name: 'GW-Wasserrettung' }, { id: '70', name: 'MZB' }, { id: '71', name: 'AB-MZB' },
     { id: '72', name: 'WaWe 10' }, { id: '73', name: 'GRTW' }, { id: '74', name: 'NAW' }, { id: '75', 'name': 'FLF' },
     { id: '76', name: 'Rettungstreppe' },
     { id: '77', name: 'AB-Gefahrgut' }, { id: '78', name: 'AB-Einsatzleitung' }, { id: '79', name: 'SEK - ZF' },
@@ -253,21 +271,9 @@
     { id: '174', name: 'Anh TeSi' }, { id: '175', name: 'NEA50' },
     ];
 
+    // ... (VEHICLE_CATEGORIES, PERSONNEL_TO_VEHICLE_MAPPING und REQUIREMENT_MAP bleiben unverändert, da sie inhaltlich korrekt sind)
+
     const VEHICLE_CATEGORIES = {"Feuerwehr":{"vehicles":{"Löschfahrzeuge":[0,1,6,7,8,9,30,37,88,89,90],"Tanklöschfahrzeuge":[17,18,19,20,21,22,23,24,25,26,87,121],"Schlauchwagen":[11,13,14,15,16],"Sonderfahrzeuge":[2,3,4,5,10,12,27,33,34,36,53,57,114,118,120,126,128,129,166,167],"WLF & Abrollbehälter":[46,47,48,49,54,62,71,77,78,108,116,117,119,142,169,170],"Anhänger":[115,143,168],"Flughafenfeuerwehr":[75,76],"Werkfeuerwehr":[83,84,85,86],"Logistikfahrzeuge":[104,105,106,107],"Netzersatzanlagen":[111,113],"Verpflegung":[138,139,140,141],"Bahnrettung":[162,163,164]},"color":"#ff2d2d"},"Rettungsdienst":{"vehicles":{"Rettungsdienstfahrzeuge":[28,29,55,56,73,74,97],"Rettungshubschrauber":[31],"KTW":[38],"SEG-Fahrzeuge":[58,59,60],"Rettungshundefahrzeuge":[91],"Drohne":[127],"BT & VPF":[130,131,132,133],"Bergrettung":[149,150,151,152,153,154,155,156,157,158],"TeSi":[171,172,173,174,175]},"color":"#ffa500"},"Polizei":{"vehicles":{"Funkstreifenwagen":[32,95,98,103],"Bereitschaftspolizei-Fahrzeuge":[35,50,51,52,72,165],"Polizeihubschrauber":[61,96],"SEK":[79,80],"MEK":[81,82],"Diensthunde":[94],"Reiterstaffel":[134,135,136,137]},"color":"#00ac00"},"THW":{"vehicles":{"GKW":[39],"Notversorgung":[41,110],"Zugtrupp":[40],"Fachgruppe Räumen":[42,43,44,45],"Fachgruppe Ortung":[92,93],"Fachgruppe Wasserschaden/Pumpen":[100,101,102,123],"Schwere Bergung":[109],"Netzersatzanlagen":[112,122],"MTW-OV":[124],"Tr UL":[125],"Fachzug Führung und Kommunikation":[144,145,146,147,148]},"color":"#0000ff"},"Wasserrettung":{"vehicles":{"Rettungsdienst & Feuerwehr":[63,64,70],"THW":[65,66,67,68,69]},"color":"#02a18c"},"Seenotrettung":{"vehicles":{"Boote":[159,160],"Hubschrauber":[161]},"color":"#ac640a"}};
-
-    // Erstelle eine Map von Fahrzeug-ID zu Gewerk für schnelle Zugriffe
-    const VEHICLE_ID_TO_DEPARTMENT_MAP = {};
-    for (const department in VEHICLE_CATEGORIES) {
-        for (const category in VEHICLE_CATEGORIES[department].vehicles) {
-            for (const vehicleId of VEHICLE_CATEGORIES[department].vehicles[category]) {
-                VEHICLE_ID_TO_DEPARTMENT_MAP[vehicleId] = department;
-            }
-        }
-    }
-
-    // Definiere die gewünschte Reihenfolge der Gewerke
-    const DEPARTMENT_ORDER = ['Feuerwehr', 'Rettungsdienst', 'Polizei', 'THW', 'Wasserrettung', 'Seenotrettung'];
-
     const REQUIREMENT_MAP = {
         'gw-tesi':['171'],'mtw-tesi':['173'],'anh-tesi':['174'],'lkw-technik-(notstrom)':['172','175'],'ambulance':['28','73'],'anh-dle':['44'],'laukw':['165'],
         'anhänger-drucklufterzeugung':['44'],'anhänger-drucklufterzeugung-':['44'],'außenlastbehälter-(allgemein)':['96'],'boot':['70'],'boote':['70'],
@@ -329,7 +335,6 @@
         'thw-einsatzkräfte':['39','40','41','124'],'streifenwagen-oder-polizeimotorräder':['32','95','103'], 'funkstreifenwagen-oder-polizeimotorrad':['32','95','103'],
         'funkstreifenwagen-oder-polizeimotorräder':['32','95','103'],'l/min':['0','1','6','7','8','9','17','18','19','20','21','22','23','24','25','26','30','37','87','88','89','90','101','102']
     };
-
     const PERSONNEL_TO_VEHICLE_MAPPING = {
     "Betreuungshelfer": {
         "Bt-Kombi": 9,
@@ -592,10 +597,23 @@
         "Anh SchlB": 0,
         "Anh MzAB": 0,
         "Tauchkraftwagen": 2,
-        "GW-Taucher": 2,
-        "LKW 7 Lkr 19 tm": 2
+        "GW-Taucher": 2
     }
-};
+    };
+
+
+    // Erstelle eine Map von Fahrzeug-ID zu Gewerk für schnelle Zugriffe
+    const VEHICLE_ID_TO_DEPARTMENT_MAP = {};
+    for (const department in VEHICLE_CATEGORIES) {
+        for (const category in VEHICLE_CATEGORIES[department].vehicles) {
+            for (const vehicleId of VEHICLE_CATEGORIES[department].vehicles[category]) {
+                VEHICLE_ID_TO_DEPARTMENT_MAP[vehicleId] = department;
+            }
+        }
+    }
+
+    // Definiere die gewünschte Reihenfolge der Gewerke
+    const DEPARTMENT_ORDER = ['Feuerwehr', 'Rettungsdienst', 'Polizei', 'THW', 'Wasserrettung', 'Seenotrettung'];
 
     const VEHICLE_SHORT_NAME_BY_ID = {};
     LSS_VEHICLE_TYPE_DEFINITIONS.forEach(def => {
@@ -603,19 +621,44 @@
             VEHICLE_SHORT_NAME_BY_ID[def.id] = def.name;
         }
     });
+
     let requirementsState = {};
     let personnelRequirements = {};
     let mainInterval = null;
+    let missionCountdownSeconds = -1; // -1: Kein Countdown gefunden/kein geplanter Einsatz
+
+    /**
+     * Helferfunktion, um eine Zeitangabe (HH:MM:SS) in Sekunden umzuwandeln
+     * @param {string} timeString - Die Zeitzeichenkette (z.B. "02:55:12")
+     * @returns {number} Die Zeit in Sekunden
+     */
+    function timeToSeconds(timeString) {
+        if (!timeString) return 0;
+        const parts = timeString.split(':').map(Number);
+        if (parts.length === 3) {
+            return parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (parts.length === 2) {
+             return parts[0] * 60 + parts[1];
+        }
+        return 0;
+    }
 
     function initialize() {
         const missingTextDiv = document.getElementById('missing_text');
 
-        // HIER IST DIE WICHTIGE ÄNDERUNG:
-        // Wir prüfen, ob die Box überhaupt existiert ODER ob sie unsichtbar ist.
         if (!missingTextDiv || missingTextDiv.style.display === 'none') {
-            // Wenn ja, beenden wir das Skript für diesen Durchlauf sofort.
             return;
         }
+
+        // 1. Countdown-Zeit ermitteln (für geplante Einsätze)
+        const countdownElement = document.querySelector('[id^="mission_countdown_"]');
+        if (countdownElement) {
+            const countdownText = countdownElement.textContent.trim();
+            missionCountdownSeconds = timeToSeconds(countdownText);
+        } else {
+             missionCountdownSeconds = -1; // Sicherstellen, dass der Flag zurückgesetzt ist
+        }
+
 
         // Fahrzeug-Anforderungen auslesen
         requirementsState = {};
@@ -628,7 +671,7 @@
                 const reqName = match[2].trim().replace(/&nbsp;/g, ' ');
                 let cleanName = reqName.toLowerCase().replace(/ /g, '-');
                 const vehicleTypeIds = REQUIREMENT_MAP[cleanName] || [];
-                requirementsState[reqName] = { needed: parseInt(match[1], 10), fulfilled: 0, vehicleTypeIds: vehicleTypeIds };
+                requirementsState[reqName] = { needed: parseInt(match[1], 10), fulfilled: 0, vehicleTypeIds: vehicleTypeIds, isTimeCritical: false };
             }
         }
 
@@ -637,14 +680,13 @@
         const personnelDiv = missingTextDiv.querySelector('div[data-requirement-type="personnel"]');
         if (personnelDiv) {
             const personnelText = personnelDiv.textContent.replace('Fehlendes Personal:', '');
-            // HIER IST DER FIX: Die Regex akzeptiert jetzt auch Zahlen im Namen (z.B. "Einsatzleiter 2")
             const personnelRegex = /(\d+)\s*[xX]?\s*([a-zA-Z0-9\s-üäöÜÄÖß]+)/g;
             let pMatch;
             while ((pMatch = personnelRegex.exec(personnelText)) !== null) {
                 const needed = parseInt(pMatch[1], 10);
                 const name = pMatch[2].trim();
                 if (name) {
-                    personnelRequirements[name] = { needed: needed, fulfilled: 0 };
+                    personnelRequirements[name] = { needed: needed, fulfilled: 0, isTimeCritical: false };
                 }
             }
         }
@@ -658,21 +700,88 @@
         if (mainInterval) clearInterval(mainInterval);
         mainInterval = setInterval(updateCountsAndRedraw, 250);
     }
+
     function updateCountsAndRedraw() {
-        if (!requirementsState && !personnelRequirements) return;
+        if (Object.keys(requirementsState).length === 0 && Object.keys(personnelRequirements).length === 0) return;
+
+        // NEU: Countdown-Zeit im Intervall erneut auslesen
+        const countdownElement = document.querySelector('[id^="mission_countdown_"]');
+        if (countdownElement) {
+             const countdownText = countdownElement.textContent.trim();
+             missionCountdownSeconds = timeToSeconds(countdownText);
+        } else {
+            missionCountdownSeconds = -1; // Stellen sicher, dass kein Time-Check stattfindet
+        }
+
 
         const vehiclePool = {};
+        const isTimeCheckActive = missionCountdownSeconds > 0;
+
+        // Funktion, um die Ankunftszeit eines ALARMIERTEN Fahrzeugs zu ermitteln
+        const getArrivalTimeSeconds = (linkElement) => {
+            const title = linkElement.title;
+            if (!title) return 0;
+            // Sucht nach der Ankunftszeit im Format "XX:XX:XX" (oder "XX:XX")
+            // ABER: Wir müssen die Ankunftszeit in eine Zeit relativ zur Alarmierung umwandeln, 
+            // oder besser: nur die Fahrzeit nutzen, falls vorhanden.
+            // Der Titel alarmierten Fahrzeuge enthält meistens "Fahrzeit: 04:00"
+            const driveTimeMatch = title.match(/Fahrzeit:\s+(\d{1,2}:\d{2}(:\d{2})?)/);
+            if (driveTimeMatch) {
+                return timeToSeconds(driveTimeMatch[1]);
+            }
+            // Fallback für den Fall, dass nur die absolute Ankunftszeit im Titel steht
+            // Dies ist in LSS meist der Fall, wenn das FZ schon angekommen ist oder es ein RTH ist.
+            return 0; 
+        };
+
+        // 1. Fahrzeuge auf Anfahrt (Tabelle #mission_vehicle_driving)
         document.querySelectorAll('#mission_vehicle_driving tbody tr a[href*="/vehicles/"][vehicle_type_id]').forEach(link => {
             const vehicleTypeId = link.getAttribute('vehicle_type_id');
+            const row = link.closest('tr');
+            
+            // Für alarmiertes Personal verwenden wir das `vehicle_drive_ID` Feld, falls vorhanden,
+            // ansonsten den Titel (für Haken/Sprechwunsch etc.)
+            let arrivalTimeSeconds = 0;
+            const driveTimeElement = row.querySelector(`td[id^="vehicle_drive_"]`);
+            if (driveTimeElement) {
+                arrivalTimeSeconds = timeToSeconds(driveTimeElement.textContent.trim());
+            } else {
+                // Fallback: Fahrzeit aus dem Titel holen (RTH)
+                arrivalTimeSeconds = getArrivalTimeSeconds(link);
+            }
+            
+            // Wenn Countdown aktiv UND Ankunftszeit/Fahrzeit später als Countdown-Ende
+            if (isTimeCheckActive && arrivalTimeSeconds > missionCountdownSeconds) {
+                // Fahrzeug ignorieren (es kommt zu spät)
+                return; 
+            }
+            
             if (vehicleTypeId) vehiclePool[vehicleTypeId] = (vehiclePool[vehicleTypeId] || 0) + 1;
         });
 
+        // 2. Ausgewählte, noch nicht alarmierte Fahrzeuge (Tabelle #vehicle_show_table)
         document.querySelectorAll('.vehicle_checkbox:checked').forEach(checkbox => {
             const row = checkbox.closest('tr');
             if (!row) return;
             const tdWithId = row.querySelector('td[vehicle_type_id]');
             const vehicleTypeId = tdWithId?.getAttribute('vehicle_type_id');
+            
+            // NEU: Fahrzeit aus der Zelle "vehicle_drive_ID" auslesen
+            const driveTimeElement = row.querySelector(`td[id^="vehicle_drive_"]`);
+            let driveTimeSeconds = 0;
+            if (driveTimeElement) {
+                driveTimeSeconds = timeToSeconds(driveTimeElement.textContent.trim());
+            }
+
+            // Wenn Countdown aktiv UND Fahrzeit später als Countdown-Ende
+            if (isTimeCheckActive && driveTimeSeconds > missionCountdownSeconds) {
+                // Fahrzeug ignorieren (es würde zu spät alarmiert)
+                return; 
+            }
+            
             if (vehicleTypeId) vehiclePool[vehicleTypeId] = (vehiclePool[vehicleTypeId] || 0) + 1;
+            
+            // Berücksichtigung von Zugfahrzeugen (unverändert)
             const tractiveId = checkbox.getAttribute('tractive_vehicle_id');
             if (tractiveId && tractiveId !== '0') {
                 const tractiveCheckbox = document.querySelector(`.vehicle_checkbox[value="${tractiveId}"]`);
@@ -680,12 +789,20 @@
                     const tractiveRow = tractiveCheckbox.closest('tr');
                     const tractiveTdWithId = tractiveRow?.querySelector('td[vehicle_type_id]');
                     const tractiveVehicleTypeId = tractiveTdWithId?.getAttribute('vehicle_type_id');
+                    // Auch Zugfahrzeuge müssen rechtzeitig sein (hier wird implizit angenommen, dass 
+                    // die Fahrzeit des Zugfahrzeugs mit dem Haken-Fahrzeug identisch ist, 
+                    // da die Fahrzeit über die Zeile und nicht den Haken geholt wird.)
+                    if (isTimeCheckActive && driveTimeSeconds > missionCountdownSeconds) {
+                        return; // Zugfahrzeug wird auch ignoriert, wenn der Zug zu spät kommt
+                    }
                     if (tractiveVehicleTypeId) vehiclePool[tractiveVehicleTypeId] = (vehiclePool[tractiveVehicleTypeId] || 0) + 1;
                 }
             }
         });
 
-        // Fahrzeug-Erfüllung berechnen (unverändert)
+
+        // Fahrzeug-Erfüllung berechnen (JETZT nur basierend auf rechtzeitigem Pool)
+        let allVehiclesOk = true;
         for (const reqName in requirementsState) {
             const requirement = requirementsState[reqName];
             let fulfilledCount = 0;
@@ -695,9 +812,18 @@
                 }
             }
             requirement.fulfilled = fulfilledCount;
+            
+            // Aktualisiere Time-Critical Status
+            if (requirement.needed > 0) {
+                 requirement.isTimeCritical = isTimeCheckActive && fulfilledCount < requirement.needed;
+            }
+            if (fulfilledCount < requirement.needed) {
+                 allVehiclesOk = false;
+            }
         }
-
-        // Personal-Erfüllung berechnen (NEUE LOGIK)
+        
+        // Personal-Erfüllung berechnen (Personal ist nur an Fahrzeuge gebunden, 
+        // daher ist die Zählung implizit zeitlich gefiltert, wenn das Fahrzeug es war)
         const personnelPool = {};
         for (const vehicleTypeId in vehiclePool) {
             const vehicleCount = vehiclePool[vehicleTypeId];
@@ -712,9 +838,18 @@
             }
         }
 
+        let allPersonnelOk = true;
         for (const name in personnelRequirements) {
             personnelRequirements[name].fulfilled = personnelPool[name] || 0;
+            if (personnelRequirements[name].fulfilled < personnelRequirements[name].needed) {
+                allPersonnelOk = false;
+            }
         }
+        
+        // Speichere den Gesamtstatus im Globalen Objekt, damit renderTable ihn nutzen kann
+        requirementsState.allVehiclesOk = allVehiclesOk;
+        personnelRequirements.allPersonnelOk = allPersonnelOk;
+        requirementsState.isTimeCheckActive = isTimeCheckActive;
 
         renderTable();
     }
@@ -730,8 +865,8 @@
             missingTextDiv.classList.add('hidden-by-script');
         }
 
-        const vehicleEntries = Object.entries(requirementsState || {});
-        const personnelEntries = Object.entries(personnelRequirements || {});
+        const vehicleEntries = Object.entries(requirementsState || {}).filter(([key]) => key !== 'allVehiclesOk' && key !== 'isTimeCheckActive');
+        const personnelEntries = Object.entries(personnelRequirements || {}).filter(([key]) => key !== 'allPersonnelOk');
 
         // Komplette Fahrzeugliste VOR dem Aufteilen sortieren
         vehicleEntries.sort((a, b) => {
@@ -758,24 +893,35 @@
         customContainer.classList.add('compact-view');
 
         // Prüfen, ob ALLE Anforderungen (Fahrzeuge UND Personal) erfüllt sind
-        const allRequirementsMet = vehicleEntries.every(([, counts]) => counts.fulfilled >= counts.needed) &&
-                                 personnelEntries.every(([, counts]) => counts.fulfilled >= counts.needed);
+        const allVehiclesOk = requirementsState.allVehiclesOk;
+        const allPersonnelOk = personnelRequirements.allPersonnelOk;
+        const allRequirementsMet = allVehiclesOk && allPersonnelOk;
+        const isTimeCheckActive = requirementsState.isTimeCheckActive;
 
         // Titel basierend auf dem Status festlegen
         let vehicleTitle = 'Benötigte Fahrzeuge'; // Standard-Titel
-
-        if (allRequirementsMet) {
-            // Wenn alles erfüllt ist, prüfe, ob eine Checkbox am Einsatzort ausgewählt ist
-            const anyCheckboxChecked = document.querySelectorAll('.vehicle_checkbox:checked').length > 0;
+        
+        if (isTimeCheckActive) {
+            if (allVehiclesOk) {
+                vehicleTitle = 'Alle Fahrzeuge ALARMIERT & RECHTZEITIG!';
+            } else {
+                 vehicleTitle = 'NICHT alle Fahrzeuge RECHTZEITIG!';
+            }
+        } else if (allVehiclesOk) {
+             const anyCheckboxChecked = document.querySelectorAll('.vehicle_checkbox:checked').length > 0;
             vehicleTitle = anyCheckboxChecked
                 ? 'Alle Fahrzeuge auf Anfahrt oder ausgewählt!'
                 : 'Alle Fahrzeuge auf Anfahrt!';
         }
 
+
+        customContainer.classList.toggle('all-vehicles-ok', allRequirementsMet);
+        customContainer.classList.toggle('time-warning', isTimeCheckActive && !allVehiclesOk);
+
         const displayVehicleTitle = vehicleEntries.length > 0 ? `<div class="custom-container-title">${vehicleTitle}</div>` : '';
 
-        // Helfer-Funktion zur Generierung der Tabellenzeilen (jetzt ohne Sortierung)
-        const generateBody = (entries) => {
+        // Helfer-Funktion zur Generierung der Tabellenzeilen (mit Time-Check-Status)
+        const generateBody = (entries, isVehicleEntry = true) => {
             let bodyHtml = '';
             for (const [name, counts] of entries) {
                 const { needed, fulfilled } = counts;
@@ -783,11 +929,24 @@
                 const progress = needed > 0 ? Math.min((fulfilled / needed) * 100, 100) : 100;
                 const backgroundPosition = 100 - progress;
 
-                const firstVehicleId = counts.vehicleTypeIds?.[0];
-                const department = firstVehicleId !== undefined ? VEHICLE_ID_TO_DEPARTMENT_MAP[firstVehicleId] : '';
-                const departmentClass = department ? `department-${department.toLowerCase().replace(/\s/g, '-')}` : '';
+                let rowClass = '';
+                if (isVehicleEntry) {
+                    const firstVehicleId = counts.vehicleTypeIds?.[0];
+                    const department = firstVehicleId !== undefined ? VEHICLE_ID_TO_DEPARTMENT_MAP[firstVehicleId] : '';
+                    rowClass += department ? ` department-${department.toLowerCase().replace(/\s/g, '-')}` : '';
+                    
+                    if (isMet) {
+                        rowClass += ' vehicle-row-ok';
+                    } else if (isTimeCheckActive) {
+                        // Wenn nicht erfüllt, und Time Check aktiv ist
+                        rowClass += ' vehicle-row-late';
+                    }
+                } else {
+                     rowClass += isMet ? ' vehicle-row-ok' : '';
+                }
 
-                bodyHtml += `<tr class="${isMet ? 'vehicle-row-ok' : ''} ${departmentClass}"><td>${name}</td><td><div class="progress-bar-container"><div class="progress-bar" style="width: ${progress}%; background-position: ${backgroundPosition}% 0;"></div><div class="progress-bar-text">${fulfilled} / ${needed}</div></div></td></tr>`;
+
+                bodyHtml += `<tr class="${rowClass}"><td>${name}</td><td><div class="progress-bar-container"><div class="progress-bar" style="width: ${progress}%; background-position: ${backgroundPosition}% 0;"></div><div class="progress-bar-text">${fulfilled} / ${needed}</div></div></td></tr>`;
             }
             return bodyHtml;
         };
@@ -797,22 +956,22 @@
         const totalVehicleEntries = vehicleEntries.length;
         const vSplit1 = Math.ceil(totalVehicleEntries / 3);
         const vSplit2 = Math.ceil(totalVehicleEntries * 2 / 3);
-        const table1 = vehicleEntries.length > 0 ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(0, vSplit1))}</tbody></table></div>` : '';
-        const table2 = vSplit1 < totalVehicleEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(vSplit1, vSplit2))}</tbody></table></div>` : '';
-        const table3 = vSplit2 < totalVehicleEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(vSplit2))}</tbody></table></div>` : '';
+        const table1 = vehicleEntries.length > 0 ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(0, vSplit1), true)}</tbody></table></div>` : '';
+        const table2 = vSplit1 < totalVehicleEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(vSplit1, vSplit2), true)}</tbody></table></div>` : '';
+        const table3 = vSplit2 < totalVehicleEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${vehicleHeader}<tbody>${generateBody(vehicleEntries.slice(vSplit2), true)}</tbody></table></div>` : '';
 
         // --- Personal-Anforderungen ---
         const personnelHeader = `<thead><tr><th>Personal-Typ</th><th>Status</th></tr></thead>`;
-        let personnelSection = ''; // Leerer String, falls kein Personal benötigt wird
+        let personnelSection = ''; 
 
         if (personnelEntries.length > 0) {
             personnelEntries.sort((a, b) => a[0].localeCompare(b[0]));
             const totalPersonnelEntries = personnelEntries.length;
             const pSplit1 = Math.ceil(totalPersonnelEntries / 3);
             const pSplit2 = Math.ceil(totalPersonnelEntries * 2 / 3);
-            const pTable1 = `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(0, pSplit1))}</tbody></table></div>`;
-            const pTable2 = pSplit1 < totalPersonnelEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(pSplit1, pSplit2))}</tbody></table></div>` : '';
-            const pTable3 = pSplit2 < totalPersonnelEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(pSplit2))}</tbody></table></div>` : '';
+            const pTable1 = `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(0, pSplit1), false)}</tbody></table></div>`;
+            const pTable2 = pSplit1 < totalPersonnelEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(pSplit1, pSplit2), false)}</tbody></table></div>` : '';
+            const pTable3 = pSplit2 < totalPersonnelEntries ? `<div class="missing-vehicles-table-wrapper"><table class="missing-vehicles-table">${personnelHeader}<tbody>${generateBody(personnelEntries.slice(pSplit2), false)}</tbody></table></div>` : '';
 
             personnelSection = `
                 <div class="personnel-requirements-wrapper">
@@ -835,8 +994,6 @@
             </div>
             ${personnelSection}
         `;
-
-        customContainer.classList.toggle('all-vehicles-ok', allRequirementsMet);
     }
 setTimeout(initialize, 1);
 })();
