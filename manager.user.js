@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         B&M Scriptmanager
 // @namespace    https://github.com/LSS-Scripts/public
-// @version      13.8.5
+// @version      13.8.6
 // @description  Update-Filter zeigt separate Liste nur mit Updates. UI On-Demand. Kategorie-Ansicht. Sticky Button. Statistik.
 // @author       B&M
 // @match        https://www.leitstellenspiel.de/*
@@ -9,6 +9,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
+// @grant        GM_deleteValue
 // @grant        GM_getResourceURL
 // @run-at       document-start
 // ==/UserScript==
