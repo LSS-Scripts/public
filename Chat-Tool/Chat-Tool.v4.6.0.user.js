@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro (Blocker & Ladefunktion)
 // @namespace    http://tampermonkey.net/
-// @version      4.6.0 // Version erhöht und alle Positionierungsfehler behoben + /w Autocomplete
+// @version      4.5.6 // Version erhöht und alle Positionierungsfehler behoben + /w Autocomplete
 // @description  Kombiniert Messenger-Design (v3.0) mit Blocker & Ladefunktion (v3.5). NEU: Smiley-Auswahl, ASCII-Smiley-Konvertierung, Linkify & Bild-Vorschau/Modal (v4.4.9). NEU: @-Mention Autovervollständigung & /w Autovervollständigung (v4.5.6)
 // @author       B&M & DeinName (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -1591,7 +1591,7 @@
         proChatTextarea.style.resize = 'none'; // Verhindert manuelles Vergrößern durch den User
         proChatTextarea.style.overflowY = 'hidden'; // Versteckt die Scrollbar (wird von autoGrow gemanagt)
         proChatTextarea.rows = 1; // Startet mit einer Zeile
-        proChatTextarea.placeholder = "Nachricht (Enter = Senden/Vorschlag wählen, Shift+Enter = Zeilenumbruch)";
+        proChatTextarea.placeholder = "Nachricht (↵ = Senden/Vorschlag wählen, ⇧+↵ = Zeilenumbruch)";
 
         // 3. Smiley-Button Container (Rechts)
         const smileyInputGroupAddon = document.createElement('span');
