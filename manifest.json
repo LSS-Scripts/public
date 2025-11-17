@@ -121,8 +121,8 @@
   },
   {
     "name": "Fahrzeuge auf Karte",
-    "version": "1.1.0",
-    "fileName": "Fahrzeuge auf Karte.v1.1.0.user.js",
+    "version": "1.2.0",
+    "fileName": "Fahrzeuge auf Karte.v1.2.0.user.js",
     "description": "Zeigt in der Leiste oben an, wie viele Fahrzeuge gerade in der Karte generiert werden. <br><br>(Quasi ein Performance-Messer.. je mehr fahrzeuge, desto langsamer das Spiel....)",
     "changelog": "",
     "categories": ["Statistik"]
