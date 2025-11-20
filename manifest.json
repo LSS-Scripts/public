@@ -232,6 +232,14 @@
     "categories": ["Alarmierung","Verbands-Tools"]
   },
   {
+    "name": "Reale Gebäudeliste",
+    "version": "0.6.0",
+    "fileName": "Reale Gebäudeliste.v0.6.0.user.js",
+    "description": "BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA BETA <br><br>holt sich eine Gebäudeliste von bosmap.de und prüft, ob Gebäude bereits gebaut wurden. <br><br>Nicht auf dunkles Design gemappt!",
+    "changelog": "",
+    "categories": ["Gebäude"]
+  },
+  {
     "name": "Statuszähler",
     "version": "8.6.0",
     "fileName": "Statuszähler.v8.6.0.user.js",
