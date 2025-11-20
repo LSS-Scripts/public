@@ -264,14 +264,6 @@
     "categories": ["Sonstiges"]
   },
   {
-    "name": "User-Status-Check",
-    "version": "4.9.2",
-    "fileName": "User-Stauts-Check.v4.9.2.user.js",
-    "description": "Weil du es einfach *wissen* musst. Verwandelt dein Spiel in eine kleine Big-Brother-Zentrale und zeigt dir, wer sich gerade online rumtreibt. Fügt die absolut überlebenswichtigen grünen und roten Bubbles hinzu, auf die niemand gewartet hat.",
-    "changelog": "",
-    "categories": ["Verbands-Tools","Sonstiges"]
-  },
-  {
     "name": "VA - Verbandsmitgliedschaft prüfen",
     "version": "0.9.6",
     "fileName": "VA - Verbandsmitgliedschaft prüfen.v0.9.6.user.js",
