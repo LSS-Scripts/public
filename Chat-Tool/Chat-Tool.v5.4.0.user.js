@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         LSS - Moderner Chat Pro & Status (v5.2.0 - Visual Harmony)
+// @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.2.0
-// @description  Chat v4.6.6 Design + API. Fix: Eingabefeld-Harmonie (rechts abgerundet, Button transparent).
-// @author       B&M & DeinName (Gemischt von Gemini)
+// @version      5.4.0
+// @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
+// @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
 // @match        https://*.missionchief.com/*
 // @match        https://*.missionchief.co.uk/*
@@ -242,11 +242,24 @@
     }
 
     // ========================================================================
-    // 4. CHAT LOGIC
+    // 4. CHAT LOGIC (ORIGINAL Linkify RESTORED)
     // ========================================================================
     function getUsernameColor(u, d) { if (!u) return '#ccc'; let h = 0; for (let i = 0; i < u.length; i++) h = u.charCodeAt(i) + ((h << 5) - h); return `hsl(${h % 360},${d ? '70%' : '60%'},${d ? '75%' : '45%'})`; }
     function shouldBlockUser(id) { if (!id || !isBlockerEnabled) return false; const u = allianceUsers.find(x => x.id === id); if (u && u.isAdmin) return false; return blockedIdArray.includes(id); }
-    function linkifyText(t) { return t.replace(/(\b(?:https?:\/\/\S+))/gi, u => { if (u.match(/\.(png|jpe?g|gif|webp)$/i)) return `<span class="pro-chat-image-preview-container" data-image-url="${u}"><img src="${u}" class="pro-chat-image-preview"></span>`; return `<a href="${u}" target="_blank">${u}</a>`; }); }
+    
+    // ORIGINAL LINKIFY (Source 2, Lines 146-150)
+    function linkifyText(text) {
+        const urlRegex = /(\b(?:https?:\/\/\S+|www\.\S+\.[a-z]{2,}(?:\S+)?|\S+\.[a-z]{2,}(?:\/\S*)?))/gi;
+        const imageExtensions = /\.(png|jpe?g|gif|bmp|webp|tiff|svg)$/i;
+        return text.replace(urlRegex, (url) => {
+            let href = url;
+            if (!url.match(/^https?:\/\//i)) { href = 'https://' + url; }
+            if (href.match(imageExtensions)) {
+                 return `<span class="pro-chat-image-preview-container" data-image-url="${href}"><img src="${href}" class="pro-chat-image-preview" alt="Bildvorschauklick"></span>`;
+            }
+            return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        });
+    }
 
     // BUBBLE HELPER
     function insertStatusBubble(linkElement, profileId) {
@@ -259,29 +272,130 @@
         }
     }
 
+    // ORIGINAL PROCESS MAIN CHAT (Source 2 Logic + Status Bubbles)
     function processMainChatMessage(node) {
         if (node.dataset.proChatFormatted) return;
-        const usr = node.querySelector('.mission_chat_message_username');
-        if (!usr) return;
-        if (usr.firstChild && usr.firstChild.nodeType === 3 && usr.firstChild.textContent.includes('[')) { const b = document.createElement('span'); b.className = 'chat-timestamp-bubble'; b.textContent = usr.firstChild.textContent.replace(/[\[\]]/g, ''); usr.firstChild.replaceWith(b); }
-        node.querySelectorAll('img.alliance_chat_copy_username, a.alliance_chat_private_username, img.alliance_chat_private_username').forEach(el => el.setAttribute('title', ''));
-        const a = usr.querySelector('a.chat-username');
-        if (a) {
-            const name = a.innerText.replace(':', '').trim(); a.style.color = getUsernameColor(name, isDark);
-            if (myUsername === name) { node.classList.add('chat-message-own'); const r = usr.querySelector('img.alliance_chat_copy_username'); if(r) r.style.display='none'; const w = usr.querySelector('a.alliance_chat_private_username'); if(w) w.style.display='none'; } else node.classList.add('chat-message-other');
-            insertStatusBubble(a, a.href.split('/').pop());
+        if (node.nodeType !== 1 || node.tagName !== 'LI') return;
+        const usernameSpan = node.querySelector('.mission_chat_message_username');
+        if (!usernameSpan) return;
+
+        // 1. Timestamp
+        if (usernameSpan.firstChild && usernameSpan.firstChild.nodeType === 3 && usernameSpan.firstChild.textContent.includes('[')) {
+            const text = usernameSpan.firstChild.textContent.trim().replace(/[\[\]]/g, '');
+            const bubble = document.createElement('span');
+            bubble.className = 'chat-timestamp-bubble';
+            bubble.textContent = text;
+            usernameSpan.firstChild.replaceWith(bubble);
         }
+        
+        node.querySelectorAll('img.alliance_chat_copy_username, a.alliance_chat_private_username, img.alliance_chat_private_username').forEach(el => el.setAttribute('title', ''));
+
+        // 3. Sender/Empfänger & Status
+        const usernameLink = usernameSpan.querySelector('a.chat-username');
+        if (usernameLink) {
+            const username = usernameLink.innerText.replace(':', '').trim();
+            usernameLink.style.color = getUsernameColor(username, isDark);
+            
+            if (myUsername && username === myUsername) {
+                node.classList.add('chat-message-own');
+                const myReplyIcon = usernameSpan.querySelector('img.alliance_chat_copy_username');
+                const myWhisperLink = usernameSpan.querySelector('a.alliance_chat_private_username');
+                if (myReplyIcon) myReplyIcon.style.display = 'none';
+                if (myWhisperLink) myWhisperLink.style.display = 'none';
+            } else {
+                node.classList.add('chat-message-other');
+            }
+            
+            // Status Bubble
+            insertStatusBubble(usernameLink, usernameLink.href.split('/').pop());
+        }
+
+        // 4. Whisper-Empfänger
         if (node.classList.contains('chatWhisper')) {
-            const ri = node.querySelector(':scope > a.alliance_chat_private_username');
-            const rl = node.querySelector(':scope > a.whisper-label');
-            if(ri && rl) {
-                 const rn = rl.innerText.trim();
-                 if(myUsername && rn===myUsername) ri.style.display='none';
-                 const div = document.createElement('span'); div.className='chat-whisper-divider';
-                 usr.appendChild(div); usr.appendChild(ri); usr.appendChild(rl);
+            const recipientIcon = node.querySelector(':scope > a.alliance_chat_private_username');
+            const recipientLabel = node.querySelector(':scope > a.whisper-label');
+            const recipientStatus = node.querySelector(':scope > span.chat-status-bubble'); // Falls original vorhanden
+            if (recipientIcon && recipientLabel) {
+                const recipientName = recipientLabel.innerText.trim();
+                if (myUsername && recipientName === myUsername) {
+                    recipientIcon.style.display = 'none';
+                }
+                const divider = document.createElement('span');
+                divider.className = 'chat-whisper-divider';
+                usernameSpan.appendChild(divider);
+                usernameSpan.appendChild(recipientIcon);
+                if (recipientStatus) usernameSpan.appendChild(recipientStatus);
+                usernameSpan.appendChild(recipientLabel);
             }
         }
+
+        // 5. Highlight @Mentions UND Linkify (ORIGINAL LOGIK Source 2)
+        const mentionRegex = /(@[a-zA-Z0-9_-]+)/g;
+        for (const child of Array.from(node.childNodes)) {
+            if (child.nodeType === 3 && usernameSpan && !usernameSpan.contains(child)) {
+                let text = child.textContent;
+                text = linkifyText(text); // Linkify FIRST -> HTML String
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = text;
+                
+                const finalFragment = document.createDocumentFragment();
+                Array.from(tempDiv.childNodes).forEach(procNode => {
+                    // Mentions nur in Textnodes suchen, nicht in Links
+                    if (procNode.nodeType === 3 && mentionRegex.test(procNode.textContent)) {
+                        const parts = procNode.textContent.split(mentionRegex);
+                        parts.forEach(part => {
+                            if (mentionRegex.test(part)) {
+                                const mentionSpan = document.createElement('span');
+                                mentionSpan.className = 'chat-mention';
+                                mentionSpan.textContent = part;
+                                finalFragment.appendChild(mentionSpan);
+                            } else {
+                                if (part.length > 0) finalFragment.appendChild(document.createTextNode(part));
+                            }
+                        });
+                    } else {
+                        // Link oder Bild-Vorschau
+                        finalFragment.appendChild(procNode);
+                    }
+                });
+                
+                child.replaceWith(finalFragment);
+            }
+        }
+        
+        // Event Listener für Bilder nachträglich anhängen
+        node.querySelectorAll('.pro-chat-image-preview-container').forEach(c => {
+             if(!c.onclick) c.onclick = (e) => { e.preventDefault(); openImageModal(c.dataset.imageUrl); };
+        });
+
+        // 6. @Mention verschieben (Original Source 2)
+        if (!node.classList.contains('chatWhisper')) {
+            const mentionSpans = node.querySelectorAll('span.chat-mention');
+            let firstMentionSpan = null;
+            for (const span of mentionSpans) {
+                if (!usernameSpan.contains(span)) { firstMentionSpan = span; break; }
+            }
+            if (firstMentionSpan) {
+                const mentionName = firstMentionSpan.textContent.trim();
+                const divider = document.createElement('span');
+                divider.className = 'chat-whisper-divider';
+                const recipientLabel = document.createElement('span');
+                recipientLabel.className = 'whisper-label';
+                recipientLabel.textContent = mentionName.substring(1);
+                usernameSpan.appendChild(divider);
+                usernameSpan.appendChild(recipientLabel);
+                const prevSibling = firstMentionSpan.previousSibling;
+                if (prevSibling && prevSibling.nodeType === 3 && prevSibling.textContent.endsWith(' ')) {
+                    prevSibling.textContent = prevSibling.textContent.slice(0, -1);
+                }
+                firstMentionSpan.remove();
+            }
+        }
+        
+        // 7. Mission Links
         node.querySelectorAll('a[href^="/missions/"]').forEach(l => { if (l.querySelector('.glyphicon')) { l.classList.add('pro-chat-mission-link'); const t = l.querySelector('span:not(.glyphicon)'); if (t) t.textContent = t.textContent.replace(/[\[\]]/g, ''); } });
+        
         node.dataset.proChatFormatted = 'true';
     }
 
@@ -293,8 +407,35 @@
         const name = a.innerText.trim(); a.style.color = getUsernameColor(name, isDark);
         if (myUsername === name) well.classList.add('chat-message-own'); else well.classList.add('chat-message-other');
         insertStatusBubble(a, a.href.split('/').pop());
+        
+        // Logic 3: Linkify & Mentions
         const p = well.querySelector('p');
-        if (p) { p.innerHTML = linkifyText(p.innerHTML); p.querySelectorAll('.pro-chat-image-preview-container').forEach(c => c.onclick = e => { e.preventDefault(); openImageModal(c.dataset.imageUrl); }); }
+        const mentionRegex = /(@[a-zA-Z0-9_-]+)/g;
+        if (p) {
+             Array.from(p.childNodes).forEach(child => {
+                 if (child.nodeType === 3) {
+                     let text = linkifyText(child.textContent);
+                     const tempDiv = document.createElement('div'); tempDiv.innerHTML = text;
+                     const finalFragment = document.createDocumentFragment();
+                     Array.from(tempDiv.childNodes).forEach(procNode => {
+                        if (procNode.nodeType === 3 && mentionRegex.test(procNode.textContent)) {
+                             const parts = procNode.textContent.split(mentionRegex);
+                             parts.forEach(part => {
+                                 if (mentionRegex.test(part)) {
+                                     const mentionSpan = document.createElement('span'); mentionSpan.className = 'chat-mention'; mentionSpan.textContent = part; finalFragment.appendChild(mentionSpan);
+                                 } else { if (part.length > 0) finalFragment.appendChild(document.createTextNode(part)); }
+                             });
+                        } else finalFragment.appendChild(procNode);
+                     });
+                     child.replaceWith(finalFragment);
+                 }
+             });
+             p.querySelectorAll('.pro-chat-image-preview-container').forEach(c => c.onclick = e => { e.preventDefault(); openImageModal(c.dataset.imageUrl); });
+             
+             // Mission Links
+             p.querySelectorAll('a[href^="/missions/"]').forEach(l => { if (l.querySelector('.glyphicon')) { l.classList.add('pro-chat-mission-link'); const t = l.querySelector('span:not(.glyphicon)'); if (t) t.textContent = t.textContent.replace(/[\[\]]/g, ''); } });
+        }
+        
         const old1 = well.querySelector('.lss-chat-line-1'); if(old1) { well.prepend(s); old1.remove(); }
         s.classList.add('mission_chat_message_username');
         well.dataset.proChatFormatted = 'true';
@@ -488,7 +629,7 @@
         setTimeout(() => loadBtn.click(), 800);
     }
 
-    // === ORIGINAL CSS (RESTORED) ===
+    // === ORIGINAL CSS + FIXES ===
     GM_addStyle(`
         /* === LAYOUT FIXES === */
         #mission_chat_messages { display: flex; flex-direction: column; }
