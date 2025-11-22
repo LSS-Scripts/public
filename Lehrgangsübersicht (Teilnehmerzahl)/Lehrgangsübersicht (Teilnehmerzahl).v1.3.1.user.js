@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Leitstellenspiel Lehrgangsübersicht (Teilnehmerzahl) - Dark/Light Mode
 // @namespace    http://tampermonkey.net/
-// @version      1.3
-// @description  Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an (mit Dark/Light Mode Support, nutzt feste Tabellen-ID).
+// @version      1.3.1
+// @description  Zeigt eine Zusammenfassung der Teilnehmerzahlen für jeden Lehrgangstyp auf leitstellenspiel.de/schoolings an (mit Dark/Light Mode Support, nutzt feste Tabellen-ID). Inklusive Gesamtsumme.
 // @author       Gemini & Dein Name
 // @match        https://www.leitstellenspiel.de/schoolings
 // @grant        GM_addStyle
@@ -97,11 +97,9 @@
             if (participantTable && participantTable.tBodies.length > 0) {
                 return participantTable.tBodies[0].querySelectorAll('tr').length;
             } else {
-                 console.warn(`[Lehrgangsübersicht] Teilnehmertabelle nicht gefunden auf ${url}. Selektor: '.col-md-9 table.table-striped'`);
                  // Versuch mit einem allgemeineren Selektor als Fallback
                  const fallbackTable = doc.querySelector('table.table-striped');
                  if (fallbackTable && fallbackTable.tBodies.length > 0) {
-                    console.warn(`[Lehrgangsübersicht] Fallback-Tabelle gefunden auf ${url}.`);
                     return fallbackTable.tBodies[0].querySelectorAll('tr').length;
                  }
                  return 0;
@@ -114,15 +112,11 @@
 
      /**
      * Findet ein Element anhand seines Textinhalts (Groß-/Kleinschreibung und Leerzeichen ignorierend).
-     * @param {string} selector - Der CSS-Selektor für die zu durchsuchenden Elemente (z.B. 'h3').
-     * @param {string} text - Der gesuchte Textinhalt.
-     * @returns {HTMLElement|null} Das gefundene Element oder null.
      */
     function findElementByText(selector, text) {
         const normalizedText = text.trim().toLowerCase();
         const elements = document.querySelectorAll(selector);
         for (let element of elements) {
-            // Prüfen, ob der direkte Textinhalt übereinstimmt (ignoriert Kindelemente wie Buttons)
             const directText = Array.from(element.childNodes)
                 .filter(node => node.nodeType === Node.TEXT_NODE)
                 .map(node => node.textContent.trim())
@@ -132,7 +126,6 @@
                 return element;
             }
         }
-        // Fallback, falls der Text in Kindelementen verteilt ist (weniger präzise)
         for (let element of elements) {
              if (element.textContent.trim().toLowerCase().includes(normalizedText)) {
                  return element;
@@ -152,17 +145,16 @@
         const summaryContainer = document.createElement('div');
         summaryContainer.id = 'schooling-summary-container';
         summaryContainer.innerHTML = `
-            <h3>Lehrgangsübersicht (Teilnehmerzahl)</h3>
+            <h3>Lehrgangsübersicht</h3>
             <div id="summary-loading-message">Lade Teilnehmerzahlen... <span id="progress-counter">(0/?)</span></div>
             <ul id="schooling-summary-list"></ul>
         `;
 
-        // 2. Einfügepunkt finden (jetzt direkt über der Tabelle mit der ID)
-        const mainTable = document.getElementById('schooling_own_table'); // *** Geänderter Selektor ***
+        // 2. Einfügepunkt finden
+        const mainTable = document.getElementById('schooling_own_table');
         let insertionSuccessful = false;
 
         if (mainTable) {
-             // Versuche, das Elternelement zu finden, das wahrscheinlich ein Wrapper ist
             let parentWrapper = mainTable.closest('div[data-v-8b206cce]') || mainTable.closest('.vue-tabpanel') || mainTable.parentNode;
             if (parentWrapper && parentWrapper.parentNode) {
                 parentWrapper.parentNode.insertBefore(summaryContainer, parentWrapper);
@@ -170,16 +162,14 @@
             }
         }
 
-        // Fallback, falls die Tabelle oder der Parent nicht gefunden wurde
+        // Fallback
         if (!insertionSuccessful) {
              const heading = findElementByText('h3', 'Lehrgänge mit eigenen Teilnehmern');
              if (heading && heading.closest('div[data-v-05a96bb1]')) {
                  const insertionTarget = heading.closest('div[data-v-05a96bb1]');
                  insertionTarget.prepend(summaryContainer);
                  insertionSuccessful = true;
-                 console.warn("[Lehrgangsübersicht] Tabelle mit ID 'schooling_own_table' nicht gefunden, nutze Überschrift als Fallback-Einfügepunkt.");
              } else {
-                 console.error("[Lehrgangsübersicht] Konnte weder Tabelle 'schooling_own_table' noch Überschrift finden. Füge am Anfang des Body ein.");
                  document.body.prepend(summaryContainer);
              }
         }
@@ -187,15 +177,12 @@
         // 3. Stile anwenden
         addStyles(isDarkMode);
 
-        // 4. Prüfen, ob die Haupttabelle wirklich gefunden wurde
-         if (!mainTable) {
+        if (!mainTable) {
             document.getElementById('summary-loading-message').textContent = 'Fehler: Haupt-Lehrgangstabelle mit ID "schooling_own_table" nicht gefunden.';
-            console.error('[Lehrgangsübersicht] Haupt-Lehrgangstabelle mit ID "schooling_own_table" nicht gefunden.');
             return;
         }
         if (mainTable.tBodies.length === 0) {
              document.getElementById('summary-loading-message').textContent = 'Fehler: Haupt-Lehrgangstabelle hat keinen tbody.';
-             console.error('[Lehrgangsübersicht] Haupt-Lehrgangstabelle hat keinen tbody.');
              return;
         }
 
@@ -203,15 +190,13 @@
         // 5. Daten sammeln und verarbeiten
         const courses = {};
         const fetchTasks = [];
-        // Direkter Zugriff auf den tbody der gefundenen Tabelle
-        const rows = mainTable.tBodies[0].querySelectorAll('tr'); // Einfacher 'tr', da die ID spezifisch genug ist
+        const rows = mainTable.tBodies[0].querySelectorAll('tr');
         const totalCoursesToFetch = rows.length;
         let coursesFetched = 0;
         const progressCounter = document.getElementById('progress-counter');
         progressCounter.textContent = `(0/${totalCoursesToFetch})`;
 
         rows.forEach(row => {
-            // Der Link ist jetzt in der ersten Zelle (td)
             const linkElement = row.querySelector('td:first-child a.btn');
             if (linkElement) {
                 const courseName = linkElement.textContent.trim();
@@ -231,8 +216,6 @@
                         console.error(`[Lehrgangsübersicht] Fehler beim Verarbeiten des Links ${courseUrl}:`, error);
                     });
                 fetchTasks.push(task);
-            } else {
-                 console.warn("[Lehrgangsübersicht] Kein Link in Tabellenzeile gefunden:", row);
             }
         });
 
@@ -247,6 +230,15 @@
             const summaryList = document.getElementById('schooling-summary-list');
             summaryList.innerHTML = '';
             const sortedCourseNames = Object.keys(courses).sort();
+
+            // --- NEU: Gesamtsumme berechnen ---
+            let totalParticipants = 0;
+            Object.values(courses).forEach(count => totalParticipants += count);
+
+            // --- NEU: Überschrift aktualisieren ---
+            const headerElement = summaryContainer.querySelector('h3');
+            headerElement.textContent = `Lehrgangsübersicht (Gesamt: ${totalParticipants})`;
+
 
              if (sortedCourseNames.length === 0 && coursesFetched === totalCoursesToFetch) {
                  summaryList.innerHTML = '<li>Keine Teilnehmerdaten gefunden oder Fehler beim Zählen.</li>';
@@ -266,14 +258,11 @@
             document.getElementById('summary-loading-message').style.display = 'none';
 
         } catch (error) {
-            console.error("[Lehrgangsübersicht] Ein unerwarteter Fehler ist beim Abrufen aller Teilnehmerzahlen aufgetreten:", error);
+            console.error("[Lehrgangsübersicht] Fehler:", error);
             document.getElementById('summary-loading-message').textContent = 'Ein Fehler ist aufgetreten.';
-            document.getElementById('summary-loading-message').style.display = 'block';
         }
     }
 
-    // Skriptstart mit Verzögerung
-    // Die Tabelle mit der ID sollte relativ schnell da sein, aber eine kleine Verzögerung schadet nicht.
     setTimeout(displaySchoolingSummary, 300);
 
 })();
