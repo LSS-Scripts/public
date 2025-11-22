@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Leitstellenspiel Gebäude-, Personal- & Fahrzeugstatistik (V9.9)
+// @name         Leitstellenspiel Gebäude-, Personal- & Fahrzeugstatistik (V9.9.1)
 // @namespace    http://tampermonkey.net/
-// @version      9.9
-// @description  Statistik mit Suche, Sortierung (A-Z/Anzahl) und FMS-Status für Gebäude & Fahrzeuge (Blaues Theme)
+// @version      9.9.1
+// @description  Statistik mit Suche, Sortierung und lesbarem Dark-Mode (High Contrast)
 // @author       Gemini (bearbeitet)
 // @match        https://www.leitstellenspiel.de/*
 // @grant        GM.xmlHttpRequest
@@ -106,7 +106,7 @@
         }
     };
 
-    // --- CSS ---
+    // --- CSS (Jetzt mit besseren Farben!) ---
     const customCss = `
         #gemini_building_stats_modal .modal-dialog { width: 90%; max-width: 1600px; min-width: 1000px; }
         .gemini-stat-box { display: flex; justify-content: space-between; align-items: center; background-color: #3a3a3a; padding: 10px 15px; margin-bottom: 10px; border-radius: 6px; color: #f1f1f1; font-weight: 500; }
@@ -121,16 +121,26 @@
         .text-info { color: #5bc0de; }
         .text-warning { color: #f0ad4e; }
         .gemini-action-box { background-color: #2f2f2f; border: 1px solid #444; padding: 15px; border-radius: 6px; margin-top: 10px; }
-        .gemini-action-box .form-control { width: 100px; display: inline-block; margin-right: 10px; background-color: #555; color: #fff; border: 1px solid #666; }
         .gemini-action-box h5 { margin-top: 0; color: #f1f1f1; font-weight: bold; }
         .fms-mini-stat { font-size: 11px; color: #ccc; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .fms-badge-inline { padding: 2px 5px; border-radius: 4px; font-size: 10px; margin-right: 3px; color: #fff; font-weight: bold; background-color: #555; }
 
-        /* NEU V9.9: Controls */
+        /* -- NEUE CONTROLS CSS (V9.9.1 Fix) -- */
         .gemini-controls-row { display: flex; align-items: center; margin-bottom: 15px; background: #2f2f2f; padding: 10px; border-radius: 4px; }
-        .gemini-search-input { flex-grow: 1; background: #444; border: 1px solid #555; color: white; padding: 6px 10px; border-radius: 4px; margin-right: 15px; }
-        .gemini-sort-select { background: #444; border: 1px solid #555; color: white; padding: 6px 10px; border-radius: 4px; width: 200px; }
-        .gemini-control-label { margin-right: 10px; color: #ccc; font-weight: normal; }
+        .gemini-control-label { margin-right: 10px; color: #ffffff !important; font-weight: bold; }
+
+        /* Input & Select: Hellerer Hintergrund, Weiße Schrift */
+        .gemini-search-input { flex-grow: 1; background: #555 !important; border: 1px solid #777 !important; color: #ffffff !important; padding: 6px 10px; border-radius: 4px; margin-right: 15px; }
+        .gemini-sort-select { background: #555 !important; border: 1px solid #777 !important; color: #ffffff !important; padding: 6px 10px; border-radius: 4px; width: 200px; }
+
+        /* Platzhalter-Text Farbe (Hellgrau) */
+        .gemini-search-input::placeholder { color: #cccccc !important; opacity: 1; }
+
+        /* Dropdown Optionen (gegen Browser-Defaults) */
+        .gemini-sort-select option { background-color: #333; color: #fff; }
+
+        /* Action Box Inputs */
+        .gemini-action-box .form-control { width: 100px; display: inline-block; margin-right: 10px; background-color: #555; color: #fff; border: 1px solid #666; }
     `;
     GM_addStyle(customCss);
 
@@ -138,7 +148,7 @@
 
     async function showBuildingStats(event) {
         if(event) event.preventDefault();
-        console.log('[LSS-Statistik V9.9] Starte Statistik-Erhebung...');
+        console.log('[LSS-Statistik V9.9.1] Starte Statistik-Erhebung...');
 
         showModal('<h4 id="gemini_stats_title">Lade Daten...</h4><div id="gemini_stats_body"><div class="progress"><div class="progress-bar progress-bar-striped active" style="width: 100%">Lade API Daten...</div></div></div>');
         const modalBody = document.getElementById('gemini_stats_body');
@@ -215,7 +225,7 @@
             }
 
             // --- Render UI ---
-            modalTitle.textContent = 'Statistik V9.9';
+            modalTitle.textContent = 'Statistik V9.9.1';
             modalBody.innerHTML = '';
 
             // 1. Übersicht
@@ -574,7 +584,7 @@
 
     function addMenuItem() {
         const link = $('#logout_button').closest('li');
-        if(link.length) link.after('<li role="presentation"><a href="#" id="gemini_building_stats_link"><span class="glyphicon glyphicon-stats" style="margin-right:5px;"></span> Statistik V9.9</a></li>');
+        if(link.length) link.after('<li role="presentation"><a href="#" id="gemini_building_stats_link"><span class="glyphicon glyphicon-stats" style="margin-right:5px;"></span> Statistik V9.9.1</a></li>');
         $('#gemini_building_stats_link').click(showBuildingStats);
     }
 
