@@ -232,6 +232,14 @@
     "categories": ["Alarmierung","Verbands-Tools"]
   },
   {
+    "name": "Personalbeschaffer BPOL",
+    "version": "2.2.0",
+    "fileName": "Personalbeschaffer BPOL.v2.2.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Reale Gebäudeliste",
     "version": "0.6.0",
     "fileName": "Reale Gebäudeliste.v0.6.0.user.js",
