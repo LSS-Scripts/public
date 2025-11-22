@@ -160,6 +160,14 @@
     "categories": ["Fahrzeuge","Gebäude","Optik"]
   },
   {
+    "name": "Lehrgangs-Bedarfsrechner",
+    "version": "3.4.0",
+    "fileName": "Lehrgangs-Bedarfsrechner.v3.4.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Lehrgangs-Schnellauswahl (Räume)",
     "version": "1.7.0",
     "fileName": "Lehrgangs-Schnellauswahl (Räume).v1.7.0.user.js",
