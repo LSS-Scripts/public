@@ -2,10 +2,9 @@
 // @name        LSS Lehrgangs-Bedarfsrechner (Mit Räumen)
 // @version     3.4.0
 // @license     BSD-3-Clause
-// @author      B&M & BOS-Ernie (Hybrid by Gemini)
+// @author      B&M
 // @description Platziert die Planungs-Box unter dem Dropdown. Berechnet fehlendes Personal und die dafür nötigen Lehrgangsräume (à 10 Plätze).
 // @match       https://www.leitstellenspiel.de/buildings/*
-// @match       https://polizei.leitstellenspiel.de/buildings/*
 // @run-at      document-idle
 // @grant       none
 // ==/UserScript==
