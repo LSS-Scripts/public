@@ -81,8 +81,8 @@
   },
   {
     "name": "Erweiterte Statistik",
-    "version": "9.9.0",
-    "fileName": "Erweiterte Statistik.v9.9.0.user.js",
+    "version": "9.9.1",
+    "fileName": "Erweiterte Statistik.v9.9.1.user.js",
     "description": "Ein Ansatz für eine Statistik über Gebäude und Personal...<br><br><br>WIP!",
     "changelog": "",
     "categories": ["Statistik"]
