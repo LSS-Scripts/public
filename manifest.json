@@ -216,6 +216,14 @@
     "categories": ["Lehrgänge"]
   },
   {
+    "name": "Leitstellen Zuweiser",
+    "version": "1.3.0",
+    "fileName": "Leitstellen Zuweiser.v1.3.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Massen-Lehrgangszuweiser für Verbandslehrgänge",
     "version": "1.6.1",
     "fileName": "Massen-Lehrgangszuweiser für Verbandslehrgänge.v1.6.1.user.js",
