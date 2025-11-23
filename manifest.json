@@ -219,7 +219,7 @@
     "name": "Leitstellen Zuweiser",
     "version": "1.3.0",
     "fileName": "Leitstellen Zuweiser.v1.3.0.user.js",
-    "description": "",
+    "description": "Reduziert den Verschleiß deiner linken Maustaste um 99%. Ein Script für alle, die 'Effizienz' sagen, aber 'Ich habe absolut keine Lust, das 500 Mal per Hand zu machen' meinen. Weist sichtbare Gebäude automatisch zu, während du wichtigere Dinge tust. (Atmen, zum Beispiel.)",
     "changelog": "",
     "categories": ["Sonstiges"]
   },
