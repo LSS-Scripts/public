@@ -1,0 +1,1 @@
+Reduziert den Verschleiß deiner linken Maustaste um 99%. Ein Script für alle, die 'Effizienz' sagen, aber 'Ich habe absolut keine Lust, das 500 Mal per Hand zu machen' meinen. Weist sichtbare Gebäude automatisch zu, während du wichtigere Dinge tust. (Atmen, zum Beispiel.)
