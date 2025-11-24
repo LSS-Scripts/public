@@ -3,7 +3,7 @@
 // @namespace    https://www.leitstellenspiel.de/
 // @version      4.0
 // @description  Baut Kleinwachen massenhaft aus - mit 5 parallelen Workern.
-// @author       Gemini AI
+// @author       B&M
 // @match        https://www.leitstellenspiel.de/*
 // @grant        none
 // ==/UserScript==
