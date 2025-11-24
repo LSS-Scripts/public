@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.4.1
+// @version      5.4.2
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -893,7 +893,7 @@
         replaceInputWithTextarea();
         setupMultiPageLoader();
         applyBlockStatusToAllElements();
-    }, 1500);
+    }, 15);
 
     myUsername = document.getElementById('navbar_profile_link')?.innerText.trim();
     isDark = document.body.classList.contains('dark');
