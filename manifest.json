@@ -336,6 +336,14 @@
     "categories": ["Gebäude","Lehrgänge"]
   },
   {
+    "name": "Wachen-Upgrader",
+    "version": "4.0.0",
+    "fileName": "Wachen-Upgrader.v4.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Zentrale Einstellungen",
     "version": "2025.07.24",
     "fileName": "Zentrale Einstellungen.v2025.07.24.user.js",
