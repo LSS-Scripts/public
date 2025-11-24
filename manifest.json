@@ -57,8 +57,8 @@
   },
   {
     "name": "Chat-Tool",
-    "version": "5.4.5",
-    "fileName": "Chat-Tool.v5.4.5.user.js",
+    "version": "5.4.2",
+    "fileName": "Chat-Tool.v5.4.2.user.js",
     "description": "Das Problem: Der Chat ist eine Textwüste, optisch dröge wie Knäckebrot. „User_Hanswurst“ schreibt mal wieder und du kannst ihn nicht stumm schalten. Und im Verbands-Chat? Da klickst du dich durch gefühlt 50 Einzelseiten, nur um eine Info von letzter Woche zu finden.<br><br>Die Lösung: Dieses Script ist die Abrissbirne für den alten Chat und dein persönlicher Style-Berater in einem. Es kombiniert drei Geniestreiche:<br><br>1. Das Messenger-Design: Es wirft den 90er-Look raus und ersetzt ihn durch ein modernes Design mit echten Chat-Blasen, Zeitstempeln und farbigen Namen. Plötzlich ist da wieder... Übersicht.<br><br>2. Der User-Blocker: Jemand nervt? ID auf die Blockliste, Schalter umlegen, zack – digitale Stille. Ein kleiner, fieser Zähler am Header zeigt dir live an, wie viel Gebrüll du gerade ignorierst. (Admins werden übrigens clever erkannt und können nicht geblockt werden. Pech.)<br><br>3. Die Ladefunktion: Es killt die nervige Seitennavigation im Verbands-Chat. Stattdessen kriegst du einen \"5 weitere Seiten laden\"-Knopf. Scrollen statt klicken.<br><br>Bonus: Für die Kontrollfreaks gibt es ein Einstellungs-Menü, in dem du jede verdammte Farbe für den Light- und Dark-Mode anpassen kannst. Mach alles pink. Wir verurteilen dich nicht. (Vielleicht ein bisschen.)",
     "changelog": "",
     "categories": ["Optik","Verbands-Tools"]
