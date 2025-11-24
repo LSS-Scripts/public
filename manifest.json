@@ -341,7 +341,7 @@
     "fileName": "Wachen-Upgrader.v4.0.0.user.js",
     "description": "Hast du früher aus falschem Geiz überall Kleinwachen hingeklatscht und bereust nun deine eigene Blödheit? Ertrinkst du mittlerweile in Credits, bist aber viel zu faul, um hunderte Wachen manuell auszubauen?<br><br>Dieses Script ist deine Erlösung: Es feuert deine überschüssigen Millionen mit 5 parallelen Workern vollautomatisch aus dem Fenster. Lehn dich zurück und lass den Code deine Jugendsünden korrigieren – Klicken ist schließlich was für Geringverdiener.",
     "changelog": "",
-    "categories": ["Sonstiges"]
+    "categories": ["Gebäude"]
   },
   {
     "name": "Zentrale Einstellungen",
