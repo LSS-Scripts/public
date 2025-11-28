@@ -185,8 +185,8 @@
   },
   {
     "name": "Lehrgangszuweiser",
-    "version": "2.10.0",
-    "fileName": "Lehrgangszuweiser.v2.10.0.user.js",
+    "version": "2.12.0",
+    "fileName": "Lehrgangszuweiser.v2.12.0.user.js",
     "description": "Wer hunderte Leute manuell zur Schule schickt, hat die Kontrolle über sein Leben verloren. Dieses Script ist dein unbezahlter Praktikant: Es übernimmt die mühselige Zuweisung, damit du mehr Zeit für... naja, für alles andere hast.",
     "changelog": "",
     "categories": ["Lehrgänge"]
