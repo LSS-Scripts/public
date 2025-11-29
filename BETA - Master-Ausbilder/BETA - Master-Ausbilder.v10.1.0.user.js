@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        LSS Master-Ausbilder (V9.2.0 New Tab)
+// @name        LSS Master-Ausbilder (V10.1.0 Ultimate)
 // @namespace   leitstellenspiel-scripts
-// @version     9.2.0
-// @description Die finale Komfort-Version. Öffnet Schulen in neuen Tabs, wählt Lehrgänge automatisch aus und bietet den vollen Workflow.
+// @version     10.1.0
+// @description Die echte Fusion: SEG-Fix, Smart-Links UND der "Alles merken"-Button für maximale Faulheit.
 // @author      Masklin / BOS-Ernie / Gemini (Fusion)
 // @license     MIT
 // @match       https://*.leitstellenspiel.de/
@@ -107,8 +107,6 @@
             .detail-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
             .detail-item { background: #3a3a3a; padding: 5px 10px; border-radius: 4px; border: 1px solid #555; display: flex; justify-content: space-between; align-items: center; }
             .warn-text { color: #f39c12; font-size: 0.9em; display: block; margin-top: 3px; }
-            /* Button Styles for Disabled/Active */
-            .btn-disabled { opacity: 0.6; cursor: not-allowed; background-color: #555; border-color: #444; color: #ccc; }
         `;
         document.head.appendChild(style);
     }
@@ -160,10 +158,9 @@
                     let btnHtml = '';
                     
                     if (schoolInfo.url) {
-                        // NEW TAB: target="_blank"
                         btnHtml = `<a href="${schoolInfo.url}" class="btn btn-xs btn-success pull-right" title="Starten in: ${schoolInfo.name}" target="_blank">Start</a>`;
                     } else {
-                        btnHtml = `<span class="btn btn-xs btn-default pull-right btn-disabled">Voll</span>`;
+                        btnHtml = `<span class="btn btn-xs btn-default pull-right" style="opacity:0.5; cursor:not-allowed;">Voll</span>`;
                     }
 
                     html += `<li style="padding:8px; border-bottom:1px solid #333; color:#eee;">
@@ -223,7 +220,6 @@
             let actionBtn = '';
             
             if (schoolInfo.url) {
-                // NEW TAB: target="_blank"
                 actionBtn = `<a href="${schoolInfo.url}" class="btn btn-success btn-xs" target="_blank" onclick="event.stopPropagation()">Start (${schoolInfo.name})</a>`;
             } else {
                 actionBtn = `<span class="btn btn-disabled btn-xs">Keine Schule frei</span>`;
@@ -311,18 +307,26 @@
         });
     }
     
+    // --- SEG FIX IMPLEMENTIERT ---
     async function findBestSchoolUrl(eduKey) {
         const buildings = await getAllBuildings();
+        
         const typeMap = {
-            'gw_': [1], 'elw': [1, 3, 8], 'dlk': [1], 'hlf': [1], 'rw': [1],
-            'notarzt': [3], 'lna': [3], 'orgl': [3],
-            'police': [8], 'sek': [8], 'mek': [8],
-            'thw': [10], 'water': [1, 27], 'taucher': [1, 27]
+            'gw_': [1], 'elw': [1, 3, 8], 'dlk': [1], 'hlf': [1], 'rw': [1], 'fire_': [1],
+            'notarzt': [3], 'lna': [3], 'orgl': [3], 'seg_': [3], 'care_': [3], 'intensive': [3],
+            'police': [8], 'sek': [8], 'mek': [8], 'sheriff': [8], 'k9': [8],
+            'thw': [10], 'water_damage': [10], 'energy': [10],
+            'water': [1, 3, 27], 'taucher': [1, 3, 27],
+            'disaster_': [3, 10]
         };
-        let targetTypes = [1];
-        for(const [k, types] of Object.entries(typeMap)) { if(eduKey.includes(k)) { targetTypes = types; break; } }
+        
+        let targetTypes = [1]; // Default
+        for(const [k, types] of Object.entries(typeMap)) { 
+            if(eduKey.includes(k)) { targetTypes = types; break; } 
+        }
 
         const candidates = buildings.filter(b => {
+            if (![1,3,8,10,27].includes(b.building_type)) return false;
             if (!targetTypes.includes(b.building_type)) return false;
             const cap = 1 + (b.extensions ? b.extensions.length : 0);
             const busy = b.schoolings ? b.schoolings.length : 0;
@@ -336,7 +340,7 @@
     }
 
     // =================================================================================
-    // 5. WACHEN-PRÜFER
+    // 5. WACHEN-PRÜFER (CHECKER) - MIT ALLES-MERKEN-BUTTON
     // =================================================================================
     function injectCheckerUI(h1) {
         getStoredBlueprints().then(blueprints => {
@@ -437,6 +441,7 @@
             let table = `<table class="ma-table"><thead><tr><th>Ausbildung</th><th>Soll</th><th>Ist</th><th>Unterricht</th><th>Fehlt</th></tr></thead><tbody>`;
             const allKeys = new Set([...Object.keys(required), ...Object.keys(available)]);
             let dynamicFreeCount = countFree;
+            let missingItems = []; // Für "Alles merken"
 
             allKeys.forEach(key => {
                 const req = required[key] || 0;
@@ -449,13 +454,9 @@
                 let act = '<span class="ma-badge-ok">OK</span>';
                 if(missing > 0 && key !== 'null') {
                     const trainableAmount = Math.min(missing, countFree);
-                    
                     if (trainableAmount > 0) {
-                        let warnText = "";
-                        if (trainableAmount < missing) {
-                            warnText = `<span class="warn-text">Nur ${trainableAmount} verfügbar!</span>`;
-                        }
-                        act = `<button class="btn btn-xs btn-default pool-add-btn" data-key="${key}" data-m="${trainableAmount}">🛒 +${trainableAmount}</button> ${warnText}`;
+                        act = `<button class="btn btn-xs btn-default pool-add-btn" data-key="${key}" data-m="${missing}">🛒 +${missing}</button>`;
+                        missingItems.push({ key, missing }); // Merken für Master-Button
                     } else {
                         act = `<span style="color:#e74c3c; font-weight:bold;">Kein freies Personal!</span>`;
                     }
@@ -464,8 +465,17 @@
                 table += `<tr style="${missing>0?'background:rgba(200,0,0,0.15)':''}"><td>${name}</td><td>${req}</td><td>${av}</td><td>${tr}</td><td>${missing>0 ? `<b>${missing}</b> ` : ''}${act}</td></tr>`;
             });
             table += `</tbody></table>`;
-            body.innerHTML = `<div style="margin-bottom:10px;">Personal: <strong>${countTotal}</strong> | <span style="color:#2ecc71">Verfügbar für Ausbildung: <strong id="disp-free">${countFree}</strong></span></div>` + table;
 
+            let headerHtml = `<div style="margin-bottom:10px;">Personal: <strong>${countTotal}</strong> | <span style="color:#2ecc71">Verfügbar für Ausbildung: <strong id="disp-free">${countFree}</strong></span></div>`;
+            
+            // --- MASTER BUTTON ---
+            if (missingItems.length > 1 && countFree > 0) {
+                headerHtml += `<button id="add-all-btn" class="btn btn-success btn-block" style="margin-bottom:10px; font-weight:bold;">🛒 Alle ${missingItems.length} fehlenden Lehrgänge vormerken (soweit Personal reicht)</button>`;
+            }
+
+            body.innerHTML = headerHtml + table;
+
+            // Einzel-Button Handler
             body.querySelectorAll('.pool-add-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const key = e.target.dataset.key;
@@ -490,6 +500,39 @@
                     e.target.disabled = true;
                 });
             });
+
+            // Master-Button Handler
+            const masterBtn = document.getElementById('add-all-btn');
+            if(masterBtn) {
+                masterBtn.addEventListener('click', () => {
+                    let addedTotal = 0;
+                    missingItems.forEach(item => {
+                        if (dynamicFreeCount <= 0) return;
+                        const possible = Math.min(item.missing, dynamicFreeCount);
+                        dynamicFreeCount -= possible;
+                        
+                        let pool = JSON.parse(localStorage.getItem(POOL_STORAGE_KEY) || '{}');
+                        if(!pool[item.key]) pool[item.key] = {};
+                        pool[item.key][bId] = { amount: possible, name: buildingName };
+                        localStorage.setItem(POOL_STORAGE_KEY, JSON.stringify(pool));
+                        addedTotal += possible;
+
+                        // Buttons updaten
+                        const subBtn = body.querySelector(`.pool-add-btn[data-key="${item.key}"]`);
+                        if(subBtn) {
+                            subBtn.className = "btn btn-xs btn-success";
+                            subBtn.innerText = `✔ (+${possible})`;
+                            subBtn.disabled = true;
+                        }
+                    });
+                    
+                    window.updateLssBasket();
+                    document.getElementById('disp-free').innerText = dynamicFreeCount;
+                    masterBtn.innerText = `Erledigt! ${addedTotal} Personen vorgemerkt.`;
+                    masterBtn.disabled = true;
+                });
+            }
+
         } catch(e) { body.innerHTML = `<div style="color:red;padding:20px">Fehler: ${e.message}</div>`; }
     }
 
@@ -508,7 +551,7 @@
 
         if(!data) { div.innerHTML = 'Pool leer für diesen Key.'; h1.after(div); return; }
 
-        // AUTO-SELECT
+        // AUTO-SELECT LEHRGANG
         setTimeout(() => {
             const eduSelect = document.getElementById('education_select');
             if (eduSelect) {
