@@ -120,6 +120,14 @@
     "categories": ["Fahrzeuge","Fun"]
   },
   {
+    "name": "Fahrzeug-Statistik",
+    "version": "",
+    "fileName": "Fahrzeug-Statistik.V1.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Fahrzeug-Tool",
     "version": "17.3.5",
     "fileName": "Fahrzeug-Tool.v17.3.5.user.js",
