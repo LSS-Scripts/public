@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         LSS Kilometerkönig "Dark Dashboard"
+// @name         LSS Kilometerkönig "Dark Polish"
 // @namespace    www.leitstellenspiel.de
-// @version      1.0.0
-// @description  Statistik-Dashboard im Dark-Mode Design. Perfekt für dunkle Browser-Themes.
-// @author       Masklin
+// @version      1.5.0
+// @description  Statistik-Dashboard Dark Mode. Fixes für Button- und Textkontraste im Header.
+// @author       Gemini
 // @match        https://www.leitstellenspiel.de/*
 // @icon         https://www.leitstellenspiel.de/favicon.ico
 // @grant        none
@@ -15,6 +15,11 @@
     // === DATEN & KONFIGURATION ===
     const aircraftTypeIds = [31, 61, 65, 96, 127, 156, 157, 161];
     let cachedVehicleData = [];
+
+    // Referenzwerte für den "Gimmick-Vergleich"
+    const EARTH_CIRCUMFERENCE = 40075;
+    const MOON_DISTANCE = 384400;
+    const SUN_DISTANCE = 149600000;
 
     const vehicleTypes = {
         '0': 'LF 20', '1': 'LF 10', '2': 'DLK 23', '3': 'ELW 1',
@@ -43,7 +48,7 @@
         '94': 'DHuFüKW', '95': 'Polizeimotorrad', '96': 'Außenlastbehälter (allgemein)',
         '97': 'ITW', '98': 'Zivilstreifenwagen', '100': 'MLW 4', '101': 'Anh SwPu',
         '102': 'Anh 7', '103': 'FuStW (DGL)', '104': 'GW-L1', '105': 'GW-L2', '106': 'MTF-L',
-        '107': 'LF-L', '108': 'AB-L', '109': 'MzGW SB', '110': 'NEA50', '111': 'NEA50 (FW)', '112': 'NEA200', '113': 'NEA200 (FW)',
+        '107': 'LF-L', '108': 'AB-L', '109': 'MzGW SB', '110': 'NEA50', '112': 'NEA200',
         "114": 'GW-Lüfter', "115": 'Anh Lüfter', "116": 'AB-Lüfter', "117": 'AB-Tank',
         "118": 'Kleintankwagen', "119": 'AB-Lösch', "120": 'Tankwagen', "121": 'GTLF',
         "122": "LKW 7 Lbw (FGr E)", "123": "LKW 7 Lbw (FGr WP)", "124": "MTW-OV",
@@ -76,7 +81,7 @@
     `;
     $('#help_menu').before(menuHtml);
 
-    // === STYLE INJECTION (DARK MODE) ===
+    // === STYLE INJECTION (DARK MODE FIXED) ===
     const css = `
         @keyframes spin { 100% { transform:rotate(360deg); } }
 
@@ -85,7 +90,13 @@
         .km-modal-content { max-height: 100%; display: flex; flex-direction: column; overflow: hidden; background-color: #222 !important; color: #eee !important; border: 1px solid #444; }
         .km-modal-body { padding: 0; display: flex; flex: 1; overflow: hidden; background: #1a1a1a !important; }
         .modal-header { border-bottom: 1px solid #444 !important; background-color: #2b2b2b !important; }
-        .modal-footer { border-top: 1px solid #444 !important; background-color: #2b2b2b !important; }
+
+        /* FOOTER */
+        .modal-footer {
+            border-top: 1px solid #444 !important;
+            background-color: #2b2b2b !important;
+            display: flex; justify-content: space-between; align-items: center;
+        }
         .close { color: #fff !important; opacity: 0.8; }
 
         /* Sidebar (Filter) - DARK */
@@ -93,41 +104,35 @@
             width: 280px;
             background: #2a2a2a !important;
             border-right: 1px solid #444;
-            display: flex;
-            flex-direction: column;
-            z-index: 10;
+            display: flex; flex-direction: column; z-index: 10;
             box-shadow: 2px 0 5px rgba(0,0,0,0.2);
             color: #eee !important;
         }
         .km-sidebar-header { padding: 15px; background: #333 !important; border-bottom: 1px solid #444; color: #fff !important;}
         .km-sidebar-list { flex: 1; overflow-y: auto; padding: 10px 15px; scrollbar-width: thin; scrollbar-color: #555 #222;}
 
-        .km-filter-item { margin-bottom: 2px; }
-        .km-filter-item label {
-            font-weight: normal;
-            cursor: pointer;
-            width: 100%;
-            display:block;
-            padding: 2px 0;
-            color: #ddd !important;
+        /* FIX: Eigene Dark-Buttons für Alle/Keine, damit sie nicht matschig aussehen */
+        .km-sidebar-header .btn-default {
+            background-color: #444 !important; border-color: #555 !important; color: #eee !important;
         }
+        .km-sidebar-header .btn-default:hover { background-color: #555 !important; border-color: #666 !important; }
+
+        .km-filter-item label { font-weight: normal; cursor: pointer; width: 100%; display:block; padding: 2px 0; color: #ddd !important; }
         .km-filter-item label:hover { color: #fff !important; }
-        .km-filter-item input { margin-right: 8px; }
 
         /* Main Content - DARK */
         .km-content { flex: 1; display: flex; flex-direction: column; background: #222 !important; overflow: hidden; color: #eee !important;}
         .km-tabs { padding: 10px 15px 0 15px; background: #2a2a2a !important; border-bottom: 1px solid #444; }
 
-        /* Tabs Anpassung */
+        /* Tabs Anpassung FIX: Besserer Kontrast */
         .nav-tabs { border-bottom: 1px solid #444 !important; }
-        .nav-tabs>li>a { color: #aaa !important; }
+        .nav-tabs>li>a { color: #888 !important; background-color: #2a2a2a !important; border-color: transparent !important; }
         .nav-tabs>li.active>a, .nav-tabs>li.active>a:focus, .nav-tabs>li.active>a:hover {
-            color: #fff !important;
+            color: #fff !important; font-weight: bold;
             background-color: #222 !important;
-            border: 1px solid #444 !important;
-            border-bottom-color: transparent !important;
+            border: 1px solid #444 !important; border-bottom-color: transparent !important;
         }
-        .nav-tabs>li>a:hover { background-color: #333 !important; border-color: #444 !important; }
+        .nav-tabs>li>a:hover { background-color: #333 !important; color: #ddd !important; }
 
         /* Daten Bereich */
         .km-data-area { flex: 1; overflow-y: auto; padding: 15px; background: #222 !important; scrollbar-width: thin; scrollbar-color: #555 #222; }
@@ -135,29 +140,26 @@
         /* Tabelle Styles - DARK MODE */
         .km-data-area table { color: #ddd !important; background-color: transparent !important; }
         .km-data-area table thead th {
-            position: sticky; top: 0;
-            background: #333 !important;
-            color: #fff !important;
-            z-index: 5;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.5);
-            border-bottom: 2px solid #555 !important;
+            position: sticky; top: 0; background: #333 !important; color: #fff !important;
+            z-index: 5; box-shadow: 0 1px 2px rgba(0,0,0,0.5); border-bottom: 2px solid #555 !important;
         }
         .km-data-area table tbody tr { background-color: #222 !important; color: #ddd !important; border-top: 1px solid #333; }
-        /* Zebra Striping Dark */
         .km-data-area table tbody tr:nth-of-type(odd) { background-color: #2a2a2a !important; }
         .km-data-area table tbody tr:hover { background-color: #444 !important; }
         .km-data-area table td { border-top: 1px solid #333 !important; }
 
-        /* Labels */
         .label-default { background-color: #555; }
-
-        /* Links in der Tabelle (Helles Blau für Kontrast) */
         .km-data-area a { color: #8ecae6 !important; text-decoration: none; font-weight: bold; }
         .km-data-area a:hover { text-decoration: underline; color: #bde0fe !important; }
+
+        /* Summen Statistik Style */
+        .km-total-stat { font-size: 16px; color: #ddd; }
+        .km-total-highlight { color: #ffcc00; font-weight: bold; font-family: monospace; }
+        .km-total-fun { font-size: 12px; color: #aaa; margin-left: 10px; font-style: italic; }
     `;
     $('head').append(`<style>${css}</style>`);
 
-    // === LOGIK (unverändert) ===
+    // === LOGIK ===
     $('#km_king_btn').on('click', async function(e) {
         e.preventDefault();
         const btn = $(this);
@@ -219,13 +221,14 @@
             `;
         }).join('');
 
+        // FIX: Helle Überschrift (color: #eee)
         const modalHtml = `
             <div class="modal fade" id="km_stats_modal" tabindex="-1" role="dialog">
                 <div class="modal-dialog km-modal-dialog" role="document">
                     <div class="modal-content km-modal-content">
                         <div class="modal-header">
                             <button type="button" class="close" data-dismiss="modal">&times;</button>
-                            <h4 class="modal-title">📊 Fuhrpark-Statistik (Dark Mode)</h4>
+                            <h4 class="modal-title" style="color: #eee !important;">📊 Fuhrpark-Statistik (Dark Mode)</h4>
                         </div>
                         <div class="modal-body km-modal-body">
                             <div class="km-sidebar">
@@ -267,7 +270,10 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-default" data-dismiss="modal">Schließen</button>
+                            <div id="km-total-display" class="km-total-stat">
+                                Berechne...
+                            </div>
+                            <button type="button" class="btn btn-default" data-dismiss="modal" style="color: #333 !important;">Schließen</button>
                         </div>
                     </div>
                 </div>
@@ -301,20 +307,41 @@
     function renderTables(activeTypeIds) {
         const filteredList = cachedVehicleData.filter(v => activeTypeIds.includes(v.typeId));
 
-        // Top 20
+        // 1. Gesamtsumme berechnen
+        const totalKm = filteredList.reduce((sum, v) => sum + v.km, 0);
+        let funFact = "";
+
+        if (totalKm > SUN_DISTANCE) {
+             funFact = `☀️ ${(totalKm / SUN_DISTANCE).toFixed(4)}x zur Sonne`;
+        } else if (totalKm > MOON_DISTANCE) {
+             funFact = `🌑 ${(totalKm / MOON_DISTANCE).toFixed(2)}x zum Mond`;
+        } else if (totalKm > EARTH_CIRCUMFERENCE) {
+             funFact = `🌍 ${(totalKm / EARTH_CIRCUMFERENCE).toFixed(2)}x um die Erde`;
+        } else if (totalKm > 0) {
+             funFact = "🚲 Einmal quer durchs Dorf";
+        }
+
+        const totalString = totalKm.toLocaleString('de-DE', {maximumFractionDigits: 0});
+        $('#km-total-display').html(`
+            Gesamt: <span class="km-total-highlight">${totalString} km</span>
+            <span class="km-total-fun">${funFact}</span>
+        `);
+
+
+        // 2. Top 20
         const top20 = filteredList.sort((a, b) => b.km - a.km).slice(0, 20);
         let htmlTop20 = top20.length === 0 ? '<tr><td colspan="4" class="text-center text-muted">Keine Auswahl</td></tr>' :
             top20.map((v, i) => `
                 <tr>
                     <td>${i+1}.</td>
-                    <td><a href="/vehicles/${v.id}" target="_blank" class="lightbox-open">${v.caption}</a></td>
+                    <td><a href="/vehicles/${v.id}" target="_blank" class="lightbox-open" style="font-weight:bold;">${v.caption}</a></td>
                     <td><span class="label label-default">${v.typeName}</span></td>
                     <td class="text-right">${v.km.toLocaleString('de-DE', {maximumFractionDigits: 1})} km</td>
                 </tr>
             `).join('');
         $('#table-body-top20').html(htmlTop20);
 
-        // Champions
+        // 3. Champions
         const typeChampions = {};
         filteredList.forEach(v => {
             if (!typeChampions[v.typeId] || v.km > typeChampions[v.typeId].km) { typeChampions[v.typeId] = v; }
