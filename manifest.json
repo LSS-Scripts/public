@@ -121,8 +121,8 @@
   },
   {
     "name": "Fahrzeug-Statistik",
-    "version": "1.0.0",
-    "fileName": "Fahrzeug-Statistik.v1.0.0.user.js",
+    "version": "1.5.0",
+    "fileName": "Fahrzeug-Statistik.v1.5.0.user.js",
     "description": "Endlich die Antwort auf die Frage, die niemand gestellt hat: Welcher deiner Pixelhaufen hat am meisten virtuellen Sprit verbrannt? Das Skript liefert schonungslose Statistiken und filtert auf Wunsch endlich die arroganten Hubschrauber raus, damit sich auch dein faules LF 20 mal wie ein Held fühlen darf. Inklusive einer „Hall of Fame“ für jede noch so unnötige Fahrzeugklasse und einem Dark-Mode – weil wir genau wissen, dass du dieses Spiel eh nur nachts um 3 Uhr mit brennenden Augen spielst.",
     "changelog": "",
     "categories": ["Fahrzeuge","Statistik"]
