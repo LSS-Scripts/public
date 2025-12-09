@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.4.5
+// @version      5.4.6
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -365,10 +365,22 @@
                         const parts = procNode.textContent.split(mentionRegex);
                         parts.forEach(part => {
                             if (mentionRegex.test(part)) {
-                                const mentionSpan = document.createElement('span');
-                                mentionSpan.className = 'chat-mention';
-                                mentionSpan.textContent = part;
-                                finalFragment.appendChild(mentionSpan);
+                                // 1. Das @ entfernen, um den reinen Namen zu prüfen
+                                const nameCheck = part.substring(1).toLowerCase(); 
+                                
+                                // 2. Prüfen, ob dieser Name in der Verbandsliste existiert (Groß-/Kleinschreibung egal)
+                                const userExists = allianceUsers.some(u => u.name.toLowerCase() === nameCheck);
+                            
+                                if (userExists) {
+                                    // Echter User -> Markieren!
+                                    const mentionSpan = document.createElement('span');
+                                    mentionSpan.className = 'chat-mention';
+                                    mentionSpan.textContent = part;
+                                    finalFragment.appendChild(mentionSpan);
+                                } else {
+                                    // Fake User (z.B. BAHendrikö) -> Als normalen Text behandeln (keine Farbe)
+                                    finalFragment.appendChild(document.createTextNode(part));
+                                }
                             } else {
                                 if (part.length > 0) finalFragment.appendChild(document.createTextNode(part));
                             }
@@ -434,19 +446,43 @@
              Array.from(p.childNodes).forEach(child => {
                  if (child.nodeType === 3) {
                      let text = linkifyText(child.textContent);
-                     const tempDiv = document.createElement('div'); tempDiv.innerHTML = text;
-                     const finalFragment = document.createDocumentFragment();
-                     Array.from(tempDiv.childNodes).forEach(procNode => {
-                        if (procNode.nodeType === 3 && mentionRegex.test(procNode.textContent)) {
-                             const parts = procNode.textContent.split(mentionRegex);
-                             parts.forEach(part => {
-                                 if (mentionRegex.test(part)) {
-                                     const mentionSpan = document.createElement('span'); mentionSpan.className = 'chat-mention'; mentionSpan.textContent = part; finalFragment.appendChild(mentionSpan);
-                                 } else { if (part.length > 0) finalFragment.appendChild(document.createTextNode(part)); }
-                             });
-                        } else finalFragment.appendChild(procNode);
-                     });
-                     child.replaceWith(finalFragment);
+                     const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = text; // 'text' kommt von linkifyText(child.textContent)
+                        
+                        const finalFragment = document.createDocumentFragment();
+                        
+                        Array.from(tempDiv.childNodes).forEach(procNode => {
+                            // Wenn es ein Textknoten ist UND eine Mention enthält
+                            if (procNode.nodeType === 3 && mentionRegex.test(procNode.textContent)) {
+                                const parts = procNode.textContent.split(mentionRegex);
+                                parts.forEach(part => {
+                                    if (mentionRegex.test(part)) {
+                                        // 1. Check: Name bereinigen
+                                        const nameCheck = part.substring(1).toLowerCase();
+                                        // 2. Check: Existiert der User?
+                                        const userExists = allianceUsers.some(u => u.name.toLowerCase() === nameCheck);
+                        
+                                        if (userExists) {
+                                            const mentionSpan = document.createElement('span');
+                                            mentionSpan.className = 'chat-mention';
+                                            mentionSpan.textContent = part;
+                                            finalFragment.appendChild(mentionSpan);
+                                        } else {
+                                            // Fake/Tippfehler -> Normaler Text
+                                            finalFragment.appendChild(document.createTextNode(part));
+                                        }
+                                    } else {
+                                        if (part.length > 0) finalFragment.appendChild(document.createTextNode(part));
+                                    }
+                                });
+                            } else {
+                                // WICHTIG: Das hier hat in deinem Schnipsel gefehlt!
+                                // Das sorgt dafür, dass Links, Bilder oder Text ohne Mentions erhalten bleiben.
+                                finalFragment.appendChild(procNode);
+                            }
+                        });
+                        
+                        child.replaceWith(finalFragment);
                  }
              });
              p.querySelectorAll('.pro-chat-image-preview-container').forEach(c => c.onclick = e => { e.preventDefault(); openImageModal(c.dataset.imageUrl); });
