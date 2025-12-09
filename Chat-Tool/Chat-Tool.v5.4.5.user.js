@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.4.4
+// @version      5.4.5
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -349,7 +349,7 @@
         }
 
         // 5. Highlight @Mentions UND Linkify (ORIGINAL LOGIK Source 2)
-        const mentionRegex = /(@[a-zA-Z0-9_-]+)/g;
+        const mentionRegex = /(@[a-zA-Z0-9_.\-äöüÄÖÜß]+)/g;
         for (const child of Array.from(node.childNodes)) {
             if (child.nodeType === 3 && usernameSpan && !usernameSpan.contains(child)) {
                 let text = child.textContent;
@@ -429,7 +429,7 @@
         
         // Logic 3: Linkify & Mentions
         const p = well.querySelector('p');
-        const mentionRegex = /(@[a-zA-Z0-9_-]+)/g;
+        const mentionRegex = /(@[a-zA-Z0-9_.\-äöüÄÖÜß]+)/g;
         if (p) {
              Array.from(p.childNodes).forEach(child => {
                  if (child.nodeType === 3) {
@@ -574,7 +574,7 @@
 
         function checkMentionAutocomplete() {
              const c = proChatTextarea.selectionStart; const v = proChatTextarea.value; const sub = v.substring(0, c);
-             const m = sub.match(/(?:@(a-zA-Z0-9_-.äöüÄÖÜ]*)$)|(?:^\/w\s+([a-zA-Z0-9_-]*)$)/);
+             const m = sub.match(/(?:@([a-zA-Z0-9_.\-äöüÄÖÜß]*)$)|(?:^\/w\s+([a-zA-Z0-9_.\-äöüÄÖÜß]*)$)/);
              if(m) {
                  const search = (m[1] || m[2]) || '';
                  const res = allianceUsers.filter(u => u.name.toLowerCase().startsWith(search.toLowerCase())).slice(0,10);
