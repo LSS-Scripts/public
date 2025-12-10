@@ -160,6 +160,14 @@
     "categories": ["Alarmierung","Fahrzeuge"]
   },
   {
+    "name": "Flexible Optik",
+    "version": "9.0.0",
+    "fileName": "Flexible Optik.v9.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Gebäudegrafik-Manager",
     "version": "1.6.0",
     "fileName": "Gebäudegrafik-Manager.v1.6.0.user.js",
