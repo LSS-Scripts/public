@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.6.0
+// @version      5.7.0
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -172,50 +172,58 @@
 
     // NEU: Der Sicherheits-Dialog
     function openSafetyModal(onSuccess) {
-        // Modal bauen
         const modal = document.createElement('div');
         modal.id = 'proChatSafetyModal';
-        modal.className = 'pro-chat-modal-image'; // Wir nutzen die gleiche Klasse für Fullscreen Overlay
+        modal.className = 'pro-chat-modal-image'; 
         modal.style.display = 'flex';
         modal.style.flexDirection = 'column';
         
         modal.innerHTML = `
-            <div class="pro-chat-modal-content" style="width: 400px; padding: 20px; text-align: center; border: 2px solid #f0ad4e;">
-                <h3 style="margin-top:0; color:#f0ad4e;">⚠️ Warte mal! ⚠️</h3>
-                <p style="font-size:1.1em;">Du schreibst gerade an <b>ALLE</b>.</p>
-                <p>Zieh den Nippel durch die Lasche, um zu senden:</p>
+            <div class="pro-chat-modal-content" style="width: 450px; padding: 25px; text-align: center; border: 2px solid #f0ad4e; background: #222; color: #fff;">
+                <h2 style="margin-top:0; color:#f0ad4e; text-transform: uppercase; letter-spacing: 1px;">⚠️ ACHTUNG ⚠️</h2>
+                <p style="font-size:1.2em; margin-bottom: 5px;">Nachricht an <b>ALLE</b>?</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-bottom: 20px;">Zieh den Nippel durch die Lasche!</p>
                 
-                <div style="margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    <input type="range" id="safetySlider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;">
+                <div class="nippel-track-container" id="nippelContainer">
+                    <div class="nippel-lasche-zone"></div>
+                    <input type="range" id="safetySlider" min="0" max="100" value="0">
                 </div>
 
-                <div style="display: flex; justify-content: space-between;">
-                    <button id="safetyCancelBtn" class="btn btn-default">Abbruch</button>
-                    <button id="safetySendBtn" class="btn btn-success" disabled>Senden</button>
+                <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                    <button id="safetyCancelBtn" class="btn btn-default" style="width: 45%;">Abbruch</button>
+                    <button id="safetySendBtn" class="btn btn-success" style="width: 45%; font-weight:bold; text-transform:uppercase;" disabled>🔒 Gesperrt</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
 
         const slider = document.getElementById('safetySlider');
+        const container = document.getElementById('nippelContainer');
         const sendBtn = document.getElementById('safetySendBtn');
         const cancelBtn = document.getElementById('safetyCancelBtn');
 
         // Logik: Nippel ziehen
         slider.oninput = () => {
-            if (parseInt(slider.value) === 100) {
+            if (parseInt(slider.value) >= 95) { // Toleranzbereich ab 95%
+                slider.value = 100; // Einrasten
                 sendBtn.disabled = false;
-                sendBtn.innerText = "FEUER FREI! 🔥";
+                sendBtn.innerText = "🔥 FEUER FREI! 🔥";
+                sendBtn.classList.remove('btn-default');
+                sendBtn.classList.add('btn-danger'); // Roter Button für Action
+                container.classList.add('nippel-success'); // Grünes Licht
             } else {
                 sendBtn.disabled = true;
-                sendBtn.innerText = "Senden";
+                sendBtn.innerText = "🔒 Gesperrt";
+                sendBtn.classList.remove('btn-danger');
+                sendBtn.classList.add('btn-success');
+                container.classList.remove('nippel-success');
             }
         };
 
         // Klick Handler
         sendBtn.onclick = () => {
             modal.remove();
-            onSuccess(); // Nachricht abschicken
+            onSuccess(); 
         };
 
         cancelBtn.onclick = () => {
@@ -1029,6 +1037,89 @@
         .chat-status-bubble { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,0.2); }
         .chat-status-online { background-color: #28a745; box-shadow: 0 0 5px #28a745; }
         .chat-status-offline { background-color: #dc3545; opacity: 0.5; box-shadow: 0 0 5px #dc3545 !important; }
+        /* === NIPPEL-LASCHE DELUXE DESIGN === */
+.nippel-track-container {
+    position: relative;
+    width: 100%;
+    height: 60px;
+    background: repeating-linear-gradient(
+        45deg,
+        #333,
+        #333 10px,
+        #444 10px,
+        #444 20px
+    );
+    border-radius: 30px;
+    border: 3px solid #555;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+/* Die "Lasche" (Zielzone rechts) */
+.nippel-lasche-zone {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 80px;
+    background: rgba(255, 0, 0, 0.2); /* Rot wenn noch nicht da */
+    border-left: 2px dashed #777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s;
+}
+.nippel-lasche-zone::after {
+    content: "HIER REIN";
+    color: rgba(255,255,255,0.3);
+    font-size: 10px;
+    font-weight: bold;
+    transform: rotate(-90deg);
+}
+
+/* Der Slider selbst (unsichtbarer Track, sichtbarer Thumb) */
+#safetySlider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    z-index: 2;
+    cursor: grab;
+}
+#safetySlider:focus { outline: none; }
+
+/* Der "Nippel" (Griff) */
+#safetySlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #f0ad4e, #d35400);
+    border: 4px solid #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    margin-left: 5px; /* Kleiner Abstand zum Rand */
+    transition: transform 0.1s;
+}
+#safetySlider::-webkit-slider-thumb:active {
+    transform: scale(1.1);
+    cursor: grabbing;
+}
+
+/* Zustand: Eingerastet */
+.nippel-success .nippel-lasche-zone {
+    background: rgba(40, 167, 69, 0.8) !important; /* Grün */
+}
+.nippel-success .nippel-lasche-zone::after {
+    content: "OK!";
+    color: white;
+    transform: rotate(0);
+}
     `);
 
     // ========================================================================
