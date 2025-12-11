@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.5.0
+// @version      5.5.1
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -207,7 +207,7 @@
                     <details open><summary>User-Blocker</summary>
                         <fieldset><legend>Steuerung</legend><div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto;"><label for="lss_blocker_modal_toggle" style="font-weight:bold;">User-Blocker aktiv:</label>${createBlockerToggleHTML('lss_blocker_modal_toggle')}</div>
 <div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto; margin-top:5px;">
-    <label for="lss_blocker_count_toggle" style="font-weight:bold;">Anzahl (Badge) anzeigen:</label>
+    <label for="lss_blocker_count_toggle" style="font-weight:bold;">Anzahl geblockter Nachrichten (Badge) anzeigen:</label>
     <label class="lss-switch" title="Badge An/Aus" style="margin-right: auto;">
         <input type="checkbox" id="lss_blocker_count_toggle" ${isBlockerCountVisible ? 'checked' : ''}>
         <span class="lss-slider"></span>
