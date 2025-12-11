@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.7.0
+// @version      5.7.1
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -180,9 +180,9 @@
         
         modal.innerHTML = `
             <div class="pro-chat-modal-content" style="width: 450px; padding: 25px; text-align: center; border: 2px solid #f0ad4e; background: #222; color: #fff;">
-                <h2 style="margin-top:0; color:#f0ad4e; text-transform: uppercase; letter-spacing: 1px;">⚠️ ACHTUNG ⚠️</h2>
-                <p style="font-size:1.2em; margin-bottom: 5px;">Nachricht an <b>ALLE</b>?</p>
-                <p style="color: #aaa; font-size: 0.9em; margin-bottom: 20px;">Zieh den Nippel durch die Lasche!</p>
+                <h3 style="margin-top:0; color:#f0ad4e;">⚠️ Warte mal! ⚠️</h3>
+                <p style="font-size:1.2em; margin-bottom: 5px;">Du schreibst gerade an <b>ALLE</b>.</p>
+                <p style="color: #aaa; font-size: 0.9em; margin-bottom: 20px;">Zieh den Nippel durch die Lasche, um zu senden:</p>
                 
                 <div class="nippel-track-container" id="nippelContainer">
                     <div class="nippel-lasche-zone"></div>
