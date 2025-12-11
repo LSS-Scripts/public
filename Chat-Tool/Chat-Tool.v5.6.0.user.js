@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.5.1
+// @version      5.6.0
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -87,7 +87,8 @@
     const BLOCKER_IDS_KEY = 'blocker_id_string';
     const BLOCKER_COUNT_SHOW_KEY = 'blocker_count_show'; // NEU
     let isBlockerCountVisible = true; // NEU
-
+    const SAFETY_CHECK_KEY = 'safety_check_enabled'; // NEU
+    let isSafetyCheckEnabled = false; // NEU
     let myUsername = null;
     let isDark = false;
     let currentSettings = {};
@@ -168,10 +169,63 @@
     }
     function openImageModal(url) { if (!imageModal) createImageModal(); imageModalContent.src = url; document.getElementById('proChatImageModalLink').href = url; imageModal.style.display = 'flex'; }
     function closeImageModal() { if (imageModal) { imageModal.style.display = 'none'; imageModalContent.src = ''; } }
-    
+
+    // NEU: Der Sicherheits-Dialog
+    function openSafetyModal(onSuccess) {
+        // Modal bauen
+        const modal = document.createElement('div');
+        modal.id = 'proChatSafetyModal';
+        modal.className = 'pro-chat-modal-image'; // Wir nutzen die gleiche Klasse für Fullscreen Overlay
+        modal.style.display = 'flex';
+        modal.style.flexDirection = 'column';
+        
+        modal.innerHTML = `
+            <div class="pro-chat-modal-content" style="width: 400px; padding: 20px; text-align: center; border: 2px solid #f0ad4e;">
+                <h3 style="margin-top:0; color:#f0ad4e;">⚠️ Warte mal! ⚠️</h3>
+                <p style="font-size:1.1em;">Du schreibst gerade an <b>ALLE</b>.</p>
+                <p>Zieh den Nippel durch die Lasche, um zu senden:</p>
+                
+                <div style="margin: 20px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                    <input type="range" id="safetySlider" min="0" max="100" value="0" style="width: 100%; cursor: pointer;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button id="safetyCancelBtn" class="btn btn-default">Abbruch</button>
+                    <button id="safetySendBtn" class="btn btn-success" disabled>Senden</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const slider = document.getElementById('safetySlider');
+        const sendBtn = document.getElementById('safetySendBtn');
+        const cancelBtn = document.getElementById('safetyCancelBtn');
+
+        // Logik: Nippel ziehen
+        slider.oninput = () => {
+            if (parseInt(slider.value) === 100) {
+                sendBtn.disabled = false;
+                sendBtn.innerText = "FEUER FREI! 🔥";
+            } else {
+                sendBtn.disabled = true;
+                sendBtn.innerText = "Senden";
+            }
+        };
+
+        // Klick Handler
+        sendBtn.onclick = () => {
+            modal.remove();
+            onSuccess(); // Nachricht abschicken
+        };
+
+        cancelBtn.onclick = () => {
+            modal.remove();
+        };
+    }
     async function loadSettings() {
         isBlockerEnabled = await GM_getValue(BLOCKER_ENABLED_KEY, false);
         isBlockerCountVisible = await GM_getValue(BLOCKER_COUNT_SHOW_KEY, true);
+        isSafetyCheckEnabled = await GM_getValue(SAFETY_CHECK_KEY, false); //
         blockedIdString = await GM_getValue(BLOCKER_IDS_KEY, '');
         blockedIdArray = blockedIdString ? blockedIdString.split(',').filter(x=>x).map(x=>x.trim()) : [];
         try { const s = JSON.parse(localStorage.getItem(COLOR_STORAGE_KEY)); currentSettings = { ...defaultColors, ...s }; } catch (e) { currentSettings = { ...defaultColors }; }
@@ -205,14 +259,27 @@
                 <div class="pro-chat-modal-header"><h3>Chat-Einstellungen</h3><button id="proChatCloseBtn" class="pro-chat-close-btn" title="Schließen">&times;</button></div>
                 <div class="pro-chat-modal-body">
                     <details open><summary>User-Blocker</summary>
-                        <fieldset><legend>Steuerung</legend><div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto;"><label for="lss_blocker_modal_toggle" style="font-weight:bold;">User-Blocker aktiv:</label>${createBlockerToggleHTML('lss_blocker_modal_toggle')}</div>
-<div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto; margin-top:5px;">
-    <label for="lss_blocker_count_toggle" style="font-weight:bold;">Anzahl geblockter Nachrichten (Badge) anzeigen:</label>
-    <label class="lss-switch" title="Badge An/Aus" style="margin-right: auto;">
-        <input type="checkbox" id="lss_blocker_count_toggle" ${isBlockerCountVisible ? 'checked' : ''}>
-        <span class="lss-slider"></span>
-    </label>
-</div>
+                        <fieldset><legend>Steuerung</legend>
+    <div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto;">
+        <label for="lss_blocker_modal_toggle" style="font-weight:bold;">User-Blocker aktiv:</label>
+        ${createBlockerToggleHTML('lss_blocker_modal_toggle')}
+    </div>
+
+    <div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto; margin-top:5px;">
+        <label for="lss_blocker_count_toggle" style="font-weight:bold;">Anzahl (Badge) anzeigen:</label>
+        <label class="lss-switch" title="Badge An/Aus" style="margin-right: auto;">
+            <input type="checkbox" id="lss_blocker_count_toggle" ${isBlockerCountVisible ? 'checked' : ''}>
+            <span class="lss-slider"></span>
+        </label>
+    </div>
+
+    <div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto; margin-top:5px; border-top:1px solid #555; padding-top:5px;">
+        <label for="lss_safety_check_toggle" style="font-weight:bold; color:#f0ad4e;">"Nippel-Lasche" Modus:</label>
+        <label class="lss-switch" title="Verhindert versehentliches Senden an Alle" style="margin-right: auto;">
+            <input type="checkbox" id="lss_safety_check_toggle" ${isSafetyCheckEnabled ? 'checked' : ''}>
+            <span class="lss-slider"></span>
+        </label>
+    </div>
 </fieldset>
                         <fieldset><legend>Geblockte User</legend>
                             <div class="pro-chat-setting-row" style="grid-template-columns: 1fr auto;"><input type="text" id="lss_blocker_name_input" placeholder="Name..." list="lss_blocker_userlist"><button id="lss_blocker_name_add_btn">Hinzufügen</button></div>
@@ -259,6 +326,13 @@
             };
         }
         const headTgl = document.getElementById('lss_blocker_header_toggle'); if(headTgl) headTgl.checked = isBlockerEnabled;
+        const safetyTgl = document.getElementById('lss_safety_check_toggle');
+        if (safetyTgl) {
+            safetyTgl.onchange = async (e) => {
+                isSafetyCheckEnabled = e.target.checked;
+                await GM_setValue(SAFETY_CHECK_KEY, isSafetyCheckEnabled);
+            };
+        }
         document.getElementById('lss_blocker_name_add_btn').onclick = addBlockedUserByName;
         const dl = document.getElementById('lss_blocker_userlist');
         if(dl && allianceUsers) allianceUsers.forEach(u => { const o = document.createElement('option'); o.value = u.name; dl.appendChild(o); });
@@ -668,9 +742,26 @@
         };
 
         proChatTextarea.onkeydown = function(e) {
-            if(e.key==='Enter' && !e.shiftKey) {
+            if(e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 hideSuggestions();
+
+                const val = this.value.trim();
+                
+                // NEU: Sicherheits-Check Logik
+                // 1. Feature muss an sein
+                // 2. Text darf nicht leer sein
+                // 3. Text darf NICHT mit /w beginnen (Flüstern ist okay)
+                if (isSafetyCheckEnabled && val.length > 0 && !val.toLowerCase().startsWith('/w ')) {
+                    openSafetyModal(() => {
+                        // Wenn Nippel gezogen wurde:
+                        this.closest('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+                        setTimeout(()=>{this.value=''; autoGrow(this);},50);
+                    });
+                    return; // Stoppt das sofortige Senden
+                }
+
+                // Normales Senden (wenn Feature aus oder es ein Flüstern ist)
                 this.closest('form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
                 setTimeout(()=>{this.value=''; autoGrow(this);},50);
             }
