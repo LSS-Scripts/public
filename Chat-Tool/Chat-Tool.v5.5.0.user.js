@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.4.0 - Linkify Fix)
 // @namespace    http://tampermonkey.net/
-// @version      5.4.6
+// @version      5.5.0
 // @description  Chat v4.6.6 Design + API-Status. Fix: Links, Bilder und Mentions funktionieren wieder wie im Original.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -85,6 +85,8 @@
     const COLOR_STORAGE_KEY = 'LSS_ProChat_Settings';
     const BLOCKER_ENABLED_KEY = 'blocker_enabled';
     const BLOCKER_IDS_KEY = 'blocker_id_string';
+    const BLOCKER_COUNT_SHOW_KEY = 'blocker_count_show'; // NEU
+    let isBlockerCountVisible = true; // NEU
 
     let myUsername = null;
     let isDark = false;
@@ -169,6 +171,7 @@
     
     async function loadSettings() {
         isBlockerEnabled = await GM_getValue(BLOCKER_ENABLED_KEY, false);
+        isBlockerCountVisible = await GM_getValue(BLOCKER_COUNT_SHOW_KEY, true);
         blockedIdString = await GM_getValue(BLOCKER_IDS_KEY, '');
         blockedIdArray = blockedIdString ? blockedIdString.split(',').filter(x=>x).map(x=>x.trim()) : [];
         try { const s = JSON.parse(localStorage.getItem(COLOR_STORAGE_KEY)); currentSettings = { ...defaultColors, ...s }; } catch (e) { currentSettings = { ...defaultColors }; }
@@ -202,7 +205,15 @@
                 <div class="pro-chat-modal-header"><h3>Chat-Einstellungen</h3><button id="proChatCloseBtn" class="pro-chat-close-btn" title="Schließen">&times;</button></div>
                 <div class="pro-chat-modal-body">
                     <details open><summary>User-Blocker</summary>
-                        <fieldset><legend>Steuerung</legend><div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto;"><label for="lss_blocker_modal_toggle" style="font-weight:bold;">User-Blocker aktiv:</label>${createBlockerToggleHTML('lss_blocker_modal_toggle')}</div></fieldset>
+                        <fieldset><legend>Steuerung</legend><div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto;"><label for="lss_blocker_modal_toggle" style="font-weight:bold;">User-Blocker aktiv:</label>${createBlockerToggleHTML('lss_blocker_modal_toggle')}</div>
+<div class="pro-chat-setting-row" style="grid-template-columns: auto 1fr auto; margin-top:5px;">
+    <label for="lss_blocker_count_toggle" style="font-weight:bold;">Anzahl (Badge) anzeigen:</label>
+    <label class="lss-switch" title="Badge An/Aus" style="margin-right: auto;">
+        <input type="checkbox" id="lss_blocker_count_toggle" ${isBlockerCountVisible ? 'checked' : ''}>
+        <span class="lss-slider"></span>
+    </label>
+</div>
+</fieldset>
                         <fieldset><legend>Geblockte User</legend>
                             <div class="pro-chat-setting-row" style="grid-template-columns: 1fr auto;"><input type="text" id="lss_blocker_name_input" placeholder="Name..." list="lss_blocker_userlist"><button id="lss_blocker_name_add_btn">Hinzufügen</button></div>
                             <datalist id="lss_blocker_userlist"></datalist><ul id="lss_blocker_id_list"></ul>
@@ -239,6 +250,14 @@
         document.getElementById('proChatCloseBtn').onclick = () => modal.style.display='none';
         document.getElementById('proChatResetAllBtn').onclick = () => { if(confirm('Reset?')) { saveChatSettings(defaultColors); location.reload(); } };
         const tgl = document.getElementById('lss_blocker_modal_toggle'); if(tgl) { tgl.checked = isBlockerEnabled; tgl.onchange = handleToggleChange; }
+        const countTgl = document.getElementById('lss_blocker_count_toggle');
+        if (countTgl) {
+            countTgl.onchange = async (e) => {
+                isBlockerCountVisible = e.target.checked;
+                await GM_setValue(BLOCKER_COUNT_SHOW_KEY, isBlockerCountVisible);
+                applyBlockStatusToAllElements();
+            };
+        }
         const headTgl = document.getElementById('lss_blocker_header_toggle'); if(headTgl) headTgl.checked = isBlockerEnabled;
         document.getElementById('lss_blocker_name_add_btn').onclick = addBlockedUserByName;
         const dl = document.getElementById('lss_blocker_userlist');
@@ -512,7 +531,15 @@
             processAndBlockElement(el);
         });
         const c = document.querySelectorAll('[data-lss-blocked="true"]').length;
-        document.querySelectorAll('.lss-blocker-count').forEach(s => { s.textContent = c > 0 ? `(${c})` : ''; s.style.display = c > 0 ? 'inline-block' : 'none'; });
+        document.querySelectorAll('.lss-blocker-count').forEach(s => { 
+        // Nur anzeigen, wenn Nachrichten geblockt sind UND die Einstellung aktiv ist
+        if (c > 0 && isBlockerCountVisible) {
+            s.textContent = `(${c})`; 
+            s.style.display = 'inline-block';
+        } else {
+            s.style.display = 'none'; 
+        }
+    });
     }
 
     // ========================================================================
