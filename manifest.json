@@ -225,8 +225,8 @@
   },
   {
     "name": "Lehrgangsübersicht",
-    "version": "22.0.0",
-    "fileName": "Lehrgangsübersicht.v22.0.0.user.js",
+    "version": "31.0.0",
+    "fileName": "Lehrgangsübersicht.v31.0.0.user.js",
     "description": "Zeigt bei der Leitstelle -> Lehrgänge eine Statistik an und beitet, wenn freie Lehrgänge vorhanden sind, auch an die dort direkt zu starten.<br><br><br>Erstes Release, also: auch hier BETA!<br><br><br>Geht aktuell davon aus, dass Schulen IMMER 4 Räume haben. <br>Zeigt eine Ampel (frei/belegt) auf der Hauptseite (Gebäudeliste)",
     "changelog": "",
     "categories": ["Lehrgänge"]
