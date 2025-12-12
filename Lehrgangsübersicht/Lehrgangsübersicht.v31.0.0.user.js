@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      31.0
 // @description  API-basiert, Deutsche Namen, Kompaktes Layout & Lesbare Farben (Orange für Bau).
-// @author       Gemini (Optimiert)
+// @author       B&M
 // @match        https://www.leitstellenspiel.de/
 // @match        *://*.leitstellenspiel.de/buildings/*
 // @grant        none
