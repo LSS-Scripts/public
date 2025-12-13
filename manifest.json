@@ -171,7 +171,7 @@
     "name": "Flexible Optik",
     "version": "11.0.0",
     "fileName": "Flexible Optik.v11.0.0.user.js",
-    "description": "Befreit deine Leitstelle aus dem Kerker des statischen Rasters und lässt dich Fenster schubsen, als hättest du endlich Kontrolle über dein Leben. Mit der magnetischen \"Snap\"-Funktion kleben deine Fenster aneinander wie Gaffer an einer Unfallstelle. Solltest du das Layout so sehr verunstalten, dass selbst der Rettungsdienst die Flucht ergreift: Der Reset-Knopf versteckt sich schamhaft im Profilmenü. Ideal für alle, die lieber Tetris mit Einsatzlisten spielen, während die virtuelle Welt um sie herum in Flammen steht.",
+    "description": "Achtung: NICHT mit der Fenster-Optik vom lss kompatibel. NUR die Standard-Ansicht verwenden! (schlussendlich macht es aus der Standard-Optik eine verbesserte Fenster-Optik!)<br><br>Befreit deine Leitstelle aus dem Kerker des statischen Rasters und lässt dich Fenster schubsen, als hättest du endlich Kontrolle über dein Leben. Mit der magnetischen \"Snap\"-Funktion kleben deine Fenster aneinander wie Gaffer an einer Unfallstelle. Solltest du das Layout so sehr verunstalten, dass selbst der Rettungsdienst die Flucht ergreift: Der Reset-Knopf versteckt sich schamhaft im Profilmenü. Ideal für alle, die lieber Tetris mit Einsatzlisten spielen, während die virtuelle Welt um sie herum in Flammen steht.",
     "changelog": "",
     "categories": ["Optik"]
   },
