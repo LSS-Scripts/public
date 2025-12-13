@@ -72,6 +72,14 @@
     "categories": ["Optik","Verbands-Tools"]
   },
   {
+    "name": "Digital Stalker",
+    "version": "1.0.0",
+    "fileName": "Digital Stalker.v1.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Einsätze einklappen",
     "version": "9.1.1",
     "fileName": "Einsätze einklappe.v9.1.1.user.js",
