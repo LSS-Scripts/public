@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        BePo Personalbeschaffer V.2.3 (Multi-Training Support)
 // @namespace   bos-ernie.leitstellenspiel.de
-// @version     2.3
+// @version     2.5
 // @license     BSD-3-Clause
 // @author      BOS-Ernie (Original), Verändert BAHendrik, Masklin & KI
 // @description Bekämpft den Personalnotstand der BePo. Jetzt mit Unterstützung für spezifische Ausbildungen im Einstellungsmenü.
@@ -78,8 +78,22 @@
   function removePanelHeadingClickEvent() { const elements = document.getElementsByClassName("personal-select-heading"); for (let i = 0; i < elements.length; i++) { const clone = elements[i].cloneNode(true); elements[i].parentNode.replaceChild(clone, elements[i]); clone.addEventListener("click", panelHeadingClickEvent); } };
 
   function addFooter() {
-    const wrapper = document.createElement("div"); wrapper.style = "display: flex; flex-wrap: wrap; flex-direction: row; column-gap: 15px; align-items: center;";
-    const list = document.createElement("ul"); list.classList.add("list-inline"); list.style = "color: #fff;padding-top: 8px; margin-bottom: 0;";
+    const wrapper = document.createElement("div");
+    wrapper.style = "display: flex; flex-wrap: wrap; flex-direction: row; column-gap: 15px; align-items: center;";
+
+    // --- NEU: Anzeige für Gesamtverfügbarkeit ---
+    const availDisplay = document.createElement("div");
+    availDisplay.id = "bepo-total-available-display";
+    availDisplay.style.color = "#ccc";
+    availDisplay.style.fontSize = "12px";
+    availDisplay.style.marginRight = "10px";
+    availDisplay.innerHTML = "Lade...";
+    wrapper.appendChild(availDisplay);
+    // -------------------------------------------
+
+    const list = document.createElement("ul");
+    list.classList.add("list-inline");
+    list.style = "color: #fff;padding-top: 8px; margin-bottom: 0;";
     for (let i = 0; i < personnelSettingsProxy.length; i++) list.appendChild(createTotalSummaryElement(personnelSettingsProxy[i]));
     wrapper.appendChild(list);
 
@@ -116,7 +130,6 @@
     if (nav && nav.children[0] && nav.children[0].children[0]) nav.children[0].children[0].insertAdjacentElement("afterend", wrapper);
     else console.error(LOG_PREFIX + "Konnte Footer-Navigation nicht finden.");
   };
-
   // --- UI & SETTINGS LOGIC ---
   function openSettingsModal() {
       const existing = document.getElementById("bepo-settings-modal");
@@ -138,7 +151,7 @@
       const modalHTML = `
         <div id="bepo-settings-modal" style="position:fixed; top:10%; left:50%; transform:translate(-50%, 0); width: 450px; max-height: 80vh; overflow-y: auto; background: #333; color: #fff; z-index: 10005; padding: 20px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); border: 1px solid #555;">
             <h4 style="margin-top:0; border-bottom: 1px solid #555; padding-bottom: 10px;">BePo Einstellungen</h4>
-            
+
             <div style="display:flex; gap: 10px;">
                 <div style="flex: 1;">
                     <h5 style="text-decoration: underline;">Generell</h5>
@@ -199,63 +212,98 @@
       personnelSettingsProxy.forEach(setting => {
           const configKey = setting.key === null ? "null" : setting.key;
           setting.numberOfRequiredPersonnel = config.targets[configKey] || 0;
-          
+
           const reqElem = document.getElementById("number-of-required-personnel-" + setting.key);
           if(reqElem) reqElem.innerHTML = setting.numberOfRequiredPersonnel;
           updateFooter(setting.key, setting.numberOfSelectedPersonnel);
       });
-
+          updateGlobalAvailability(); // <--- NEU
       document.getElementById("bepo-settings-modal").remove();
       showTemporaryNotification("Einstellungen gespeichert!", "success");
   }
   // --- ENDE UI LOGIC ---
 
-  function updateFooter(key, selectedPersonnel) { 
-      const selectedElement = document.getElementById("number-of-selected-personnel-" + key); 
-      if (selectedElement) selectedElement.innerHTML = selectedPersonnel; 
-      const S = personnelSettingsProxy.find(s => s.key === key); 
-      if (!S) return; 
-      const R = S.numberOfRequiredPersonnel; 
+  function updateFooter(key, selectedPersonnel) {
+      const selectedElement = document.getElementById("number-of-selected-personnel-" + key);
+      if (selectedElement) selectedElement.innerHTML = selectedPersonnel;
+      const S = personnelSettingsProxy.find(s => s.key === key);
+      if (!S) return;
+      const R = S.numberOfRequiredPersonnel;
       // Farben Logik
-      const P = document.getElementById("personnel-" + key); 
-      if (P) { 
-          P.classList.remove("label-success", "label-warning", "label-danger", "label-default"); 
+      const P = document.getElementById("personnel-" + key);
+      if (P) {
+          P.classList.remove("label-success", "label-warning", "label-danger", "label-default");
           if (R === 0) {
                // Wenn Bedarf 0, aber Leute ausgewählt -> Info/Warning, sonst Default
                P.classList.add(selectedPersonnel > 0 ? "label-info" : "label-default");
           } else {
-               P.classList.add(selectedPersonnel >= R ? "label-success" : (selectedPersonnel > 0 ? "label-warning" : "label-danger")); 
+               P.classList.add(selectedPersonnel >= R ? "label-success" : (selectedPersonnel > 0 ? "label-warning" : "label-danger"));
           }
-      } 
+      }
   };
-  
+
+    // --- NEUE FUNKTION: Berechnet verfügbares Personal anhand der Header ---
+  function updateGlobalAvailability() {
+      const minRem = config.minRemaining;
+      const maxTake = config.maxTake;
+      const excludeKeywords = config.exclusions.split(",").map(s => s.trim().toLowerCase()).filter(s => s !== "");
+
+      let totalPotential = 0;
+      const headings = document.getElementsByClassName("personal-select-heading");
+
+      for (let h of headings) {
+          // 1. Name prüfen (Exclusions)
+          const nameNode = h.querySelector('span:not([style="float:right"])');
+          const name = nameNode ? nameNode.textContent.trim() : "";
+          if (excludeKeywords.some(k => name.toLowerCase().includes(k))) continue;
+
+          // 2. Anzahl aus dem Text lesen ("Derzeit: 230")
+          const txt = h.innerText || h.textContent || "";
+          const match = txt.match(/Derzeit:\s*(\d+)/);
+
+          if (match) {
+              const current = parseInt(match[1], 10);
+              // Berechnen, wie viele wir hier klauen dürften
+              // (Aktuell - MinBestand), aber maximal 'maxTake' und nicht unter 0
+              const takeable = Math.max(0, Math.min(maxTake, current - minRem));
+              totalPotential += takeable;
+          }
+      }
+
+      // Anzeige aktualisieren
+      const display = document.getElementById("bepo-total-available-display");
+      if (display) {
+          display.innerHTML = `Potenziell verfügbar: <b>${totalPotential}</b> (Gesamt)`;
+          display.title = "Summe aller Personen über dem Mindestbestand auf nicht ignorierten Wachen.";
+      }
+  }
   function addClickEventHandlerToCheckboxes() { const E = document.getElementsByClassName("schooling_checkbox"); for (let i = 0; i < E.length; i++) { E[i].removeEventListener("change", updateNumberOfSelectedPersonnelOnCheckboxClick); E[i].addEventListener("change", updateNumberOfSelectedPersonnelOnCheckboxClick); } };
-  
-  function updateNumberOfSelectedPersonnelOnCheckboxClick(event) { 
-      const C_ = event.target; 
-      let K = null; 
+
+  function updateNumberOfSelectedPersonnelOnCheckboxClick(event) {
+      const C_ = event.target;
+      let K = null;
       // Ermitteln, was für ein Typ das ist
       for (const S_ of personnelSettingsInternal) {
-          if (S_.key && C_.hasAttribute(S_.key) && C_.getAttribute(S_.key) === "true") { 
-              K = S_.key; 
-              break; 
-          } 
+          if (S_.key && C_.hasAttribute(S_.key) && C_.getAttribute(S_.key) === "true") {
+              K = S_.key;
+              break;
+          }
       }
       // Wenn keine Ausbildung gefunden, Check ob wirklich unskilled
-      if(K === null){ 
-          const isUnskilled = !Object.values(C_.attributes).some(attr => personnelSettingsInternal.find(s_ => s_.key === attr.name && s_.key !== null) && attr.value === "true"); 
+      if(K === null){
+          const isUnskilled = !Object.values(C_.attributes).some(attr => personnelSettingsInternal.find(s_ => s_.key === attr.name && s_.key !== null) && attr.value === "true");
           if(isUnskilled) K = null;
           else return; // Es ist eine Ausbildung, die wir nicht tracken
-      } 
-      
-      const U = personnelSettingsProxy.find(s => s.key === K); 
-      if (U) U.numberOfSelectedPersonnel += C_.checked ? 1 : -1; 
+      }
+
+      const U = personnelSettingsProxy.find(s => s.key === K);
+      if (U) U.numberOfSelectedPersonnel += C_.checked ? 1 : -1;
   };
 
   function addPersonnelSelector() { let E = document.getElementsByClassName("panel-heading personal-select-heading"); for (let i = 0; i < E.length; i++) { const L = E[i], B = L.getAttribute("building_id"), O = L.querySelector(".btn-group.bepo-controls"); if (O) O.remove(); const G = createPersonnelSelectorButtons(B), R_ = L.querySelector('span[style="float:right"]'); if (R_) R_.prepend(G); else { const N = document.createElement('span'); N.style.float = "right"; N.appendChild(G); const F = L.querySelector('span:not([style="float:right"])'); if (F && F.nextSibling) L.insertBefore(N, F.nextSibling); else L.appendChild(N); } } };
   function createPersonnelSelectorButtons(B) { const G = document.createElement("div"); G.classList.add("btn-group", "btn-group-xs", "bepo-controls"); G.setAttribute("role", "group"); const T = document.createElement("span"); T.classList.add("glyphicon", "glyphicon-trash"); const R_ = document.createElement("button"); R_.classList.add("btn", "btn-xs", "btn-default", "personnel-reset-button"); R_.setAttribute("type", "button"); R_.setAttribute("data-building-id", B); R_.addEventListener("click", resetPersonnelClick); R_.appendChild(T); G.appendChild(R_); const S_ = document.createElement("span"); S_.setAttribute("id", `personnel-status-${B}`); S_.classList.add("label", "label-info"); S_.style.marginLeft = "5px"; S_.style.padding = "4px 6px"; S_.textContent = "0"; G.appendChild(S_); return G; };
   function createTotalSummaryElement(s) { const l = document.createElement("li"), c = document.createElement("span"); c.innerHTML = s.caption + ": "; const S_ = document.createElement("span"); S_.setAttribute("id", "number-of-selected-personnel-" + s.key); S_.innerHTML = s.numberOfSelectedPersonnel; const R__ = document.createElement("span"); R__.setAttribute("id", "number-of-required-personnel-" + s.key); R__.innerHTML = s.numberOfRequiredPersonnel; const P_ = document.createElement("span"); P_.setAttribute("id", "personnel-" + s.key); P_.classList.add("label"); if (s.numberOfRequiredPersonnel > 0) P_.classList.add(s.numberOfSelectedPersonnel >= s.numberOfRequiredPersonnel ? "label-success" : (s.numberOfSelectedPersonnel > 0 ? "label-warning" : "label-danger")); else P_.classList.add("label-default"); P_.appendChild(S_); P_.appendChild(document.createTextNode("/")); P_.appendChild(R__); l.appendChild(c); l.appendChild(P_); return l; };
-  
+
   async function resetPersonnelClick(event) { event.preventDefault(); const b = event.target.closest("button"), B_ = b.dataset.buildingId; const P_ = getPanelBody(B_); if (!P_) return; const H = getPanelHeading(B_), M = H?.outerHTML.match(/href="([^"]+)"/); if (M && !loadedBuildings.includes(M[1])) await panelHeadingClick(B_, false); const I = P_.querySelectorAll("input.schooling_checkbox:checked"); for (const c_ of I) c_.click(); updateWacheStatus(B_, 0); };
   function updateWacheStatus(B_, c_) { const s_ = document.getElementById(`personnel-status-${B_}`); if (s_) { s_.textContent = `${c_}`; s_.classList.toggle("label-success", c_ > 0); s_.classList.toggle("label-info", c_ === 0); } };
   async function panelHeadingClickEvent(event) { if (event.target.closest(".personnel-reset-button")) return; let b_ = event.target.outerHTML.match(/building_id="(\d+)"/); if (b_ === null && event.target.parentElement) { let c_ = event.target.parentElement; while (c_ && !b_) { if (c_.getAttribute("building_id")) { b_ = ["", c_.getAttribute("building_id")]; break; } c_ = c_.parentElement; } } if (b_ && b_[1]) await panelHeadingClick(b_[1], true); };
@@ -311,21 +359,21 @@
 
       if (targetTypeKey === null) {
           // Wir suchen Unausgebildete
-          let isTrulyUnskilled = true; 
+          let isTrulyUnskilled = true;
           const inputAttributes = checkbox.attributes;
-          for(let i = 0; i < inputAttributes.length; i++){ 
-              const attr = inputAttributes[i]; 
+          for(let i = 0; i < inputAttributes.length; i++){
+              const attr = inputAttributes[i];
               // Ein Attribut das "true" ist (ausser den Standarddingern) bedeutet: Hat Ausbildung
-              if (!attr.name.startsWith("data-") && attr.name !== "building_id" && attr.name !== "class" && attr.name !== "type" && attr.name !== "value" && attr.name !== "id" && attr.value === "true"){ 
-                  isTrulyUnskilled = false; 
-                  break; 
-              } 
+              if (!attr.name.startsWith("data-") && attr.name !== "building_id" && attr.name !== "class" && attr.name !== "type" && attr.name !== "value" && attr.name !== "id" && attr.value === "true"){
+                  isTrulyUnskilled = false;
+                  break;
+              }
           }
           // Sicherstellen, dass auch der Text in der Tabelle leer ist oder "Keine" sagt
           const schoolingCell = row.cells[2];
-          if (schoolingCell) { 
-              const schoolingCellContent = schoolingCell.innerHTML.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ").trim(); 
-              if (schoolingCellContent.length > 0 && schoolingCellContent !== "-" && schoolingCellContent.toLowerCase() !== "keine") isTrulyUnskilled = false; 
+          if (schoolingCell) {
+              const schoolingCellContent = schoolingCell.innerHTML.replace(/<br\s*\/?>/gi, " ").replace(/\s+/g, " ").trim();
+              if (schoolingCellContent.length > 0 && schoolingCellContent !== "-" && schoolingCellContent.toLowerCase() !== "keine") isTrulyUnskilled = false;
           }
           matchesTarget = isTrulyUnskilled;
       } else {
@@ -379,7 +427,7 @@
 
     // Welche Ziele sind gesetzt? (Filtere alle mit Ziel > 0)
     const activeSettings = personnelSettingsProxy.filter(s => s.numberOfRequiredPersonnel > 0);
-    
+
     if (activeSettings.length === 0) {
       showTemporaryNotification(`Keine Personal-Ziele definiert (alles auf 0). Bitte Einstellungen prüfen.`, 'error');
       globalButton.disabled = false;
@@ -404,7 +452,7 @@
     }
     // Sortieren nach Wachengröße
     stationInfoList.sort((a, b) => b.stationTotalPersonnel - a.stationTotalPersonnel);
-    
+
     const excludeKeywords = config.exclusions.split(",").map(s => s.trim().toLowerCase()).filter(s => s !== "");
 
     // --- HAUPTSCHLEIFE ÜBER ALLE ZIELE ---
@@ -421,7 +469,7 @@
             if (totalRecruitedForThisType >= requiredTotal) break;
 
             const { buildingId, stationName, stationTotalPersonnel, panelHeadingElement } = stationInfo;
-            
+
             // Exclusions prüfen
             if (excludeKeywords.some(keyword => stationName.toLowerCase().includes(keyword))) continue;
             // Min Bestand prüfen
@@ -441,10 +489,10 @@
 
             // Berechnen Limit
             const maxPersonalToTakeBasedOnStationMinimum = stationTotalPersonnel - config.minRemaining;
-            const amountToRequestForThisStation = Math.min( 
-                config.maxTake, 
-                maxPersonalToTakeBasedOnStationMinimum, 
-                requiredTotal - totalRecruitedForThisType 
+            const amountToRequestForThisStation = Math.min(
+                config.maxTake,
+                maxPersonalToTakeBasedOnStationMinimum,
+                requiredTotal - totalRecruitedForThisType
             );
 
             if (amountToRequestForThisStation <= 0) continue;
@@ -456,7 +504,7 @@
                 const stationStatusSpan = document.getElementById(`personnel-status-${buildingId}`);
                 const currentStationCount = stationStatusSpan ? parseInt(stationStatusSpan.textContent, 10) || 0 : 0;
                 updateWacheStatus(buildingId, currentStationCount + actuallyRecruited);
-                
+
                 totalRecruitedForThisType += actuallyRecruited;
                 setting.numberOfSelectedPersonnel = totalRecruitedForThisType;
             }
@@ -483,7 +531,7 @@
     addPersonnelSelector();
     addFooter();
     personnelSettingsProxy.forEach(setting => setting.numberOfSelectedPersonnel = 0);
-
+    setTimeout(updateGlobalAvailability, 1000); // <--- NEU (kleine Verzögerung damit Seite geladen ist)
     document.addEventListener('keydown', function(event) {
         const activeElement = document.activeElement;
         const isTyping = activeElement && (activeElement.tagName.toLowerCase() === 'input' ||
