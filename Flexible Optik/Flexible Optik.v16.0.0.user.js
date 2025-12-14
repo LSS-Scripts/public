@@ -1,12 +1,15 @@
 // ==UserScript==
-// @name         LSS Flexible Grid (SmartLoad V15)
+// @name         LSS Flexible Grid (ProfileSafe V16)
 // @namespace    http://tampermonkey.net/
-// @version      15.0
-// @description  Befreit deine Leitstelle. Jetzt mit intelligentem Start-Mechanismus, der wartet, bis das Spiel wirklich bereit ist. Vergisst nie wieder deine Positionen! Mit Magnet-Funktion, Dark-Mode Scrollbars und Reset im Profil.
+// @version      16.0
+// @description  Befreit deine Leitstelle, aber lässt dein Profil in Ruhe. Jetzt mit eingebauter "Nicht stören"-Funktion für Profilseiten, damit du dich ungestört im Spiegel betrachten kannst. Ansonsten: Fenster-Tetris Deluxe mit Magnet-Funktion, Dark-Mode Scrollbars und einem Reset-Knopf, falls du die Orientierung verlierst.
 // @author       Gemini AI
 // @match        https://www.leitstellenspiel.de/
 // @match        https://www.missionchief.com/
 // @match        https://www.meldkamerspel.com/
+// @exclude      *://www.leitstellenspiel.de/profile/*
+// @exclude      *://www.missionchief.com/profile/*
+// @exclude      *://www.meldkamerspel.com/profile/*
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -16,8 +19,14 @@
 (function($) {
     'use strict';
 
+    // 0. SICHERHEITS-CHECK: Sind wir auf einer Profilseite?
+    if (window.location.href.indexOf('/profile/') > -1) {
+        console.log("LSS FlexGrid: Profilseite erkannt - Skript deaktiviert.");
+        return; // Sofortiger Abbruch
+    }
+
     // Konfiguration
-    const STORAGE_KEY = 'lss_layout_v15_final'; // Neuer Key für sauberen Neustart
+    const STORAGE_KEY = 'lss_layout_v15_final'; // Wir behalten den Key von V15, damit dein Layout bleibt!
     const GRIP_HEIGHT = 12;
     const MAP_HEADER_HEIGHT = 30;
     const SNAP_TOLERANCE = 20;
@@ -138,7 +147,7 @@
             border: 1px solid #666;
         }
         .lss-minimized .lss-shell-content { display: none !important; }
-        
+
         .lss-placeholder { visibility: hidden; pointer-events: none; }
         .ui-resizable-se {
             width: 15px; height: 15px;
@@ -154,14 +163,15 @@
 
     $(document).ready(function() {
         $('head').append('<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">');
-        
-        // INTELLIGENTER START: Wir prüfen alle 100ms, ob das Spiel bereit ist
+
+        // INTELLIGENTER START
         let checkInterval = setInterval(function() {
             // Wir warten auf: Einsätze, Wachen, Chat, Funk und Map
+            // Profilseiten haben diese IDs oft nicht, aber der Sicherheitscheck oben fängt das ab.
             if ($('#missions_outer').length && $('#buildings_outer').length && $('#map_outer').length) {
                 clearInterval(checkInterval);
                 console.log("LSS FlexGrid: Spiel-Elemente gefunden, starte Initialisierung...");
-                setTimeout(initLayout, 500); // Kurzer Sicherheitspuffer für Layout-Rendering
+                setTimeout(initLayout, 500);
             }
         }, 100);
     });
@@ -215,7 +225,7 @@
             $placeholder.addClass($outer.attr('class').replace('overview_outer', '').replace('bigMapWindow', ''));
             $outer.before($placeholder);
 
-            let headerHTML = win.isMap 
+            let headerHTML = win.isMap
                 ? `<div class="lss-map-header-full"><span>${win.title}</span><div class="lss-win-min-btn" title="Minimieren">_</div></div>`
                 : `<div class="lss-grip-handle" title="Verschieben"></div><div class="lss-win-min-btn" title="Minimieren">_</div>`;
 
@@ -242,13 +252,11 @@
             let finalPos = {};
             let usedHeaderHeight = win.isMap ? MAP_HEADER_HEIGHT : GRIP_HEIGHT;
 
-            // Prüfen, ob für DIESES Fenster gespeicherte Daten vorliegen
             if (savedLayout && savedLayout[win.id]) {
                 finalPos = savedLayout[win.id];
             } else {
-                // Keine Daten -> Nutze gemessene Startposition
                 finalPos = {
-                    top: task.originalPos.top - usedHeaderHeight, 
+                    top: task.originalPos.top - usedHeaderHeight,
                     left: task.originalPos.left,
                     width: task.originalPos.width,
                     height: task.originalPos.height + usedHeaderHeight
@@ -260,7 +268,7 @@
 
             if(finalPos.minimized) {
                 $shell.addClass('lss-minimized');
-                $shell.css('height', ''); 
+                $shell.css('height', '');
             } else {
                 $shell.css('height', finalPos.height);
             }
@@ -284,7 +292,7 @@
         $shell.draggable({
             handle: handleSelector,
             stack: '.lss-window-shell',
-            snap: '.lss-window-shell, .lss-snap-edge', 
+            snap: '.lss-window-shell, .lss-snap-edge',
             snapMode: 'outer',
             snapTolerance: SNAP_TOLERANCE,
             stop: function() { saveShell(storageId, $(this)); }
@@ -294,18 +302,17 @@
             handles: 'se',
             minHeight: 60,
             minWidth: 200,
-            stop: function(e, ui) { 
+            stop: function(e, ui) {
                 $(this).attr('data-expanded-height', ui.size.height);
-                saveShell(storageId, $(this)); 
+                saveShell(storageId, $(this));
             },
             resize: function(e, ui) {
                 if(isMap && typeof map !== "undefined" && map.invalidateSize) map.invalidateSize();
 
-                // CUSTOM SNAP
                 let $this = $(this);
                 let myRight = ui.position.left + ui.size.width;
                 let myBottom = ui.position.top + ui.size.height;
-                
+
                 $('.lss-window-shell').not($this).each(function() {
                     let $other = $(this);
                     let p = $other.offset();
@@ -327,7 +334,7 @@
                 let winH = $(window).height();
                 if (Math.abs(myRight - winW) < SNAP_TOLERANCE) ui.size.width = winW - ui.position.left;
                 if (Math.abs(myBottom - winH) < SNAP_TOLERANCE) ui.size.height = winH - ui.position.top;
-                
+
                 $this.css({ width: ui.size.width, height: ui.size.height });
             }
         });
@@ -355,9 +362,8 @@
 
     function saveShell(id, $shell) {
         let currentData = GM_getValue(STORAGE_KEY, {});
-        // Sicherheitscheck: Falls Rückgabewert kein Objekt ist
         if (typeof currentData !== 'object' || currentData === null) currentData = {};
-        
+
         let pos = $shell.offset();
         let isMin = $shell.hasClass('lss-minimized');
         let saveHeight = isMin ? ($shell.attr('data-expanded-height') || 400) : $shell.outerHeight();
@@ -373,7 +379,6 @@
     }
 
     function addResetToProfileMenu() {
-        // Wir nutzen setInterval um sicherzustellen, dass das Menü existiert
         let menuCheck = setInterval(function() {
             let $menu = $('#menu_profile').parent().find('.dropdown-menu');
             if ($menu.length > 0) {
