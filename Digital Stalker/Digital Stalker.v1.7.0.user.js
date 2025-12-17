@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS: Digital Stalker & Click-Killer (BM Edition)
 // @namespace    http://tampermonkey.net/
-// @version      1.6 (The Modern Harvester)
+// @version      1.7 (Profile Exclusive)
 // @description  Verwandle deine Karte in einen Überwachungsstaat. DSGVO? Egal. Dieses Tool tritt die digitale Tür ein, klaut FMS-Daten beim Hovern und serviert Wachen-Details ohne Ladezeit direkt auf die Netzhaut.
 // @author       BM-Dev (The Eye)
 // @match        https://www.leitstellenspiel.de/*
@@ -16,10 +16,23 @@
 (function() {
     'use strict';
 
-    // 1. CSS (Unverändert, weil perfekt)
+    // === SICHERHEITS-CHECK: NUR AUF PROFIL-SEITEN ===
+    // Wir prüfen, ob wir uns wirklich auf einer Profilseite befinden.
+    // Die Hauptseite nutzt #map_outer, Profilseiten nutzen #profile_map.
+    const profileMapElement = document.getElementById('profile_map');
+    if (!profileMapElement) {
+        // Wir sind auf der Hauptkarte oder woanders -> Script beenden.
+        return;
+    }
+    console.log("[BM Stalker] Profilseite erkannt. Systeme fahren hoch...");
+    // =================================================
+
+    // 1. CSS
     const css = `
+        /* Leaflet Popup töten */
         .leaflet-popup { display: none !important; opacity: 0 !important; }
 
+        /* Roter Knopf */
         #bm-target-btn {
             position: absolute; width: 40px; height: 40px;
             background: rgba(255, 0, 0, 0.15);
@@ -31,6 +44,7 @@
         }
         #bm-target-btn:hover { background: rgba(255, 0, 0, 0.3); transform: translate(-50%, -50%) scale(1.1); }
 
+        /* HUD Monitor */
         #bm-hud-tooltip {
             position: absolute;
             background: rgba(10, 10, 10, 0.95);
@@ -49,6 +63,7 @@
             backdrop-filter: blur(4px);
         }
 
+        /* HUD Elemente */
         .bm-hud-header {
             font-weight: 700; font-size: 13px; color: #ffcc00;
             border-bottom: 1px solid #555; margin-bottom: 6px; padding-bottom: 4px;
@@ -142,7 +157,7 @@
     document.body.appendChild(tooltip);
 
     const vehicleCache = {};
-    const buildings = []; // Unsere Datenbank
+    const buildings = [];
 
     // ---------------------------------------------------------
     // TEIL 1: Der Datendieb (UPDATED SCANNER)
@@ -151,13 +166,11 @@
     async function scan() {
         let foundCount = 0;
 
-        // METHODE 1: Der neue Cache (Map Object)
-        // Das Spiel speichert Marker jetzt oft in 'building_markers_params_cache_per_id'
+        // METHODE 1: Cache (Global)
         let cache = null;
         if (typeof unsafeWindow.building_markers_params_cache_per_id !== 'undefined') {
             cache = unsafeWindow.building_markers_params_cache_per_id;
         } else if (unsafeWindow.parent && typeof unsafeWindow.parent.building_markers_params_cache_per_id !== 'undefined') {
-            // Falls im Iframe, beim Papa gucken
             cache = unsafeWindow.parent.building_markers_params_cache_per_id;
         }
 
@@ -165,10 +178,7 @@
             cache.forEach((b) => {
                 if(!buildings.some(existing => existing.id == b.id)) {
                     buildings.push({
-                        id: b.id,
-                        lat: parseFloat(b.latitude),
-                        lng: parseFloat(b.longitude),
-                        name: b.name
+                        id: b.id, lat: parseFloat(b.latitude), lng: parseFloat(b.longitude), name: b.name
                     });
                     foundCount++;
                 }
@@ -176,8 +186,7 @@
             if(foundCount > 0) console.log(`[BM Stalker] Cache Scan: ${foundCount} neue Ziele gefunden.`);
         }
 
-        // METHODE 2: Der Fetch-Angriff (für Profil-Karten)
-        // Wenn wir auf einer Profilseite sind, gibt es 'user_id_to_view'
+        // METHODE 2: Fetch (Profilseite)
         if (typeof unsafeWindow.user_id_to_view !== 'undefined' && foundCount === 0) {
             console.log(`[BM Stalker] Profil erkannt (User ${unsafeWindow.user_id_to_view}). Starte manuellen Fetch...`);
             try {
@@ -188,10 +197,7 @@
                     data.buildings.forEach(b => {
                         if(!buildings.some(existing => existing.id == b.id)) {
                             buildings.push({
-                                id: b.id,
-                                lat: parseFloat(b.latitude),
-                                lng: parseFloat(b.longitude),
-                                name: b.name
+                                id: b.id, lat: parseFloat(b.latitude), lng: parseFloat(b.longitude), name: b.name
                             });
                             foundCount++;
                         }
@@ -203,7 +209,7 @@
             }
         }
 
-        // METHODE 3: Fallback (Regex für alte Seiten)
+        // METHODE 3: Fallback (Regex)
         if (foundCount === 0) {
             const html = document.body.innerHTML;
             const regex = /buildingMarkerAddSingle\(\{(.*?)\}\)/g;
@@ -228,18 +234,11 @@
             }
         }
 
-        if (buildings.length > 0) {
-            // console.log(`[BM Stalker] Datenbank Status: ${buildings.length} Einträge.`);
-        } else {
-            // Falls immer noch nichts, versuche es später nochmal (Asynchrones Laden des Spiels)
-            setTimeout(scan, 2000);
-        }
+        if (buildings.length === 0) setTimeout(scan, 2000);
     }
 
-    // Scan initial starten und nach 2s wiederholen (für langsame Ladevorgänge)
     scan();
     setTimeout(scan, 3000);
-
 
     function fetchVehiclesForTooltip(url, buildingId, buildingName) {
         updateTooltipContent(buildingName, '<span style="color:#888; font-style:italic;">Injiziere Spionage-Software...</span>');
