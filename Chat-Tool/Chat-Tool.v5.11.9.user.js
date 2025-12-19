@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LSS - Moderner Chat Pro & Status (v5.11.4 - Rounded Cookie)
 // @namespace    http://tampermonkey.net/
-// @version      5.11.8
+// @version      5.11.9
 // @description  Chat v4 Design + Smart Emoji Popup + Rounded Seamless Input + Cookie Slider.
 // @author       B&M (Gemischt von Gemini)
 // @match        https://*.leitstellenspiel.de/*
@@ -936,7 +936,7 @@
             box-shadow: none !important;
             border-left: 0 !important;
             border-right: 0 !important;
-            height: auto !important;
+            /* height: auto !important; */
             margin: 0 !important;
             box-sizing: border-box !important;
             z-index: 2; /* Liegt leicht über den Rändern der Nachbarn */
