@@ -32,6 +32,14 @@
     "categories": ["Optik"]
   },
   {
+    "name": "BETA - Erweiterungsverwaltung",
+    "version": "2.0.0",
+    "fileName": "BETA - Erweiterungsverwaltung.v2.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "BETA - Master-Ausbilder",
     "version": "10.1.0",
     "fileName": "BETA - Master-Ausbilder.v10.1.0.user.js",
