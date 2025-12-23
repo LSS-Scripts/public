@@ -1,1 +1,6 @@
-Der Verbands-Zuchtmeister Setzt eure Regeln technisch durch: Gnadenloser Event-Stop bei 300 offenen Einsätzen und erzwungene Nachtruhe (20-07 Uhr). Damit im Verband endlich Ordnung herrscht.
+Der "Event-Autokrat" – Edition Hamburg
+Für Leute, die Demokratie für einen ineffizienten Bug halten. Dieses Script übernimmt die volle Kontrolle:
+Die Zwangspause: Bei 300 Einsätzen oder Nachtruhe (20-07 Uhr) wird der Button gnadenlos gesperrt. Diskutieren zwecklos.
+Die Deportation: Ein Klick beamt dich sofort zum Hamburger Mittelpunkt. Events im Saarland? Nicht unter meiner Aufsicht.
+Das Diktat: Das Script wählt blitzschnell Event ID 4, stellt alles auf "Klein/Kreis/30s" und streicht eigenmächtig den Haken beim Betreuungsdienst.
+Fazit: Du drückst nur noch den Knopf. Das Denken übernimmt ab jetzt das Script.
