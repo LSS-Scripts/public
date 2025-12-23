@@ -15,7 +15,7 @@
     const LIMIT = 300;
     const START_HOUR = 7; // Ab 07:00 Uhr erlaubt
     const END_HOUR =20;  // Bis 20:00 Uhr erlaubt (also ab 20:00:00 gesperrt)
-    const UPDATE_INTERVAL = 15000;
+    const UPDATE_INTERVAL = 60000;
     // ---------------------
 
     function safeEval(str) {
