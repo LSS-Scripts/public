@@ -128,6 +128,14 @@
     "categories": ["Optik"]
   },
   {
+    "name": "Event-Helper",
+    "version": "7.0.0",
+    "fileName": "Event-Helper.v7.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
