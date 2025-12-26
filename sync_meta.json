@@ -1,4 +1,4 @@
 {
-  "sync_enabled": false,
-  "info_msg": "B&M deaktiviert. Bereinigung erfolgt JETZT."
+  "sync_enabled": true,
+  "info_msg": "all systems: go"
 }
