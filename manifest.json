@@ -136,6 +136,14 @@
     "categories": ["Verbands-Tools"]
   },
   {
+    "name": "FR PRO",
+    "version": "7.0.0",
+    "fileName": "FR_PRO.v7.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
+  },
+  {
     "name": "Fahrzeug-Benennungs-Generator",
     "version": "13.3.0",
     "fileName": "Fahrzeug-Benennungs-Generator.v13.3.0.user.js",
