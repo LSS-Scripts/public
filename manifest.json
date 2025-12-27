@@ -414,5 +414,13 @@
     "description": "Das Original-Script von Jan...",
     "changelog": "",
     "categories": ["Sonstiges"]
+  },
+  {
+    "name": "erweiterte Tageszusammenfassung",
+    "version": "8.0.0",
+    "fileName": "erweiterte Tageszusammenfassung.v8.0.0.user.js",
+    "description": "",
+    "changelog": "",
+    "categories": ["Sonstiges"]
   }
 ]
