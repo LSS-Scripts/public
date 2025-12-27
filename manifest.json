@@ -417,8 +417,8 @@
   },
   {
     "name": "erweiterte Tageszusammenfassung",
-    "version": "8.0.0",
-    "fileName": "erweiterte Tageszusammenfassung.v8.0.0.user.js",
+    "version": "14.2.0",
+    "fileName": "erweiterte Tageszusammenfassung.v14.2.0.user.js",
     "description": "Dieses Script ist das ultimative Werkzeug zur Selbstgeißelung: Es seziert deine Tagesbilanz gnadenlos in „Ehrliche Arbeit“ und „Sinnlose Ausgaben“ (Gebäude & Fahrzeuge). Ein hübsches 9-Tage-Diagramm visualisiert dabei, wie du deine hart verdienten Credits schneller verbrennst, als du „Alarmieren“ klicken kannst. Ideal für den täglichen Realitätscheck, um festzustellen, dass dein Netto-Gewinn mal wieder komplett in Betonwüsten und Blaulicht-Spielzeug geflossen ist. Dinge, die du nicht wissen wolltest, aber jetzt nicht mehr ignorieren kannst. Gern geschehen.",
     "changelog": "",
     "categories": ["Statistik"]
